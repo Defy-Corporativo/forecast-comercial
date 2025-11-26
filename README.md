@@ -21,7 +21,7 @@ Antes de rodar a aplicação, você precisa configurar o Supabase:
    - `Project URL` (sua URL do Supabase)
    - `anon/public key` (chave pública)
 
-4. Vá em **SQL Editor** e execute o script `schema.sql` que está na raiz do projeto para criar as tabelas e políticas
+4. Vá em **SQL Editor** e execute o script `schema.sql` que está na raiz do projeto para criar as tabelas e políticas.
 
 ### 2. Configurar Variáveis de Ambiente
 
