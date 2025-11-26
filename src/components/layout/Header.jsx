@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { settingsService } from '../../services/settingsService';
 import { userService } from '../../services/userService';
 import { supabase } from '../../services/supabaseClient';
 import { LogOut, Menu, Edit3, Lock } from 'lucide-react';
@@ -9,8 +8,6 @@ import styles from './Layout.module.css';
 
 const Header = ({ onMenuToggle }) => {
     const { user, signOut, profile } = useAuth();
-    const [companyName, setCompanyName] = useState('');
-    const [companyLogo, setCompanyLogo] = useState('');
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [showEditProfile, setShowEditProfile] = useState(false);
@@ -39,12 +36,6 @@ const Header = ({ onMenuToggle }) => {
     }, []);
 
     useEffect(() => {
-        if (user) {
-            loadCompany();
-        }
-    }, [user]);
-
-    useEffect(() => {
         const handleClickOutside = (event) => {
             if (menuRef.current && !menuRef.current.contains(event.target)) {
                 setShowUserMenu(false);
@@ -59,18 +50,6 @@ const Header = ({ onMenuToggle }) => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [showUserMenu]);
-
-    const loadCompany = async () => {
-        try {
-            const data = await settingsService.getCompany(user.id);
-            if (data) {
-                setCompanyName(data.name || '');
-                setCompanyLogo(data.logo_url || '');
-            }
-        } catch (error) {
-            console.error('Erro ao carregar empresa:', error);
-        }
-    };
 
     const handleLogout = async () => {
         try {
@@ -167,16 +146,7 @@ const Header = ({ onMenuToggle }) => {
                             <Menu size={24} />
                         </button>
                     )}
-                    {companyLogo ? (
-                        <div className={styles.logoContainer}>
-                            <img src={companyLogo} alt={companyName || 'Logo'} className={styles.companyLogo} />
-                            {companyName && (
-                                <span className={styles.companyName}>{companyName}</span>
-                            )}
-                        </div>
-                    ) : (
-                        <h2 className={styles.pageTitle}>Forecast Comercial</h2>
-                    )}
+                    <h2 className={styles.pageTitle}>Forecast Comercial</h2>
                 </div>
                 <div className={styles.userInfo} ref={menuRef}>
                     <span className={styles.userName}>{getUserName()}</span>

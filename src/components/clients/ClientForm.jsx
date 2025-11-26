@@ -239,10 +239,8 @@ const ClientForm = ({ client = null, onClose, onSave }) => {
                                 </button>
                             </div>
 
-                            {/* Container com scroll para representantes */}
+                            {/* Container para representantes */}
                             <div style={{
-                                maxHeight: '400px',
-                                overflowY: 'auto',
                                 paddingRight: '4px'
                             }}>
                                 {contacts.map((contact, index) => (

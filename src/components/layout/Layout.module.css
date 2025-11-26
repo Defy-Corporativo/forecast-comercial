@@ -27,33 +27,102 @@
 }
 
 .sidebarHeader {
-    height: 72px;
+    min-height: 72px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--border-color-light);
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
+    background: var(--bg-sidebar);
+    gap: 12px;
 }
 
 .sidebar.collapsed .sidebarHeader {
-    padding: 0 15px;
+    padding: 16px;
     justify-content: center;
+}
+
+/* Brand Area */
+.brandArea {
+    flex: 1;
+    min-width: 0;
+}
+
+.companyBrand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 0;
+}
+
+.sidebarLogo {
+    max-height: 52px;
+    max-width: 160px;
+    object-fit: contain;
+}
+
+.sidebarCompanyName {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.appBrand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.appIcon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.appBrandText {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.appName {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.appTagline {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
 
 .logo {
     font-weight: 700;
     font-size: 18px;
-    color: white;
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     letter-spacing: -0.01em;
 }
 
 .toggleBtn {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-hover);
     border: none;
-    color: white;
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 8px;
     display: flex;
@@ -64,8 +133,29 @@
 }
 
 .toggleBtn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--color-primary-light);
+    color: var(--color-primary);
     transform: scale(1.05);
+}
+
+.toggleBtnLight {
+    background: transparent;
+    border: 1px solid var(--border-color-light);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all var(--transition-base);
+    flex-shrink: 0;
+}
+
+.toggleBtnLight:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+    border-color: var(--border-color);
 }
 
 .sidebar.collapsed .toggleBtn {

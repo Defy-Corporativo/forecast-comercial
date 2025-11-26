@@ -1,11 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Settings, LogOut, Menu, ChevronLeft, Building2 } from 'lucide-react';
+import { LayoutDashboard, Briefcase, Settings, LogOut, Menu, ChevronLeft, Building2, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { settingsService } from '../../services/settingsService';
 import styles from './Layout.module.css';
 
 const Sidebar = ({ isCollapsed, onToggle }) => {
-    const { signOut } = useAuth();
+    const { signOut, user } = useAuth();
+    const [companyName, setCompanyName] = useState('');
+    const [companyLogo, setCompanyLogo] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            loadCompany();
+        }
+    }, [user]);
+
+    const loadCompany = async () => {
+        try {
+            const data = await settingsService.getCompany(user.id);
+            if (data) {
+                setCompanyName(data.name || '');
+                setCompanyLogo(data.logo_url || '');
+            }
+        } catch (error) {
+            console.error('Erro ao carregar empresa:', error);
+        }
+    };
 
     const handleLogout = async () => {
         try {
@@ -20,8 +41,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             {!isCollapsed && <div className={styles.sidebarOverlay} onClick={onToggle} />}
             <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
                 <div className={styles.sidebarHeader}>
-                    <div className={styles.logo}>{!isCollapsed && 'Forecast Comercial'}</div>
-                    {isCollapsed && (
+                    {isCollapsed ? (
                         <button
                             className={styles.toggleBtn}
                             onClick={onToggle}
@@ -29,21 +49,40 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         >
                             <Menu size={20} />
                         </button>
-                    )}
-                    {!isCollapsed && (
-                        <button
-                            className={styles.toggleBtn}
-                            onClick={onToggle}
-                            title="Recolher menu"
-                            style={{
-                                opacity: 0.7,
-                                transition: 'opacity 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-                        >
-                            <ChevronLeft size={20} />
-                        </button>
+                    ) : (
+                        <>
+                            <div className={styles.brandArea}>
+                                {companyLogo ? (
+                                    <div className={styles.companyBrand}>
+                                        <img 
+                                            src={companyLogo} 
+                                            alt={companyName || 'Logo'} 
+                                            className={styles.sidebarLogo} 
+                                        />
+                                        {companyName && (
+                                            <span className={styles.sidebarCompanyName}>{companyName}</span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className={styles.appBrand}>
+                                        <div className={styles.appIcon}>
+                                            <TrendingUp size={22} />
+                                        </div>
+                                        <div className={styles.appBrandText}>
+                                            <span className={styles.appName}>Forecast</span>
+                                            <span className={styles.appTagline}>Comercial</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                className={styles.toggleBtnLight}
+                                onClick={onToggle}
+                                title="Recolher menu"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                        </>
                     )}
                 </div>
                 <nav className={styles.nav}>

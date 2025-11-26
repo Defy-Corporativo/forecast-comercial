@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { opportunityService } from '../../services/opportunityService';
 import { logDebug } from '../../utils/logger';
 import MetricsCard from './MetricsCard';
-import { FunnelChart, StageDistributionChart } from './Charts';
+import { FunnelChart, StageDistributionChart, ForecastProjectionChart } from './Charts';
 import styles from './Dashboard.module.css';
 
 const Dashboard = () => {
@@ -12,6 +12,7 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [hasData, setHasData] = useState(false);
+    const [opportunities, setOpportunities] = useState([]);
     const [metrics, setMetrics] = useState({
         totalOpportunities: 0,
         totalValue: 0,
@@ -33,10 +34,11 @@ const Dashboard = () => {
     const loadDashboardData = async () => {
         try {
             setError('');
-            const opportunities = await opportunityService.getOpportunities(user.id);
-            logDebug('Dashboard: opportunities loaded', { count: opportunities.length });
-            setHasData(opportunities.length > 0);
-            calculateMetrics(opportunities);
+            const data = await opportunityService.getOpportunities(user.id);
+            logDebug('Dashboard: opportunities loaded', { count: data.length });
+            setOpportunities(data);
+            setHasData(data.length > 0);
+            calculateMetrics(data);
         } catch (error) {
             logDebug('Dashboard: error loading data', { error: error.message });
             setError('Erro ao carregar dados do painel. Verifique sua conexão e permissões.');
@@ -195,6 +197,9 @@ const Dashboard = () => {
                     color="#059669"
                 />
             </div>
+
+            {/* Gráfico de Projeção de Forecast */}
+            <ForecastProjectionChart opportunities={opportunities} />
 
             <div className={styles.chartsGrid}>
                 <FunnelChart data={funnelData} />

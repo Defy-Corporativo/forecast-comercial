@@ -300,7 +300,7 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    padding: 1rem;
+    padding: 1.5rem;
     overflow-y: auto;
 }
 
@@ -309,20 +309,22 @@
     border-radius: 12px;
     width: 100%;
     max-width: 800px;
-    max-height: calc(100vh - 2rem);
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     margin: auto;
+    overflow: hidden;
 }
 
 .modalHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
+    padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
+    background: white;
 }
 
 .modalHeader h3 {
@@ -350,13 +352,34 @@
     padding: 1.5rem;
     overflow-y: auto;
     flex: 1;
+    min-height: 0;
 }
 
 .modalFooter {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
-    padding: 1.5rem;
+    padding: 1.25rem 1.5rem;
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
+    background: white;
+}
+
+/* Scrollbar styling for modal body */
+.modalBody::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modalBody::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+}
+
+.modalBody::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.modalBody::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
 }
