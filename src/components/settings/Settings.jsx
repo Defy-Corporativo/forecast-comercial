@@ -1,0 +1,62 @@
+import React, { useState } from 'react';
+import CompanySettings from './CompanySettings';
+import CustomFields from './CustomFields';
+import StageSettings from './StageSettings';
+import ViewSettings from './ViewSettings';
+import styles from './Settings.module.css';
+import ExportData from './ExportData';
+
+const Settings = () => {
+    const [activeTab, setActiveTab] = useState('company');
+
+    return (
+        <div className="container">
+            <div className="page-header">
+                <h1 className="page-title">Configurações</h1>
+            </div>
+
+            <div className={styles.tabs}>
+                <button
+                    className={`${styles.tab} ${activeTab === 'company' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('company')}
+                >
+                    Empresa
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'fields' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('fields')}
+                >
+                    Campos Personalizados
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'stages' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('stages')}
+                >
+                    Estágios
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'view' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('view')}
+                >
+                    Visualização
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'export' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('export')}
+                >
+                    Exportar
+                </button>
+            </div>
+
+            <div className={styles.tabContent}>
+                {activeTab === 'company' && <CompanySettings />}
+                {activeTab === 'fields' && <CustomFields />}
+                {activeTab === 'stages' && <StageSettings />}
+                {activeTab === 'view' && <ViewSettings />}
+                {activeTab === 'export' && <ExportData />}
+            </div>
+        </div>
+    );
+};
+
+export default Settings;
