@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, List, Kanban, Grid3x3 } from 'lucide-react';
+import { Plus, List, Grid3x3, LayoutDashboard } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { opportunityService } from '../../services/opportunityService';
 import OpportunityList from './OpportunityList';
-import OpportunityKanban from './OpportunityKanban';
 import OpportunityCards from './OpportunityCards';
 import OpportunityForm from './OpportunityForm';
 import OpportunityView from './OpportunityView';
@@ -15,7 +15,7 @@ const Opportunities = () => {
     const [opportunities, setOpportunities] = useState([]);
     const [filteredOpportunities, setFilteredOpportunities] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('list'); // 'list', 'kanban', or 'cards'
+    const [viewMode, setViewMode] = useState('list'); // 'list' or 'cards'
     const [showModal, setShowModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [editingOpportunity, setEditingOpportunity] = useState(null);
@@ -62,20 +62,6 @@ const Opportunities = () => {
             } catch (error) {
                 console.error('Erro ao excluir oportunidade:', error);
             }
-        }
-    };
-
-    const handleStageChange = async (id, newStage) => {
-        // Optimistic update
-        setOpportunities(prev => prev.map(opp =>
-            opp.id === id ? { ...opp, stage: newStage } : opp
-        ));
-
-        try {
-            await opportunityService.updateStage(id, newStage);
-        } catch (error) {
-            console.error('Error updating stage:', error);
-            loadOpportunities(); // Revert on error
         }
     };
 
@@ -128,7 +114,7 @@ const Opportunities = () => {
                     }}>
                         <div className="page-header" style={{ marginBottom: 0 }}>
                             <h1 className="page-title">Oportunidades</h1>
-                            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                                 <div className={styles.viewSwitcher}>
                                     <button
                                         className={`${styles.viewBtn} ${viewMode === 'list' ? styles.active : ''}`}
@@ -138,13 +124,6 @@ const Opportunities = () => {
                                         <List size={16} /> Lista
                                     </button>
                                     <button
-                                        className={`${styles.viewBtn} ${viewMode === 'kanban' ? styles.active : ''}`}
-                                        onClick={() => setViewMode('kanban')}
-                                        title="Visualização em Kanban"
-                                    >
-                                        <Kanban size={16} /> Kanban
-                                    </button>
-                                    <button
                                         className={`${styles.viewBtn} ${viewMode === 'cards' ? styles.active : ''}`}
                                         onClick={() => setViewMode('cards')}
                                         title="Visualização em Cartões"
@@ -152,6 +131,10 @@ const Opportunities = () => {
                                         <Grid3x3 size={16} /> Cartões
                                     </button>
                                 </div>
+                                <Link to="/" className="btn btn-secondary" title="Ir para o Painel">
+                                    <LayoutDashboard size={16} />
+                                    Painel
+                                </Link>
                                 <button className="btn btn-primary" onClick={handleCreate}>
                                     <Plus size={16} />
                                     Nova Oportunidade
@@ -176,13 +159,6 @@ const Opportunities = () => {
                             onView={handleView}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
-                        />
-                    ) : viewMode === 'kanban' ? (
-                        <OpportunityKanban
-                            opportunities={filteredOpportunities}
-                            onView={handleView}
-                            onEdit={handleEdit}
-                            onStageChange={handleStageChange}
                         />
                     ) : (
                         <OpportunityCards

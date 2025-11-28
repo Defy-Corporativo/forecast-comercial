@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Briefcase, TrendingUp, Activity, Plus } from 'lucide-react';
+import { DollarSign, Briefcase, Activity, Plus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
@@ -194,12 +194,6 @@ const Dashboard = () => {
                     value={metrics.totalOpportunities}
                     icon={Briefcase}
                     color="#64748B"
-                />
-                <MetricsCard
-                    title="Ticket Médio"
-                    value={formatCurrency(metrics.avgTicket)}
-                    icon={TrendingUp}
-                    color="#10B981"
                 />
                 <MetricsCard
                     title="Taxa de Conversão"

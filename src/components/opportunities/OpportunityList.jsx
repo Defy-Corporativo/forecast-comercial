@@ -6,11 +6,9 @@ import styles from './Opportunities.module.css';
 
 const OpportunityList = ({ opportunities, onView, onEdit, onDelete }) => {
     const { stages } = useStageContext();
-    const [visibleColumns, setVisibleColumns] = useState([
-        'opportunity_number', 'client_name', 'estimated_value',
-        'stage', 'forecast_date', 'responsible'
-    ]);
+    const [visibleColumns, setVisibleColumns] = useState([]);
     const [customFields, setCustomFields] = useState([]);
+    const [loadingPrefs, setLoadingPrefs] = useState(true);
 
     useEffect(() => {
         loadPreferences();
@@ -18,7 +16,9 @@ const OpportunityList = ({ opportunities, onView, onEdit, onDelete }) => {
 
     const loadPreferences = async () => {
         try {
-            // Load custom fields
+            setLoadingPrefs(true);
+            
+            // Load custom fields first
             const fields = await settingsService.getCustomFields();
             setCustomFields(fields);
 
@@ -26,9 +26,22 @@ const OpportunityList = ({ opportunities, onView, onEdit, onDelete }) => {
             const prefs = await settingsService.getUserPreferences();
             if (prefs?.visible_columns && prefs.visible_columns.length > 0) {
                 setVisibleColumns(prefs.visible_columns);
+            } else {
+                // Default columns if no preferences saved
+                setVisibleColumns([
+                    'opportunity_number', 'title', 'client_name', 'estimated_value',
+                    'stage', 'forecast_date', 'responsible'
+                ]);
             }
         } catch (error) {
             console.error('Error loading preferences:', error);
+            // Fallback to default columns on error
+            setVisibleColumns([
+                'opportunity_number', 'title', 'client_name', 'estimated_value',
+                'stage', 'forecast_date', 'responsible'
+            ]);
+        } finally {
+            setLoadingPrefs(false);
         }
     };
 
@@ -94,6 +107,15 @@ const OpportunityList = ({ opportunities, onView, onEdit, onDelete }) => {
 
     // Filter visible columns to only include those that exist in definitions
     const activeColumns = visibleColumns.filter(col => fieldDefinitions[col]);
+
+    // Show loading state while preferences are being loaded
+    if (loadingPrefs) {
+        return (
+            <div className={styles.tableContainer} style={{ padding: '40px', textAlign: 'center' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Carregando...</span>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.tableContainer}>

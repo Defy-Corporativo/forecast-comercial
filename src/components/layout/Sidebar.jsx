@@ -40,6 +40,15 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                 </div>
                 <nav className={styles.nav}>
                     <NavLink
+                        to="/opportunities"
+                        className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+                        title="Oportunidades"
+                        onClick={() => window.innerWidth < 768 && onToggle()}
+                    >
+                        <Briefcase size={20} />
+                        {!isCollapsed && <span>Oportunidades</span>}
+                    </NavLink>
+                    <NavLink
                         to="/"
                         className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
                         end
@@ -48,15 +57,6 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                     >
                         <LayoutDashboard size={20} />
                         {!isCollapsed && <span>Painel</span>}
-                    </NavLink>
-                    <NavLink
-                        to="/opportunities"
-                        className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
-                        title="Oportunidades"
-                        onClick={() => window.innerWidth < 768 && onToggle()}
-                    >
-                        <Briefcase size={20} />
-                        {!isCollapsed && <span>Oportunidades</span>}
                     </NavLink>
                     <NavLink
                         to="/clients"
@@ -76,7 +76,6 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         <Settings size={20} />
                         {!isCollapsed && <span>Configurações</span>}
                     </NavLink>
-
                 </nav>
             </aside>
         </>

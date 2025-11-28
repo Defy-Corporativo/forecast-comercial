@@ -8,7 +8,9 @@ END;
 $$;
 
 -- Drop tables in dependency order
+DO $$ BEGIN IF to_regclass('public.opportunity_notes') IS NOT NULL THEN DROP TABLE public.opportunity_notes CASCADE; END IF; END; $$;
 DO $$ BEGIN IF to_regclass('public.opportunity_history') IS NOT NULL THEN DROP TABLE public.opportunity_history CASCADE; END IF; END; $$;
+DO $$ BEGIN IF to_regclass('public.custom_charts') IS NOT NULL THEN DROP TABLE public.custom_charts CASCADE; END IF; END; $$;
 DO $$ BEGIN IF to_regclass('public.opportunities') IS NOT NULL THEN DROP TABLE public.opportunities CASCADE; END IF; END; $$;
 DO $$ BEGIN IF to_regclass('public.custom_fields') IS NOT NULL THEN DROP TABLE public.custom_fields CASCADE; END IF; END; $$;
 DO $$ BEGIN IF to_regclass('public.client_contacts') IS NOT NULL THEN DROP TABLE public.client_contacts CASCADE; END IF; END; $$;
@@ -122,7 +124,7 @@ CREATE TABLE opportunity_history (
 -- User preferences (opcionais, sem FK obrigatória)
 CREATE TABLE user_preferences (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  default_view text DEFAULT 'list' CHECK (default_view IN ('list', 'kanban')),
+  default_view text DEFAULT 'list' CHECK (default_view IN ('list', 'cards')),
   visible_columns jsonb,
   saved_filters jsonb,
   items_per_page integer DEFAULT 20,
@@ -148,3 +150,17 @@ CREATE TABLE custom_charts (
   created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Notas de oportunidades
+CREATE TABLE opportunity_notes (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  opportunity_id uuid REFERENCES opportunities(id) ON DELETE CASCADE NOT NULL,
+  content text NOT NULL,
+  created_by text,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Índices para notas
+CREATE INDEX idx_opportunity_notes_opportunity_id ON opportunity_notes(opportunity_id);
+CREATE INDEX idx_opportunity_notes_created_at ON opportunity_notes(created_at);

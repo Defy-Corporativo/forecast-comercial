@@ -7,7 +7,7 @@ const MetricsCard = ({ title, value, icon: Icon, color }) => {
             <div className={styles.metricHeader}>
                 <div className={styles.metricTitle}>{title}</div>
                 <div className={styles.metricIcon} style={{ backgroundColor: color }}>
-                    <Icon size={20} color="white" />
+                    <Icon size={16} color="white" />
                 </div>
             </div>
             <div className={styles.metricValue}>{value}</div>
