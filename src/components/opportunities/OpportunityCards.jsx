@@ -51,7 +51,8 @@ const OpportunityCards = ({ opportunities, onView, onEdit, onDelete }) => {
                         </span>
                     </div>
 
-                    <div className={styles.cardTitle}>{opp.client?.name || opp.client_name}</div>
+                    <div className={styles.cardTitle}>{opp.title || opp.client?.name || opp.client_name}</div>
+                    <div className={styles.cardClient}>{opp.client?.name || opp.client_name}</div>
 
                     <div className={styles.cardValue}>
                         <DollarSign size={16} />

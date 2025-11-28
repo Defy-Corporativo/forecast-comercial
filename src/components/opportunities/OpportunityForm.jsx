@@ -22,6 +22,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
 
     // Form State
     const [formData, setFormData] = useState({
+        title: '',
         client_id: '',
         client_name: '',
         estimated_value: '',
@@ -38,6 +39,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         loadClients();
         if (opportunity) {
             setFormData({
+                title: opportunity.title || '',
                 client_id: opportunity.client_id || '',
                 client_name: opportunity.client_name || '',
                 estimated_value: opportunity.estimated_value,
@@ -175,6 +177,19 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 <form onSubmit={handleSubmit} className={styles.modalForm}>
                     <div className={styles.modalBody}>
                         {/* Fixed Fields */}
+                        <div className="input-group" style={{ marginBottom: '1rem' }}>
+                            <label className="label">Título da Oportunidade *</label>
+                            <input
+                                name="title"
+                                type="text"
+                                className="input"
+                                placeholder="Ex: Projeto de Consultoria, Contrato de Manutenção..."
+                                value={formData.title}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
                         <div className={styles.formGrid}>
                             <div className="input-group">
                                 <label className="label">Cliente / Empresa *</label>

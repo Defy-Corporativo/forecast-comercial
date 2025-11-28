@@ -55,6 +55,7 @@ const OpportunityList = ({ opportunities, onView, onEdit, onDelete }) => {
     // Field definitions
     const fieldDefinitions = {
         opportunity_number: { label: 'Número', render: (opp) => opp.opportunity_number },
+        title: { label: 'Título', render: (opp) => opp.title || '-' },
         client_name: {
             label: 'Cliente',
             render: (opp) => opp.client?.name || opp.client_name || '-'

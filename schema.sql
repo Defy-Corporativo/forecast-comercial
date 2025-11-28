@@ -94,6 +94,7 @@ CREATE TABLE stage_definitions (
 CREATE TABLE opportunities (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   opportunity_number text NOT NULL UNIQUE,
+  title text NOT NULL,
   client_id uuid REFERENCES clients(id) ON DELETE SET NULL,
   client_name text NOT NULL,
   estimated_value decimal(12, 2) NOT NULL,

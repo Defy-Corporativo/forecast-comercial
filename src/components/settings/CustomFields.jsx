@@ -1,8 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAuth } from '../../contexts/AuthContext';
 import { settingsService } from '../../services/settingsService';
 import styles from './Settings.module.css';
+
+// Fix para React 18 StrictMode com @hello-pangea/dnd
+const StrictModeDroppable = ({ children, ...props }) => {
+    const [enabled, setEnabled] = useState(false);
+
+    useEffect(() => {
+        const animation = requestAnimationFrame(() => setEnabled(true));
+        return () => {
+            cancelAnimationFrame(animation);
+            setEnabled(false);
+        };
+    }, []);
+
+    if (!enabled) {
+        return null;
+    }
+
+    return <Droppable {...props}>{children}</Droppable>;
+};
 
 const CustomFields = () => {
     const { user } = useAuth();
@@ -90,6 +110,30 @@ const CustomFields = () => {
         }
     };
 
+    const handleDragEnd = async (result) => {
+        if (!result.destination) return;
+
+        const items = Array.from(fields);
+        const [reorderedItem] = items.splice(result.source.index, 1);
+        items.splice(result.destination.index, 0, reorderedItem);
+
+        // Update local state immediately for better UX
+        setFields(items);
+
+        // Update order_index for all items
+        try {
+            await Promise.all(
+                items.map((field, index) =>
+                    settingsService.updateCustomField(field.id, { order_index: index })
+                )
+            );
+        } catch (error) {
+            console.error('Erro ao reordenar campos:', error);
+            // Reload fields to revert to server state
+            loadFields();
+        }
+    };
+
     if (loading) return <div>Carregando...</div>;
 
     return (
@@ -106,37 +150,69 @@ const CustomFields = () => {
                 {fields.length === 0 ? (
                     <p className={styles.emptyState}>Nenhum campo personalizado definido ainda.</p>
                 ) : (
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Tipo</th>
-                                <th>Obrigatório</th>
-                                <th>Opções</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {fields.map(field => (
-                                <tr key={field.id}>
-                                    <td>{field.field_name}</td>
-                                    <td><span className={styles.badge}>{field.field_type}</span></td>
-                                    <td>{field.is_required ? 'Sim' : 'Não'}</td>
-                                    <td>{field.field_type === 'select' ? field.select_options?.join(', ') : '-'}</td>
-                                    <td>
-                                        <div className={styles.actions}>
-                                            <button className={styles.actionBtn} onClick={() => handleOpenModal(field)}>
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => handleDelete(field.id)}>
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
+                    <DragDropContext onDragEnd={handleDragEnd}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '40px' }}></th>
+                                    <th>Nome</th>
+                                    <th>Tipo</th>
+                                    <th>Obrigatório</th>
+                                    <th>Opções</th>
+                                    <th>Ações</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <StrictModeDroppable droppableId="custom-fields">
+                                {(provided) => (
+                                    <tbody ref={provided.innerRef} {...provided.droppableProps}>
+                                        {fields.map((field, index) => (
+                                            <Draggable key={field.id} draggableId={field.id} index={index}>
+                                                {(provided, snapshot) => (
+                                                    <tr
+                                                        ref={provided.innerRef}
+                                                        {...provided.draggableProps}
+                                                        style={{
+                                                            ...provided.draggableProps.style,
+                                                            background: snapshot.isDragging ? 'var(--bg-hover)' : 'white'
+                                                        }}
+                                                    >
+                                                        <td>
+                                                            <span
+                                                                {...provided.dragHandleProps}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    color: 'var(--text-secondary)',
+                                                                    cursor: 'grab'
+                                                                }}
+                                                            >
+                                                                <GripVertical size={16} />
+                                                            </span>
+                                                        </td>
+                                                        <td>{field.field_name}</td>
+                                                        <td><span className={styles.badge}>{field.field_type}</span></td>
+                                                        <td>{field.is_required ? 'Sim' : 'Não'}</td>
+                                                        <td>{field.field_type === 'select' ? field.select_options?.join(', ') : '-'}</td>
+                                                        <td>
+                                                            <div className={styles.actions}>
+                                                                <button className={styles.actionBtn} onClick={() => handleOpenModal(field)}>
+                                                                    <Edit2 size={16} />
+                                                                </button>
+                                                                <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => handleDelete(field.id)}>
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </Draggable>
+                                        ))}
+                                        {provided.placeholder}
+                                    </tbody>
+                                )}
+                            </StrictModeDroppable>
+                        </table>
+                    </DragDropContext>
                 )}
             </div>
 

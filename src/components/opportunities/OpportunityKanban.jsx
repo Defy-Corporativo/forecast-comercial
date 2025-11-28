@@ -1,7 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useStageContext } from '../../contexts/StageContext';
 import styles from './Opportunities.module.css';
+
+// Fix para React 18 StrictMode com @hello-pangea/dnd
+const StrictModeDroppable = ({ children, ...props }) => {
+    const [enabled, setEnabled] = useState(false);
+
+    useEffect(() => {
+        const animation = requestAnimationFrame(() => setEnabled(true));
+        return () => {
+            cancelAnimationFrame(animation);
+            setEnabled(false);
+        };
+    }, []);
+
+    if (!enabled) {
+        return null;
+    }
+
+    return <Droppable {...props}>{children}</Droppable>;
+};
 
 const OpportunityKanban = ({ opportunities, onView, onEdit, onStageChange }) => {
     const { stages } = useStageContext();
@@ -52,7 +71,7 @@ const OpportunityKanban = ({ opportunities, onView, onEdit, onStageChange }) => 
                             <span>{stage.name}</span>
                             <span className={styles.columnCount}>{columns[stage.name].length}</span>
                         </div>
-                        <Droppable droppableId={stage.name}>
+                        <StrictModeDroppable droppableId={stage.name}>
                             {(provided) => (
                                 <div
                                     className={styles.columnContent}
@@ -73,7 +92,8 @@ const OpportunityKanban = ({ opportunities, onView, onEdit, onStageChange }) => 
                                                         <span>{opp.opportunity_number}</span>
                                                         <span>{formatDate(opp.forecast_date)}</span>
                                                     </div>
-                                                    <div className={styles.cardTitle}>{opp.client?.name || opp.client_name}</div>
+                                                    <div className={styles.cardTitle}>{opp.title || opp.client?.name || opp.client_name}</div>
+                                                    <div className={styles.cardClient}>{opp.client?.name || opp.client_name}</div>
                                                     <div className={styles.cardValue}>{formatCurrency(opp.estimated_value)}</div>
                                                     <div className={styles.cardFooter}>
                                                         <span>{opp.responsible || 'Sem responsável'}</span>
@@ -85,7 +105,7 @@ const OpportunityKanban = ({ opportunities, onView, onEdit, onStageChange }) => 
                                     {provided.placeholder}
                                 </div>
                             )}
-                        </Droppable>
+                        </StrictModeDroppable>
                     </div>
                 ))}
             </div>

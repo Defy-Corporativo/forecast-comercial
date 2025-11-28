@@ -330,6 +330,12 @@
     color: var(--text-primary);
 }
 
+.cardClient {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
 .cardValue {
     font-weight: 600;
     color: var(--color-success);
@@ -503,6 +509,12 @@
     font-weight: 600;
     color: var(--text-primary);
     margin: 4px 0;
+}
+
+.opportunityCard .cardClient {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
 }
 
 .cardValue {

@@ -53,6 +53,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                 </div>
 
                 <div className={styles.modalBody}>
+                    <div className="input-group" style={{ marginBottom: '1rem' }}>
+                        <label className="label">Título da Oportunidade</label>
+                        <div className={styles.viewField} style={{ fontSize: '1.1rem', fontWeight: 500 }}>
+                            {opportunity.title || '-'}
+                        </div>
+                    </div>
+
                     <div className={styles.formGrid}>
                         <div className="input-group">
                             <label className="label">Número da Oportunidade</label>
