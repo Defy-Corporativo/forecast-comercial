@@ -6,7 +6,7 @@ import { opportunityService } from '../../services/opportunityService';
 import { settingsService } from '../../services/settingsService';
 import { logDebug } from '../../utils/logger';
 import MetricsCard from './MetricsCard';
-import { StageDistributionChart, ForecastProjectionChart, CustomChartModal, CustomChart } from './Charts';
+import { ForecastProjectionChart, CustomChartModal, CustomChart } from './Charts';
 import styles from './Dashboard.module.css';
 
 const CUSTOM_CHARTS_STORAGE_KEY = 'forecast_custom_charts';
@@ -27,8 +27,6 @@ const Dashboard = () => {
         dealValue: 0,
         invoicedValue: 0
     });
-    const [distributionData, setDistributionData] = useState([]);
-    
     // Estado para gráficos customizados
     const [customCharts, setCustomCharts] = useState(() => {
         const saved = localStorage.getItem(CUSTOM_CHARTS_STORAGE_KEY);
@@ -94,16 +92,6 @@ const Dashboard = () => {
             dealValue,
             invoicedValue
         });
-
-        // Prepare chart data usando estágios cadastrados
-        const stageNames = stages.map(s => s.name);
-
-        const distribution = stageNames.map(stage => ({
-            name: stage,
-            count: opportunities.filter(opp => opp.stage === stage).length
-        })).filter(item => item.count > 0);
-
-        setDistributionData(distribution);
     };
 
     const formatCurrency = (value) => {
@@ -230,11 +218,6 @@ const Dashboard = () => {
 
             {/* Gráfico de Projeção de Forecast */}
             <ForecastProjectionChart opportunities={opportunities} stages={stages} />
-
-            {/* Gráfico de distribuição por estágio */}
-            <div className={styles.chartsGrid}>
-                <StageDistributionChart data={distributionData} stages={stages} />
-            </div>
 
             {/* Gráficos customizados - aparecem no final */}
             {customCharts.length > 0 && (
