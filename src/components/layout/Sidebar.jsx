@@ -1,41 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Settings, LogOut, Menu, ChevronLeft, Building2, TrendingUp } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { settingsService } from '../../services/settingsService';
+import { LayoutDashboard, Briefcase, Settings, Menu, ChevronLeft, Building2, TrendingUp } from 'lucide-react';
 import styles from './Layout.module.css';
 
 const Sidebar = ({ isCollapsed, onToggle }) => {
-    const { signOut, user } = useAuth();
-    const [companyName, setCompanyName] = useState('');
-    const [companyLogo, setCompanyLogo] = useState('');
-
-    useEffect(() => {
-        if (user) {
-            loadCompany();
-        }
-    }, [user]);
-
-    const loadCompany = async () => {
-        try {
-            const data = await settingsService.getCompany(user.id);
-            if (data) {
-                setCompanyName(data.name || '');
-                setCompanyLogo(data.logo_url || '');
-            }
-        } catch (error) {
-            console.error('Erro ao carregar empresa:', error);
-        }
-    };
-
-    const handleLogout = async () => {
-        try {
-            await signOut();
-        } catch (error) {
-            console.error('Error signing out:', error);
-        }
-    };
-
     return (
         <>
             {!isCollapsed && <div className={styles.sidebarOverlay} onClick={onToggle} />}
@@ -51,29 +19,14 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         </button>
                     ) : (
                         <>
-                            <div className={styles.brandArea}>
-                                {companyLogo ? (
-                                    <div className={styles.companyBrand}>
-                                        <img 
-                                            src={companyLogo} 
-                                            alt={companyName || 'Logo'} 
-                                            className={styles.sidebarLogo} 
-                                        />
-                                        {companyName && (
-                                            <span className={styles.sidebarCompanyName}>{companyName}</span>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className={styles.appBrand}>
-                                        <div className={styles.appIcon}>
-                                            <TrendingUp size={22} />
-                                        </div>
-                                        <div className={styles.appBrandText}>
-                                            <span className={styles.appName}>Forecast</span>
-                                            <span className={styles.appTagline}>Comercial</span>
-                                        </div>
-                                    </div>
-                                )}
+                            <div className={styles.appBrand}>
+                                <div className={styles.appIcon}>
+                                    <TrendingUp size={22} />
+                                </div>
+                                <div className={styles.appBrandText}>
+                                    <span className={styles.appName}>Forecast</span>
+                                    <span className={styles.appTagline}>Comercial</span>
+                                </div>
                             </div>
                             <button
                                 className={styles.toggleBtnLight}

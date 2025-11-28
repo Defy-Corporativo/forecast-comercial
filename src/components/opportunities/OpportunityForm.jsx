@@ -172,7 +172,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                     <button className={styles.closeBtn} onClick={onClose}><X size={24} /></button>
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} className={styles.modalForm}>
                     <div className={styles.modalBody}>
                         {/* Fixed Fields */}
                         <div className={styles.formGrid}>

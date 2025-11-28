@@ -29,13 +29,22 @@
     border-radius: var(--border-radius-lg);
     width: 100%;
     max-width: 800px;
-    max-height: calc(100vh - 40px);
+    max-height: 85vh;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-xl);
     animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid var(--border-color-light);
     margin: auto;
+    overflow: hidden;
+}
+
+.modalForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 @keyframes slideUp {
@@ -92,6 +101,26 @@
     padding: 28px;
     overflow-y: auto;
     flex: 1;
+    min-height: 0;
+}
+
+/* Scrollbar styling for modal body */
+.modalBody::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modalBody::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+}
+
+.modalBody::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.modalBody::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
 }
 
 .modalFooter {

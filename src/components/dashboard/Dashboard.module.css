@@ -197,6 +197,271 @@
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
+/* Stage Filters - Estilo Chip */
+.stageFilters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg-main);
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--border-color-light);
+}
+
+.stageChip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 8px 14px;
+    border-radius: 20px;
+    transition: all var(--transition-base);
+    background: white;
+    border: 1px solid var(--border-color);
+    user-select: none;
+}
+
+.stageChip:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.stageChipActive {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    font-weight: 500;
+}
+
+.stageChipInput {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.stageChipColor {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px white, 0 0 0 3px currentColor;
+}
+
+.stageChipActive .stageChipColor {
+    box-shadow: 0 0 0 2px var(--color-primary-light), 0 0 0 3px currentColor;
+}
+
+.stageChipLabel {
+    white-space: nowrap;
+}
+
+/* Custom Chart Container */
+.customChartContainer {
+    background-color: white;
+    border-radius: var(--border-radius-md);
+    padding: 28px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color-light);
+    transition: all var(--transition-base);
+    min-width: 0;
+    min-height: 260px;
+}
+
+.customChartContainer:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-color);
+}
+
+/* Custom Charts Grid com espaçamento */
+.customChartsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+    min-width: 0;
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+/* Custom Chart Header */
+.customChartHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.customChartHeader .chartTitle {
+    margin: 0;
+}
+
+.deleteChartBtn {
+    background: transparent;
+    border: 1px solid var(--border-color-light);
+    color: var(--text-tertiary);
+    padding: 6px;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.deleteChartBtn:hover {
+    background: var(--color-danger-light);
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+/* Toggle Switch */
+.toggleLabel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.toggleSwitch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+}
+
+.toggleSwitch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggleSlider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    transition: all var(--transition-base);
+    border-radius: 24px;
+}
+
+.toggleSlider::before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: all var(--transition-base);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggleSwitch input:checked + .toggleSlider {
+    background-color: var(--color-primary);
+}
+
+.toggleSwitch input:checked + .toggleSlider::before {
+    transform: translateX(20px);
+}
+
+.toggleSwitch input:focus + .toggleSlider {
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* Chart Modal */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.chartModal {
+    background: white;
+    border-radius: var(--border-radius-lg);
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+}
+
+.chartModalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+.chartModalHeader h3 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--text-primary);
+}
+
+.closeBtn {
+    background: var(--bg-hover);
+    border: none;
+    color: var(--text-secondary);
+    padding: 6px;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-base);
+}
+
+.closeBtn:hover {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+}
+
+.chartModalBody {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.chartModalFooter {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color-light);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: var(--bg-main);
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.checkboxLabel input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
 @media (max-width: 768px) {
     .metricsGrid {
         grid-template-columns: 1fr;
@@ -236,5 +501,13 @@
     .dateInput {
         flex: 1;
         min-width: 0;
+    }
+
+    .stageFilters {
+        gap: 8px;
+    }
+
+    .stageFilterItem {
+        font-size: 12px;
     }
 }

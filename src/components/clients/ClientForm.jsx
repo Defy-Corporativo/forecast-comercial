@@ -167,7 +167,7 @@ const ClientForm = ({ client = null, onClose, onSave }) => {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} className={styles.modalForm}>
                     <div className={styles.modalBody}>
                         {/* Company Information */}
                         <div style={{ marginBottom: '1.5rem' }}>

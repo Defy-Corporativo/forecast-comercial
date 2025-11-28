@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Edit2, RefreshCcw } from 'lucide-react';
+import { Plus, Trash2, Edit2, RefreshCcw, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
 import styles from './Settings.module.css';
+
+// Estágios padrão que não podem ser editados/excluídos
+const DEFAULT_STAGE_NAMES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost'];
 
 const StageSettings = () => {
     const { user } = useAuth();
@@ -24,6 +27,11 @@ const StageSettings = () => {
     // Helper to check if a stage is a default (non-database) stage
     const isDefaultStage = (stage) => {
         return typeof stage.id === 'string' && stage.id.startsWith('default-');
+    };
+
+    // Helper to check if a stage name is a protected default
+    const isProtectedStage = (stageName) => {
+        return DEFAULT_STAGE_NAMES.includes(stageName);
     };
 
     useEffect(() => {
@@ -151,32 +159,54 @@ const StageSettings = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedStages.map(stage => (
-                                <tr key={stage.id}>
-                                    <td style={{ width: '80px' }}>{stage.order_index ?? 0}</td>
-                                    <td style={{ width: '80px' }}>
-                                        <div style={{
-                                            width: '40px',
-                                            height: '24px',
-                                            backgroundColor: stage.color || '#64748B',
-                                            borderRadius: '4px',
-                                            border: '1px solid var(--border-color)'
-                                        }} />
-                                    </td>
-                                    <td>{stage.name}</td>
-                                    <td style={{ maxWidth: '400px' }}>{stage.description || '-'}</td>
-                                    <td>
-                                        <div className={styles.actions}>
-                                            <button className={styles.actionBtn} onClick={() => handleOpenModal(stage)}>
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => handleDelete(stage.id)} disabled={isDefaultStage(stage)}>
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {sortedStages.map(stage => {
+                                const isProtected = isProtectedStage(stage.name);
+                                return (
+                                    <tr key={stage.id}>
+                                        <td style={{ width: '80px' }}>{stage.order_index ?? 0}</td>
+                                        <td style={{ width: '80px' }}>
+                                            <div style={{
+                                                width: '40px',
+                                                height: '24px',
+                                                backgroundColor: stage.color || '#64748B',
+                                                borderRadius: '4px',
+                                                border: '1px solid var(--border-color)'
+                                            }} />
+                                        </td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                {stage.name}
+                                                {isProtected && (
+                                                    <span title="Estágio padrão do sistema" style={{ color: 'var(--text-tertiary)' }}>
+                                                        <Lock size={14} />
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td style={{ maxWidth: '400px' }}>{stage.description || '-'}</td>
+                                        <td>
+                                            <div className={styles.actions}>
+                                                <button 
+                                                    className={styles.actionBtn} 
+                                                    onClick={() => handleOpenModal(stage)}
+                                                    title={isProtected ? 'Editar descrição, ordem e cor' : 'Editar estágio'}
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button 
+                                                    className={`${styles.actionBtn} ${styles.danger}`} 
+                                                    onClick={() => handleDelete(stage.id)} 
+                                                    disabled={isDefaultStage(stage) || isProtected}
+                                                    title={isProtected ? 'Estágio padrão não pode ser excluído' : 'Excluir estágio'}
+                                                    style={(isDefaultStage(stage) || isProtected) ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 )}
@@ -192,13 +222,26 @@ const StageSettings = () => {
                         <form onSubmit={handleSave}>
                             <div className={styles.modalBody}>
                                 <div className="input-group">
-                                    <label className="label">Nome do Estágio</label>
+                                    <label className="label">
+                                        Nome do Estágio
+                                        {editingStage && isProtectedStage(editingStage.name) && (
+                                            <span style={{ marginLeft: '8px', color: 'var(--text-tertiary)', fontSize: '12px', fontWeight: 'normal' }}>
+                                                (não editável)
+                                            </span>
+                                        )}
+                                    </label>
                                     <input
                                         type="text"
                                         className="input"
                                         value={formData.name}
                                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                         required
+                                        disabled={editingStage && isProtectedStage(editingStage.name)}
+                                        style={editingStage && isProtectedStage(editingStage.name) ? { 
+                                            background: 'var(--bg-main)', 
+                                            cursor: 'not-allowed',
+                                            color: 'var(--text-secondary)'
+                                        } : {}}
                                     />
                                 </div>
                                 <div className="input-group">

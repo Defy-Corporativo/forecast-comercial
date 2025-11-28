@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Briefcase, TrendingUp, Activity } from 'lucide-react';
+import { DollarSign, Briefcase, TrendingUp, Activity, Plus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
+import { settingsService } from '../../services/settingsService';
 import { logDebug } from '../../utils/logger';
 import MetricsCard from './MetricsCard';
-import { FunnelChart, StageDistributionChart, ForecastProjectionChart } from './Charts';
+import { StageDistributionChart, ForecastProjectionChart, CustomChartModal, CustomChart } from './Charts';
 import styles from './Dashboard.module.css';
+
+const CUSTOM_CHARTS_STORAGE_KEY = 'forecast_custom_charts';
 
 const Dashboard = () => {
     const { user } = useAuth();
+    const { stages } = useStageContext();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [hasData, setHasData] = useState(false);
     const [opportunities, setOpportunities] = useState([]);
+    const [customFields, setCustomFields] = useState([]);
     const [metrics, setMetrics] = useState({
         totalOpportunities: 0,
         totalValue: 0,
@@ -21,8 +27,14 @@ const Dashboard = () => {
         dealValue: 0,
         invoicedValue: 0
     });
-    const [funnelData, setFunnelData] = useState([]);
     const [distributionData, setDistributionData] = useState([]);
+    
+    // Estado para gráficos customizados
+    const [customCharts, setCustomCharts] = useState(() => {
+        const saved = localStorage.getItem(CUSTOM_CHARTS_STORAGE_KEY);
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [showChartModal, setShowChartModal] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -31,14 +43,23 @@ const Dashboard = () => {
         }
     }, [user]);
 
+    // Salvar gráficos customizados no localStorage
+    useEffect(() => {
+        localStorage.setItem(CUSTOM_CHARTS_STORAGE_KEY, JSON.stringify(customCharts));
+    }, [customCharts]);
+
     const loadDashboardData = async () => {
         try {
             setError('');
-            const data = await opportunityService.getOpportunities(user.id);
-            logDebug('Dashboard: opportunities loaded', { count: data.length });
-            setOpportunities(data);
-            setHasData(data.length > 0);
-            calculateMetrics(data);
+            const [oppData, fieldsData] = await Promise.all([
+                opportunityService.getOpportunities(user.id),
+                settingsService.getCustomFields()
+            ]);
+            logDebug('Dashboard: opportunities loaded', { count: oppData.length });
+            setOpportunities(oppData);
+            setCustomFields(fieldsData || []);
+            setHasData(oppData.length > 0);
+            calculateMetrics(oppData);
         } catch (error) {
             logDebug('Dashboard: error loading data', { error: error.message });
             setError('Erro ao carregar dados do painel. Verifique sua conexão e permissões.');
@@ -52,11 +73,9 @@ const Dashboard = () => {
         const totalValue = opportunities.reduce((sum, opp) => sum + Number(opp.estimated_value), 0);
         const avgTicket = totalOpportunities > 0 ? totalValue / totalOpportunities : 0;
 
-        // Deal = contrato fechado
+        // Taxa de conversão = Deal / Total de oportunidades
         const wonOpportunities = opportunities.filter(opp => opp.stage === 'Deal').length;
-        const lostOpportunities = opportunities.filter(opp => opp.stage === 'Lost').length;
-        const closedOpportunities = wonOpportunities + lostOpportunities;
-        const winRate = closedOpportunities > 0 ? (wonOpportunities / closedOpportunities) * 100 : 0;
+        const winRate = totalOpportunities > 0 ? (wonOpportunities / totalOpportunities) * 100 : 0;
 
         // Valor total Deal e Faturado
         const dealValue = opportunities
@@ -76,27 +95,34 @@ const Dashboard = () => {
             invoicedValue
         });
 
-        // Prepare chart data
-        const stages = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost'];
+        // Prepare chart data usando estágios cadastrados
+        const stageNames = stages.map(s => s.name);
 
-        const funnel = stages.map(stage => ({
-            name: stage,
-            value: opportunities
-                .filter(opp => opp.stage === stage)
-                .reduce((sum, opp) => sum + Number(opp.estimated_value), 0)
-        })).filter(item => item.value > 0);
-
-        const distribution = stages.map(stage => ({
+        const distribution = stageNames.map(stage => ({
             name: stage,
             count: opportunities.filter(opp => opp.stage === stage).length
         })).filter(item => item.count > 0);
 
-        setFunnelData(funnel);
         setDistributionData(distribution);
     };
 
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    };
+
+    const handleSaveCustomChart = (config) => {
+        const newChart = {
+            ...config,
+            id: Date.now().toString()
+        };
+        setCustomCharts(prev => [...prev, newChart]);
+        setShowChartModal(false);
+    };
+
+    const handleDeleteCustomChart = (chartId) => {
+        if (window.confirm('Tem certeza que deseja excluir este gráfico?')) {
+            setCustomCharts(prev => prev.filter(c => c.id !== chartId));
+        }
     };
 
     if (loading) {
@@ -145,6 +171,10 @@ const Dashboard = () => {
         <div className="container">
             <div className="page-header">
                 <h1 className="page-title">Painel</h1>
+                <button className="btn btn-primary" onClick={() => setShowChartModal(true)}>
+                    <Plus size={18} />
+                    Novo Gráfico
+                </button>
             </div>
 
             {!hasData && (
@@ -199,12 +229,38 @@ const Dashboard = () => {
             </div>
 
             {/* Gráfico de Projeção de Forecast */}
-            <ForecastProjectionChart opportunities={opportunities} />
+            <ForecastProjectionChart opportunities={opportunities} stages={stages} />
 
+            {/* Gráfico de distribuição por estágio */}
             <div className={styles.chartsGrid}>
-                <FunnelChart data={funnelData} />
-                <StageDistributionChart data={distributionData} />
+                <StageDistributionChart data={distributionData} stages={stages} />
             </div>
+
+            {/* Gráficos customizados - aparecem no final */}
+            {customCharts.length > 0 && (
+                <div className={styles.customChartsGrid}>
+                    {customCharts.map(chart => (
+                        <CustomChart
+                            key={chart.id}
+                            config={chart}
+                            opportunities={opportunities}
+                            stages={stages}
+                            onDelete={() => handleDeleteCustomChart(chart.id)}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {/* Modal para criar gráfico customizado */}
+            {showChartModal && (
+                <CustomChartModal
+                    opportunities={opportunities}
+                    stages={stages}
+                    customFields={customFields}
+                    onSave={handleSaveCustomChart}
+                    onClose={() => setShowChartModal(false)}
+                />
+            )}
         </div>
     );
 };
