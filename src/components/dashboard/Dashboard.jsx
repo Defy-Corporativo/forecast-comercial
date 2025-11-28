@@ -4,12 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
 import { settingsService } from '../../services/settingsService';
+import { chartService } from '../../services/chartService';
 import { logDebug } from '../../utils/logger';
 import MetricsCard from './MetricsCard';
 import { ForecastProjectionChart, CustomChartModal, CustomChart } from './Charts';
 import styles from './Dashboard.module.css';
-
-const CUSTOM_CHARTS_STORAGE_KEY = 'forecast_custom_charts';
 
 const Dashboard = () => {
     const { user } = useAuth();
@@ -28,10 +27,7 @@ const Dashboard = () => {
         invoicedValue: 0
     });
     // Estado para gráficos customizados
-    const [customCharts, setCustomCharts] = useState(() => {
-        const saved = localStorage.getItem(CUSTOM_CHARTS_STORAGE_KEY);
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [customCharts, setCustomCharts] = useState([]);
     const [showChartModal, setShowChartModal] = useState(false);
 
     useEffect(() => {
@@ -41,21 +37,18 @@ const Dashboard = () => {
         }
     }, [user]);
 
-    // Salvar gráficos customizados no localStorage
-    useEffect(() => {
-        localStorage.setItem(CUSTOM_CHARTS_STORAGE_KEY, JSON.stringify(customCharts));
-    }, [customCharts]);
-
     const loadDashboardData = async () => {
         try {
             setError('');
-            const [oppData, fieldsData] = await Promise.all([
+            const [oppData, fieldsData, chartsData] = await Promise.all([
                 opportunityService.getOpportunities(user.id),
-                settingsService.getCustomFields()
+                settingsService.getCustomFields(),
+                chartService.getCharts(user.id)
             ]);
             logDebug('Dashboard: opportunities loaded', { count: oppData.length });
             setOpportunities(oppData);
             setCustomFields(fieldsData || []);
+            setCustomCharts(chartsData || []);
             setHasData(oppData.length > 0);
             calculateMetrics(oppData);
         } catch (error) {
@@ -98,34 +91,46 @@ const Dashboard = () => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
     };
 
-    const handleSaveCustomChart = (config) => {
-        const newChart = {
-            ...config,
-            id: Date.now().toString()
-        };
-        setCustomCharts(prev => [...prev, newChart]);
-        setShowChartModal(false);
+    const handleSaveCustomChart = async (config) => {
+        try {
+            const chartData = {
+                ...config,
+                created_by: user.id
+            };
+            const savedChart = await chartService.createChart(chartData);
+            setCustomCharts(prev => [savedChart, ...prev]);
+            setShowChartModal(false);
+        } catch (error) {
+            console.error('Erro ao salvar gráfico:', error);
+            alert('Erro ao salvar gráfico. Tente novamente.');
+        }
     };
 
-    const handleDeleteCustomChart = (chartId) => {
+    const handleDeleteCustomChart = async (chartId) => {
         if (window.confirm('Tem certeza que deseja excluir este gráfico?')) {
-            setCustomCharts(prev => prev.filter(c => c.id !== chartId));
+            try {
+                await chartService.deleteChart(chartId);
+                setCustomCharts(prev => prev.filter(c => c.id !== chartId));
+            } catch (error) {
+                console.error('Erro ao excluir gráfico:', error);
+                alert('Erro ao excluir gráfico. Tente novamente.');
+            }
         }
     };
 
     if (loading) {
         return (
             <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-                <div style={{ 
-                    padding: '24px', 
-                    background: 'white', 
+                <div style={{
+                    padding: '24px',
+                    background: 'white',
                     borderRadius: 'var(--border-radius-md)',
                     boxShadow: 'var(--shadow-sm)',
                     border: '1px solid var(--border-color-light)'
                 }}>
-                    <div style={{ 
-                        width: '40px', 
-                        height: '40px', 
+                    <div style={{
+                        width: '40px',
+                        height: '40px',
                         border: '3px solid var(--border-color-light)',
                         borderTop: '3px solid var(--color-primary)',
                         borderRadius: '50%',

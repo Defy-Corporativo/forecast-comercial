@@ -137,3 +137,14 @@ VALUES
 ('Committed', 'Oportunidades com previsão assumida para o período.', 2, '#2563EB'),
 ('Deal', 'Contrato fechado.', 3, '#10B981'),
 ('Lost', 'Oportunidades perdidas.', 4, '#6B7280');
+
+-- Custom Charts (globais ou por usuário)
+CREATE TABLE custom_charts (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title text NOT NULL,
+  config jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_by text NOT NULL,
+  is_public boolean DEFAULT false,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);

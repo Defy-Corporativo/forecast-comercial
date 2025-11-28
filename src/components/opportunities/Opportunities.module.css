@@ -582,8 +582,7 @@
 
 /* Filters */
 .filtersContainer {
-    margin-top: 24px;
-    margin-bottom: 24px;
+    /* Margins handled by parent flex container */
 }
 
 .searchBar {

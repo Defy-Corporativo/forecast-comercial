@@ -82,16 +82,16 @@ const Opportunities = () => {
     if (loading) {
         return (
             <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-                <div style={{ 
-                    padding: '24px', 
-                    background: 'white', 
+                <div style={{
+                    padding: '24px',
+                    background: 'white',
                     borderRadius: 'var(--border-radius-md)',
                     boxShadow: 'var(--shadow-sm)',
                     border: '1px solid var(--border-color-light)'
                 }}>
-                    <div style={{ 
-                        width: '40px', 
-                        height: '40px', 
+                    <div style={{
+                        width: '40px',
+                        height: '40px',
                         border: '3px solid var(--border-color-light)',
                         borderTop: '3px solid var(--color-primary)',
                         borderRadius: '50%',
@@ -112,45 +112,58 @@ const Opportunities = () => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
             {/* Header fixo */}
-            <div style={{ flexShrink: 0, backgroundColor: 'white', zIndex: 10 }}>
+            <div style={{ flexShrink: 0, zIndex: 10 }}>
                 <div className="container">
-                    <div className="page-header">
-                        <h1 className="page-title">Oportunidades</h1>
-                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                            <div className={styles.viewSwitcher}>
-                                <button
-                                    className={`${styles.viewBtn} ${viewMode === 'list' ? styles.active : ''}`}
-                                    onClick={() => setViewMode('list')}
-                                    title="Visualização em Lista"
-                                >
-                                    <List size={16} /> Lista
-                                </button>
-                                <button
-                                    className={`${styles.viewBtn} ${viewMode === 'kanban' ? styles.active : ''}`}
-                                    onClick={() => setViewMode('kanban')}
-                                    title="Visualização em Kanban"
-                                >
-                                    <Kanban size={16} /> Kanban
-                                </button>
-                                <button
-                                    className={`${styles.viewBtn} ${viewMode === 'cards' ? styles.active : ''}`}
-                                    onClick={() => setViewMode('cards')}
-                                    title="Visualização em Cartões"
-                                >
-                                    <Grid3x3 size={16} /> Cartões
+                    <div style={{
+                        backgroundColor: 'white',
+                        borderRadius: 'var(--border-radius-md)',
+                        padding: '16px',
+                        marginTop: '16px',
+                        marginBottom: '16px',
+                        boxShadow: 'var(--shadow-sm)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        border: '1px solid var(--border-color-light)'
+                    }}>
+                        <div className="page-header" style={{ marginBottom: 0 }}>
+                            <h1 className="page-title">Oportunidades</h1>
+                            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                                <div className={styles.viewSwitcher}>
+                                    <button
+                                        className={`${styles.viewBtn} ${viewMode === 'list' ? styles.active : ''}`}
+                                        onClick={() => setViewMode('list')}
+                                        title="Visualização em Lista"
+                                    >
+                                        <List size={16} /> Lista
+                                    </button>
+                                    <button
+                                        className={`${styles.viewBtn} ${viewMode === 'kanban' ? styles.active : ''}`}
+                                        onClick={() => setViewMode('kanban')}
+                                        title="Visualização em Kanban"
+                                    >
+                                        <Kanban size={16} /> Kanban
+                                    </button>
+                                    <button
+                                        className={`${styles.viewBtn} ${viewMode === 'cards' ? styles.active : ''}`}
+                                        onClick={() => setViewMode('cards')}
+                                        title="Visualização em Cartões"
+                                    >
+                                        <Grid3x3 size={16} /> Cartões
+                                    </button>
+                                </div>
+                                <button className="btn btn-primary" onClick={handleCreate}>
+                                    <Plus size={16} />
+                                    Nova Oportunidade
                                 </button>
                             </div>
-                            <button className="btn btn-primary" onClick={handleCreate}>
-                                <Plus size={16} />
-                                Nova Oportunidade
-                            </button>
                         </div>
-                    </div>
 
-                    <OpportunityFilters
-                        opportunities={opportunities}
-                        onFilterChange={setFilteredOpportunities}
-                    />
+                        <OpportunityFilters
+                            opportunities={opportunities}
+                            onFilterChange={setFilteredOpportunities}
+                        />
+                    </div>
                 </div>
             </div>
 

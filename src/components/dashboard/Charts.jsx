@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { 
+import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie,
     AreaChart, Area, Legend, LineChart, Line
 } from 'recharts';
@@ -10,8 +10,8 @@ const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#64748B'
 
 // Função auxiliar para formatar moeda
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', { 
-        style: 'currency', 
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
         currency: 'BRL',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
@@ -29,7 +29,7 @@ const generateMonthRange = (startDate, endDate) => {
     const months = [];
     const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
     const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-    
+
     while (current <= end) {
         months.push({
             key: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`,
@@ -57,16 +57,16 @@ const CustomChartTooltip = ({ active, payload, label }) => {
             minWidth: '160px'
         }}>
             {label && (
-                <p style={{ 
-                    margin: '0 0 8px 0', 
-                    fontWeight: 600, 
+                <p style={{
+                    margin: '0 0 8px 0',
+                    fontWeight: 600,
                     color: 'var(--text-primary)',
                     fontSize: '13px'
                 }}>{label}</p>
             )}
             {payload.map((entry, index) => (
-                <p key={index} style={{ 
-                    margin: '4px 0', 
+                <p key={index} style={{
+                    margin: '4px 0',
                     fontSize: '12px',
                     display: 'flex',
                     alignItems: 'center',
@@ -74,16 +74,16 @@ const CustomChartTooltip = ({ active, payload, label }) => {
                     gap: '12px'
                 }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
-                        <span style={{ 
-                            width: '8px', 
-                            height: '8px', 
-                            borderRadius: '50%', 
+                        <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
                             background: entry.payload?.color || entry.color || COLORS[index % COLORS.length]
                         }}></span>
                         {entry.name || entry.payload?.name}
                     </span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {typeof entry.value === 'number' && entry.value >= 1000 
+                        {typeof entry.value === 'number' && entry.value >= 1000
                             ? formatCurrency(entry.value)
                             : entry.value}
                     </span>
@@ -123,14 +123,14 @@ export const StageDistributionChart = ({ data, stages = [] }) => {
         if (percent < 0.05) return null; // Não mostrar labels muito pequenos
 
         return (
-            <text 
-                x={x} 
-                y={y} 
-                fill="white" 
-                textAnchor="middle" 
+            <text
+                x={x}
+                y={y}
+                fill="white"
+                textAnchor="middle"
                 dominantBaseline="central"
-                style={{ 
-                    fontSize: '11px', 
+                style={{
+                    fontSize: '11px',
                     fontWeight: 600,
                     textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                 }}
@@ -149,12 +149,12 @@ export const StageDistributionChart = ({ data, stages = [] }) => {
                         <defs>
                             {dataWithColors.map((entry, index) => (
                                 <linearGradient key={`gradient-${index}`} id={`pieGradient-${index}`} x1="0" y1="0" x2="1" y2="1">
-                                    <stop offset="0%" stopColor={entry.color} stopOpacity={0.95}/>
-                                    <stop offset="100%" stopColor={entry.color} stopOpacity={0.7}/>
+                                    <stop offset="0%" stopColor={entry.color} stopOpacity={0.95} />
+                                    <stop offset="100%" stopColor={entry.color} stopOpacity={0.7} />
                                 </linearGradient>
                             ))}
                             <filter id="pieShadow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.15"/>
+                                <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.15" />
                             </filter>
                         </defs>
                         <Pie
@@ -170,8 +170,8 @@ export const StageDistributionChart = ({ data, stages = [] }) => {
                             filter="url(#pieShadow)"
                         >
                             {dataWithColors.map((entry, index) => (
-                                <Cell 
-                                    key={`cell-${index}`} 
+                                <Cell
+                                    key={`cell-${index}`}
                                     fill={`url(#pieGradient-${index})`}
                                     stroke="white"
                                     strokeWidth={2}
@@ -179,7 +179,7 @@ export const StageDistributionChart = ({ data, stages = [] }) => {
                             ))}
                         </Pie>
                         <Tooltip content={<CustomChartTooltip />} />
-                        <Legend 
+                        <Legend
                             verticalAlign="bottom"
                             iconType="circle"
                             iconSize={8}
@@ -200,10 +200,10 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
     // 12 meses começando 3 meses antes do mês atual (3 meses atrás + 9 meses à frente = 12 meses)
     const defaultStartDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
     const defaultEndDate = new Date(today.getFullYear(), today.getMonth() + 9, 0);
-    
+
     const [startDate, setStartDate] = useState(defaultStartDate.toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(defaultEndDate.toISOString().split('T')[0]);
-    
+
     // Todos os estágios disponíveis para filtro (incluindo todos)
     const availableStages = useMemo(() => {
         return [...stages].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
@@ -263,15 +263,15 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
         // Agrupa oportunidades por mês de forecast e estágio
         opportunities.forEach(opp => {
             if (!opp.forecast_date) return;
-            
+
             const forecastDate = new Date(opp.forecast_date);
             const monthKey = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, '0')}`;
-            
+
             if (!dataByMonth[monthKey]) return;
-            
+
             const value = Number(opp.estimated_value) || 0;
             const stageName = opp.stage;
-            
+
             if (dataByMonth[monthKey][stageName] !== undefined) {
                 dataByMonth[monthKey][stageName] += value;
             }
@@ -312,8 +312,8 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
             }}>
                 <p style={{ margin: '0 0 8px 0', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '8px' }}>{label}</p>
                 {sortedPayload.map((entry, index) => (
-                    <p key={index} style={{ 
-                        margin: '4px 0', 
+                    <p key={index} style={{
+                        margin: '4px 0',
                         fontSize: '13px',
                         color: entry.color,
                         display: 'flex',
@@ -327,8 +327,8 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
                         <span style={{ fontWeight: 500 }}>{formatCurrency(entry.value)}</span>
                     </p>
                 ))}
-                <p style={{ 
-                    margin: '8px 0 0 0', 
+                <p style={{
+                    margin: '8px 0 0 0',
                     paddingTop: '8px',
                     borderTop: '1px solid var(--border-color-light)',
                     fontSize: '13px',
@@ -379,8 +379,8 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
                             onChange={() => toggleStage(stage.name)}
                             className={styles.stageChipInput}
                         />
-                        <span 
-                            className={styles.stageChipColor} 
+                        <span
+                            className={styles.stageChipColor}
                             style={{ background: stage.color || '#64748B' }}
                         />
                         <span className={styles.stageChipLabel}>{stage.name}</span>
@@ -402,18 +402,18 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
                             <defs>
                                 {availableStages.map(stage => (
                                     <linearGradient key={stage.name} id={`color${stage.name.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={stage.color || '#64748B'} stopOpacity={0.6}/>
-                                        <stop offset="95%" stopColor={stage.color || '#64748B'} stopOpacity={0.1}/>
+                                        <stop offset="5%" stopColor={stage.color || '#64748B'} stopOpacity={0.6} />
+                                        <stop offset="95%" stopColor={stage.color || '#64748B'} stopOpacity={0.1} />
                                     </linearGradient>
                                 ))}
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" />
-                            <XAxis 
-                                dataKey="name" 
+                            <XAxis
+                                dataKey="name"
                                 tick={{ fontSize: 12, fill: 'var(--text-secondary)' }}
                                 axisLine={{ stroke: 'var(--border-color)' }}
                             />
-                            <YAxis 
+                            <YAxis
                                 tickFormatter={(value) => {
                                     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
                                     if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
@@ -423,7 +423,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
                                 axisLine={{ stroke: 'var(--border-color)' }}
                             />
                             <Tooltip content={<CustomTooltip />} />
-                            <Legend 
+                            <Legend
                                 wrapperStyle={{ paddingTop: '20px' }}
                                 formatter={(value) => <span style={{ color: 'var(--text-primary)', fontSize: '13px' }}>{value}</span>}
                             />
@@ -466,7 +466,8 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
         field: 'stage',
         chartType: 'pie',
         timeDistributed: false,
-        dateField: 'forecast_date'
+        dateField: 'forecast_date',
+        is_public: false
     });
 
     // Campos disponíveis para agrupar
@@ -559,6 +560,23 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
                             </select>
                         </div>
                     )}
+
+                    <div className="input-group" style={{ marginTop: '16px', borderTop: '1px solid var(--border-color-light)', paddingTop: '16px' }}>
+                        <label className={styles.toggleLabel}>
+                            <div className={styles.toggleSwitch}>
+                                <input
+                                    type="checkbox"
+                                    checked={chartConfig.is_public}
+                                    onChange={(e) => setChartConfig(prev => ({ ...prev, is_public: e.target.checked }))}
+                                />
+                                <span className={styles.toggleSlider}></span>
+                            </div>
+                            <span>Visível para todos (Público)</span>
+                        </label>
+                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', marginLeft: '44px' }}>
+                            Se marcado, este gráfico será exibido para todos os usuários do sistema.
+                        </p>
+                    </div>
                 </div>
                 <div className={styles.chartModalFooter}>
                     <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
@@ -589,20 +607,20 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
 
                 const date = new Date(dateValue);
                 const monthKey = `${getMonthName(date)}/${date.getFullYear().toString().slice(-2)}`;
-                
+
                 let groupValue;
                 if (isCustomField) {
                     groupValue = opp.custom_data?.[fieldName] || 'Não informado';
                 } else {
                     groupValue = opp[fieldName] || 'Não informado';
                 }
-                
+
                 uniqueValues.add(groupValue);
-                
+
                 if (!dataByMonth[monthKey]) {
                     dataByMonth[monthKey] = { name: monthKey };
                 }
-                
+
                 dataByMonth[monthKey][groupValue] = (dataByMonth[monthKey][groupValue] || 0) + Number(opp.estimated_value || 0);
             });
 
@@ -666,11 +684,11 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
         if (percent < 0.05) return null;
 
         return (
-            <text 
-                x={x} 
-                y={y} 
-                fill="white" 
-                textAnchor="middle" 
+            <text
+                x={x}
+                y={y}
+                fill="white"
+                textAnchor="middle"
                 dominantBaseline="central"
                 style={{ fontSize: '11px', fontWeight: 600, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
             >
@@ -692,34 +710,34 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                             <defs>
                                 {keys.map((key, index) => (
                                     <linearGradient key={key} id={`barGrad-${key.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.9}/>
-                                        <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.6}/>
+                                        <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.6} />
                                     </linearGradient>
                                 ))}
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" vertical={false} />
-                            <XAxis 
-                                dataKey="name" 
+                            <XAxis
+                                dataKey="name"
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={{ stroke: 'var(--border-color-light)' }}
                                 tickLine={false}
                             />
-                            <YAxis 
-                                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}
+                            <YAxis
+                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={false}
                                 tickLine={false}
                             />
                             <Tooltip content={<CustomChartTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-                            <Legend 
+                            <Legend
                                 iconType="circle"
                                 iconSize={8}
                                 formatter={(value) => <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{value}</span>}
                             />
                             {keys.map((key, index) => (
-                                <Bar 
-                                    key={key} 
-                                    dataKey={key} 
+                                <Bar
+                                    key={key}
+                                    dataKey={key}
                                     fill={`url(#barGrad-${key.replace(/\s/g, '')})`}
                                     radius={[6, 6, 0, 0]}
                                     maxBarSize={50}
@@ -735,37 +753,37 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                             <defs>
                                 {keys.map((key, index) => (
                                     <linearGradient key={key} id={`barHGrad-${key.replace(/\s/g, '')}`} x1="0" y1="0" x2="1" y2="0">
-                                        <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.6}/>
-                                        <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.9}/>
+                                        <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.6} />
+                                        <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.9} />
                                     </linearGradient>
                                 ))}
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" horizontal={false} />
-                            <XAxis 
-                                type="number" 
-                                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}
+                            <XAxis
+                                type="number"
+                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={{ stroke: 'var(--border-color-light)' }}
                                 tickLine={false}
                             />
-                            <YAxis 
-                                dataKey="name" 
-                                type="category" 
-                                width={80} 
+                            <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={80}
                                 tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
                                 axisLine={false}
                                 tickLine={false}
                             />
                             <Tooltip content={<CustomChartTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-                            <Legend 
+                            <Legend
                                 iconType="circle"
                                 iconSize={8}
                                 formatter={(value) => <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{value}</span>}
                             />
                             {keys.map((key, index) => (
-                                <Bar 
-                                    key={key} 
-                                    dataKey={key} 
+                                <Bar
+                                    key={key}
+                                    dataKey={key}
                                     fill={`url(#barHGrad-${key.replace(/\s/g, '')})`}
                                     radius={[0, 6, 6, 0]}
                                     maxBarSize={35}
@@ -779,30 +797,30 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" />
-                            <XAxis 
-                                dataKey="name" 
+                            <XAxis
+                                dataKey="name"
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={{ stroke: 'var(--border-color-light)' }}
                                 tickLine={false}
                             />
-                            <YAxis 
-                                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}
+                            <YAxis
+                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={false}
                                 tickLine={false}
                             />
                             <Tooltip content={<CustomChartTooltip />} />
-                            <Legend 
+                            <Legend
                                 iconType="circle"
                                 iconSize={8}
                                 formatter={(value) => <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{value}</span>}
                             />
                             {keys.map((key, index) => (
-                                <Line 
-                                    key={key} 
-                                    type="monotone" 
-                                    dataKey={key} 
-                                    stroke={COLORS[index % COLORS.length]} 
+                                <Line
+                                    key={key}
+                                    type="monotone"
+                                    dataKey={key}
+                                    stroke={COLORS[index % COLORS.length]}
                                     strokeWidth={2.5}
                                     dot={{ r: 4, strokeWidth: 2, fill: 'white' }}
                                     activeDot={{ r: 6, strokeWidth: 0 }}
@@ -819,37 +837,37 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                             <defs>
                                 {keys.map((key, index) => (
                                     <linearGradient key={key} id={`areaGrad-${key.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.5}/>
-                                        <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.05}/>
+                                        <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.5} />
+                                        <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.05} />
                                     </linearGradient>
                                 ))}
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" />
-                            <XAxis 
-                                dataKey="name" 
+                            <XAxis
+                                dataKey="name"
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={{ stroke: 'var(--border-color-light)' }}
                                 tickLine={false}
                             />
-                            <YAxis 
-                                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}
+                            <YAxis
+                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={false}
                                 tickLine={false}
                             />
                             <Tooltip content={<CustomChartTooltip />} />
-                            <Legend 
+                            <Legend
                                 iconType="circle"
                                 iconSize={8}
                                 formatter={(value) => <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{value}</span>}
                             />
                             {keys.map((key, index) => (
-                                <Area 
-                                    key={key} 
-                                    type="monotone" 
-                                    dataKey={key} 
-                                    fill={`url(#areaGrad-${key.replace(/\s/g, '')})`} 
-                                    stroke={COLORS[index % COLORS.length]} 
+                                <Area
+                                    key={key}
+                                    type="monotone"
+                                    dataKey={key}
+                                    fill={`url(#areaGrad-${key.replace(/\s/g, '')})`}
+                                    stroke={COLORS[index % COLORS.length]}
                                     strokeWidth={2}
                                 />
                             ))}
@@ -866,12 +884,12 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                             <defs>
                                 {data.map((entry, index) => (
                                     <linearGradient key={`pieG-${index}`} id={`customPieGrad-${index}`} x1="0" y1="0" x2="1" y2="1">
-                                        <stop offset="0%" stopColor={entry.color} stopOpacity={0.95}/>
-                                        <stop offset="100%" stopColor={entry.color} stopOpacity={0.7}/>
+                                        <stop offset="0%" stopColor={entry.color} stopOpacity={0.95} />
+                                        <stop offset="100%" stopColor={entry.color} stopOpacity={0.7} />
                                     </linearGradient>
                                 ))}
                                 <filter id="customPieShadow" x="-20%" y="-20%" width="140%" height="140%">
-                                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.12"/>
+                                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.12" />
                                 </filter>
                             </defs>
                             <Pie
@@ -887,8 +905,8 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 filter="url(#customPieShadow)"
                             >
                                 {data.map((entry, index) => (
-                                    <Cell 
-                                        key={`cell-${index}`} 
+                                    <Cell
+                                        key={`cell-${index}`}
                                         fill={`url(#customPieGrad-${index})`}
                                         stroke="white"
                                         strokeWidth={2}
@@ -896,7 +914,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 ))}
                             </Pie>
                             <Tooltip content={<CustomChartTooltip />} />
-                            <Legend 
+                            <Legend
                                 verticalAlign="bottom"
                                 iconType="circle"
                                 iconSize={8}
@@ -912,23 +930,23 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                             <defs>
                                 {data.map((entry, index) => (
                                     <linearGradient key={`barH-${index}`} id={`customBarHGrad-${index}`} x1="0" y1="0" x2="1" y2="0">
-                                        <stop offset="0%" stopColor={entry.color} stopOpacity={0.6}/>
-                                        <stop offset="100%" stopColor={entry.color} stopOpacity={0.9}/>
+                                        <stop offset="0%" stopColor={entry.color} stopOpacity={0.6} />
+                                        <stop offset="100%" stopColor={entry.color} stopOpacity={0.9} />
                                     </linearGradient>
                                 ))}
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" horizontal={false} />
-                            <XAxis 
-                                type="number" 
-                                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}
+                            <XAxis
+                                type="number"
+                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={{ stroke: 'var(--border-color-light)' }}
                                 tickLine={false}
                             />
-                            <YAxis 
-                                dataKey="name" 
-                                type="category" 
-                                width={100} 
+                            <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={100}
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={false}
                                 tickLine={false}
@@ -949,20 +967,20 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                             <defs>
                                 {data.map((entry, index) => (
                                     <linearGradient key={`barV-${index}`} id={`customBarVGrad-${index}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor={entry.color} stopOpacity={0.9}/>
-                                        <stop offset="100%" stopColor={entry.color} stopOpacity={0.6}/>
+                                        <stop offset="0%" stopColor={entry.color} stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor={entry.color} stopOpacity={0.6} />
                                     </linearGradient>
                                 ))}
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" vertical={false} />
-                            <XAxis 
-                                dataKey="name" 
+                            <XAxis
+                                dataKey="name"
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={{ stroke: 'var(--border-color-light)' }}
                                 tickLine={false}
                             />
-                            <YAxis 
-                                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}
+                            <YAxis
+                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={false}
                                 tickLine={false}
@@ -984,20 +1002,20 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                             <defs>
                                 {data.map((entry, index) => (
                                     <linearGradient key={`barDef-${index}`} id={`defaultBarGrad-${index}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor={entry.color} stopOpacity={0.9}/>
-                                        <stop offset="100%" stopColor={entry.color} stopOpacity={0.6}/>
+                                        <stop offset="0%" stopColor={entry.color} stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor={entry.color} stopOpacity={0.6} />
                                     </linearGradient>
                                 ))}
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" vertical={false} />
-                            <XAxis 
-                                dataKey="name" 
+                            <XAxis
+                                dataKey="name"
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={{ stroke: 'var(--border-color-light)' }}
                                 tickLine={false}
                             />
-                            <YAxis 
-                                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}
+                            <YAxis
+                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
                                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                                 axisLine={false}
                                 tickLine={false}
