@@ -33,7 +33,9 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         invoiced: false,
         custom_data: {},
         is_recurring: false,
-        recurrence_months: ''
+        recurrence_months: '',
+        growth_type: '', // 'percentage' ou 'value'
+        growth_value: ''
     });
 
     useEffect(() => {
@@ -132,6 +134,35 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         return date.toISOString().split('T')[0];
     };
 
+    // Função para calcular o valor com crescimento
+    // monthIndex: 0 = primeiro mês (sem crescimento), 1 = segundo mês (primeiro crescimento), etc.
+    const calculateGrowthValue = (baseValue, monthIndex, growthType, growthValue) => {
+        if (!growthType || !growthValue || growthValue <= 0 || monthIndex === 0) {
+            return baseValue;
+        }
+
+        const base = parseFloat(baseValue);
+        const growth = parseFloat(growthValue);
+
+        if (growthType === 'percentage') {
+            // Crescimento percentual composto: aumenta X% a cada mês a partir do segundo mês
+            // Ex: 10% ao mês, base R$ 1000
+            // Mês 1 (i=0): R$ 1000 (sem crescimento)
+            // Mês 2 (i=1): R$ 1000 * 1.10 = R$ 1100
+            // Mês 3 (i=2): R$ 1000 * 1.10^2 = R$ 1210
+            return (base * Math.pow(1 + (growth / 100), monthIndex)).toFixed(2);
+        } else if (growthType === 'value') {
+            // Crescimento em valor fixo: aumenta X reais a cada mês a partir do segundo mês
+            // Ex: R$ 100 ao mês, base R$ 1000
+            // Mês 1 (i=0): R$ 1000 (sem crescimento)
+            // Mês 2 (i=1): R$ 1000 + R$ 100 = R$ 1100
+            // Mês 3 (i=2): R$ 1000 + (R$ 100 * 2) = R$ 1200
+            return (base + (growth * monthIndex)).toFixed(2);
+        }
+
+        return baseValue;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -142,46 +173,65 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         }
 
         // Validação de recorrência
-        if (formData.is_recurring && (!formData.recurrence_months || formData.recurrence_months <= 0)) {
-            alert('Por favor, informe a quantidade de meses para a recorrência.');
-            return;
+        if (formData.is_recurring) {
+            if (!formData.forecast_date) {
+                alert('Por favor, informe a data de previsão antes de marcar a recorrência.');
+                return;
+            }
+            if (!formData.recurrence_months || formData.recurrence_months <= 0) {
+                alert('Por favor, informe a quantidade de meses para a recorrência.');
+                return;
+            }
+            // Validação de crescimento (se informado)
+            if (formData.growth_type && (!formData.growth_value || formData.growth_value <= 0)) {
+                alert('Por favor, informe o valor do crescimento mensal.');
+                return;
+            }
         }
 
         setLoading(true);
         try {
             console.log('Salvando oportunidade com dados:', formData);
 
+            const { is_recurring, recurrence_months, ...opportunityData } = formData;
+
             if (opportunity) {
-                // Edição: não permite recorrência
-                const { is_recurring, recurrence_months, ...updateData } = formData;
-                const result = await opportunityService.updateOpportunity(opportunity.id, updateData);
+                // Edição: atualizar oportunidade original
+                const result = await opportunityService.updateOpportunity(opportunity.id, opportunityData);
                 console.log('Oportunidade atualizada:', result);
             } else {
                 // Criação: criar oportunidade original
-                const { is_recurring, recurrence_months, ...opportunityData } = formData;
                 const result = await opportunityService.createOpportunity(user.id, opportunityData);
                 console.log('Oportunidade criada:', result);
+            }
 
-                // Se for recorrente, criar oportunidades futuras
-                if (is_recurring && recurrence_months && recurrence_months > 0) {
-                    const months = parseInt(recurrence_months, 10);
-                    const baseDate = formData.forecast_date;
+            // Se for recorrente, criar oportunidades futuras (tanto na criação quanto na edição)
+            if (is_recurring && recurrence_months && recurrence_months > 0) {
+                const months = parseInt(recurrence_months, 10);
+                const baseDate = formData.forecast_date;
+                const baseValue = parseFloat(formData.estimated_value);
+                const growthType = formData.growth_type;
+                const growthValue = formData.growth_value;
+                
+                // Criar oportunidades para cada mês, começando a partir da data de previsão
+                // i=0 = primeiro mês (mesma data), i=1 = segundo mês, etc.
+                for (let i = 0; i < months; i++) {
+                    const futureDate = addMonthsToDate(baseDate, i);
+                    // O crescimento começa a partir do segundo mês (i=1), então passamos i como monthIndex
+                    const calculatedValue = calculateGrowthValue(baseValue, i, growthType, growthValue);
                     
-                    // Criar oportunidades para cada mês subsequente
-                    for (let i = 1; i <= months; i++) {
-                        const futureDate = addMonthsToDate(baseDate, i);
-                        const recurringOpportunity = {
-                            ...opportunityData,
-                            forecast_date: futureDate
-                        };
-                        
-                        try {
-                            await opportunityService.createOpportunity(user.id, recurringOpportunity);
-                            console.log(`Oportunidade recorrente criada para o mês ${i}:`, futureDate);
-                        } catch (recurringError) {
-                            console.error(`Erro ao criar oportunidade recorrente para o mês ${i}:`, recurringError);
-                            // Continua criando as outras mesmo se uma falhar
-                        }
+                    const recurringOpportunity = {
+                        ...opportunityData,
+                        forecast_date: futureDate,
+                        estimated_value: calculatedValue
+                    };
+                    
+                    try {
+                        await opportunityService.createOpportunity(user.id, recurringOpportunity);
+                        console.log(`Oportunidade recorrente criada para o mês ${i + 1}:`, futureDate, `Valor: R$ ${calculatedValue}`);
+                    } catch (recurringError) {
+                        console.error(`Erro ao criar oportunidade recorrente para o mês ${i + 1}:`, recurringError);
+                        // Continua criando as outras mesmo se uma falhar
                     }
                 }
             }
@@ -392,26 +442,38 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                             />
                         </div>
 
-                        {/* Recorrência - Only show when creating new opportunity */}
-                        {!opportunity && (
-                            <div className="input-group">
-                                <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.is_recurring}
-                                        onChange={(e) => {
-                                            setFormData(prev => ({ 
-                                                ...prev, 
-                                                is_recurring: e.target.checked,
-                                                recurrence_months: e.target.checked ? prev.recurrence_months : ''
-                                            }));
-                                        }}
-                                        style={{ cursor: 'pointer', width: '18px', height: '18px' }}
-                                    />
-                                    <span>Recorrência (em meses)</span>
-                                </label>
-                                {formData.is_recurring && (
-                                    <div style={{ marginTop: '8px' }}>
+                        {/* Recorrência */}
+                        <div className="input-group">
+                            <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.is_recurring}
+                                    disabled={!formData.forecast_date}
+                                    onChange={(e) => {
+                                        if (!formData.forecast_date) {
+                                            alert('Por favor, informe a data de previsão antes de marcar a recorrência.');
+                                            return;
+                                        }
+                                        setFormData(prev => ({ 
+                                            ...prev, 
+                                            is_recurring: e.target.checked,
+                                            recurrence_months: e.target.checked ? prev.recurrence_months : '',
+                                            growth_type: e.target.checked ? prev.growth_type : '',
+                                            growth_value: e.target.checked ? prev.growth_value : ''
+                                        }));
+                                    }}
+                                    style={{ cursor: formData.forecast_date ? 'pointer' : 'not-allowed', width: '18px', height: '18px' }}
+                                />
+                                <span>Recorrência (em meses)</span>
+                            </label>
+                            {!formData.forecast_date && (
+                                <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
+                                    Informe a data de previsão para habilitar a recorrência.
+                                </small>
+                            )}
+                            {formData.is_recurring && (
+                                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div>
                                         <input
                                             name="recurrence_months"
                                             type="number"
@@ -424,13 +486,78 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                             required={formData.is_recurring}
                                             style={{ maxWidth: '200px' }}
                                         />
-                                        <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                                            A oportunidade será duplicada automaticamente para cada mês informado, alterando apenas a data de previsão.
-                                        </small>
                                     </div>
-                                )}
-                            </div>
-                        )}
+                                    
+                                    {/* Crescimento Mensal */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label className="label" style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                                            Crescimento Mensal (opcional)
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <select
+                                                name="growth_type"
+                                                className="input"
+                                                value={formData.growth_type}
+                                                onChange={handleChange}
+                                                style={{ maxWidth: '150px' }}
+                                            >
+                                                <option value="">Sem crescimento</option>
+                                                <option value="percentage">Percentual (%)</option>
+                                                <option value="value">Valor fixo (R$)</option>
+                                            </select>
+                                            
+                                            {formData.growth_type && (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    {formData.growth_type === 'percentage' ? (
+                                                        <>
+                                                            <input
+                                                                name="growth_value"
+                                                                type="number"
+                                                                className="input"
+                                                                placeholder="Ex: 10"
+                                                                value={formData.growth_value}
+                                                                onChange={handleChange}
+                                                                min="0"
+                                                                step="0.01"
+                                                                style={{ maxWidth: '120px' }}
+                                                            />
+                                                            <span style={{ color: 'var(--text-secondary)' }}>%</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span style={{ color: 'var(--text-secondary)' }}>R$</span>
+                                                            <input
+                                                                name="growth_value"
+                                                                type="number"
+                                                                className="input"
+                                                                placeholder="Ex: 1000"
+                                                                value={formData.growth_value}
+                                                                onChange={handleChange}
+                                                                min="0"
+                                                                step="0.01"
+                                                                style={{ maxWidth: '120px' }}
+                                                            />
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {formData.growth_type && (
+                                            <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                                {formData.growth_type === 'percentage' 
+                                                    ? `O valor aumentará ${formData.growth_value || 0}% a cada mês a partir do segundo mês.`
+                                                    : `O valor aumentará R$ ${formData.growth_value || 0} a cada mês a partir do segundo mês.`
+                                                }
+                                            </small>
+                                        )}
+                                    </div>
+                                    
+                                    <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
+                                        A oportunidade será duplicada automaticamente para cada mês informado, iniciando a partir da data de previsão.
+                                    </small>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Invoiced Field - Only show if stage is Deal */}
                         {formData.stage === 'Deal' && (

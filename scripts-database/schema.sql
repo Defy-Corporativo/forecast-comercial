@@ -96,7 +96,7 @@ CREATE TABLE stage_definitions (
 CREATE TABLE opportunities (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   opportunity_number text NOT NULL UNIQUE,
-  title text NOT NULL,
+  title text NOT NULL DEFAULT '',
   client_id uuid REFERENCES clients(id) ON DELETE SET NULL,
   client_name text NOT NULL,
   estimated_value decimal(12, 2) NOT NULL,
@@ -151,6 +151,8 @@ CREATE TABLE custom_charts (
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+COMMENT ON TABLE custom_charts IS 'Stores custom dashboard charts configuration';
+
 -- Notas de oportunidades
 CREATE TABLE opportunity_notes (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -164,3 +166,4 @@ CREATE TABLE opportunity_notes (
 -- Índices para notas
 CREATE INDEX idx_opportunity_notes_opportunity_id ON opportunity_notes(opportunity_id);
 CREATE INDEX idx_opportunity_notes_created_at ON opportunity_notes(created_at);
+CREATE INDEX idx_opportunity_notes_content ON opportunity_notes USING gin(to_tsvector('portuguese', content));
