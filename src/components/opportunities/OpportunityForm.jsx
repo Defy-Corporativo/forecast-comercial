@@ -31,7 +31,9 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         responsible: '',
         notes: '',
         invoiced: false,
-        custom_data: {}
+        custom_data: {},
+        is_recurring: false,
+        recurrence_months: ''
     });
 
     useEffect(() => {
@@ -123,6 +125,13 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         }));
     };
 
+    // Função auxiliar para adicionar meses a uma data
+    const addMonthsToDate = (dateString, months) => {
+        const date = new Date(dateString);
+        date.setMonth(date.getMonth() + months);
+        return date.toISOString().split('T')[0];
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -132,16 +141,49 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
             return;
         }
 
+        // Validação de recorrência
+        if (formData.is_recurring && (!formData.recurrence_months || formData.recurrence_months <= 0)) {
+            alert('Por favor, informe a quantidade de meses para a recorrência.');
+            return;
+        }
+
         setLoading(true);
         try {
             console.log('Salvando oportunidade com dados:', formData);
 
             if (opportunity) {
-                const result = await opportunityService.updateOpportunity(opportunity.id, formData);
+                // Edição: não permite recorrência
+                const { is_recurring, recurrence_months, ...updateData } = formData;
+                const result = await opportunityService.updateOpportunity(opportunity.id, updateData);
                 console.log('Oportunidade atualizada:', result);
             } else {
-                const result = await opportunityService.createOpportunity(user.id, formData);
+                // Criação: criar oportunidade original
+                const { is_recurring, recurrence_months, ...opportunityData } = formData;
+                const result = await opportunityService.createOpportunity(user.id, opportunityData);
                 console.log('Oportunidade criada:', result);
+
+                // Se for recorrente, criar oportunidades futuras
+                if (is_recurring && recurrence_months && recurrence_months > 0) {
+                    const months = parseInt(recurrence_months, 10);
+                    const baseDate = formData.forecast_date;
+                    
+                    // Criar oportunidades para cada mês subsequente
+                    for (let i = 1; i <= months; i++) {
+                        const futureDate = addMonthsToDate(baseDate, i);
+                        const recurringOpportunity = {
+                            ...opportunityData,
+                            forecast_date: futureDate
+                        };
+                        
+                        try {
+                            await opportunityService.createOpportunity(user.id, recurringOpportunity);
+                            console.log(`Oportunidade recorrente criada para o mês ${i}:`, futureDate);
+                        } catch (recurringError) {
+                            console.error(`Erro ao criar oportunidade recorrente para o mês ${i}:`, recurringError);
+                            // Continua criando as outras mesmo se uma falhar
+                        }
+                    }
+                }
             }
             onSave();
             onClose();
@@ -349,6 +391,46 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                 onChange={handleChange}
                             />
                         </div>
+
+                        {/* Recorrência - Only show when creating new opportunity */}
+                        {!opportunity && (
+                            <div className="input-group">
+                                <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.is_recurring}
+                                        onChange={(e) => {
+                                            setFormData(prev => ({ 
+                                                ...prev, 
+                                                is_recurring: e.target.checked,
+                                                recurrence_months: e.target.checked ? prev.recurrence_months : ''
+                                            }));
+                                        }}
+                                        style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                                    />
+                                    <span>Recorrência (em meses)</span>
+                                </label>
+                                {formData.is_recurring && (
+                                    <div style={{ marginTop: '8px' }}>
+                                        <input
+                                            name="recurrence_months"
+                                            type="number"
+                                            className="input"
+                                            placeholder="Quantidade de meses"
+                                            value={formData.recurrence_months}
+                                            onChange={handleChange}
+                                            min="1"
+                                            max="60"
+                                            required={formData.is_recurring}
+                                            style={{ maxWidth: '200px' }}
+                                        />
+                                        <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
+                                            A oportunidade será duplicada automaticamente para cada mês informado, alterando apenas a data de previsão.
+                                        </small>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Invoiced Field - Only show if stage is Deal */}
                         {formData.stage === 'Deal' && (
