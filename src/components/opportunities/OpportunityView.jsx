@@ -5,12 +5,16 @@ import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
 import { opportunityNotesService } from '../../services/opportunityNotesService';
 import { opportunityService } from '../../services/opportunityService';
+import ConfirmModal from '../common/ConfirmModal';
 import styles from './Opportunities.module.css';
 
 const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) => {
     const { user } = useAuth();
     const { stages } = useStageContext();
     const [customFields, setCustomFields] = useState([]);
+
+    // Estado local para a oportunidade (permite atualização em tempo real)
+    const [currentOpportunity, setCurrentOpportunity] = useState(opportunity);
 
     // Estado para notas
     const [notes, setNotes] = useState([]);
@@ -28,10 +32,24 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
     const [editingNoteId, setEditingNoteId] = useState(null);
     const [editingNoteContent, setEditingNoteContent] = useState('');
 
+    // Estado para modal de confirmação
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        type: 'warning'
+    });
+
+    // Sincronizar estado local quando a prop mudar (apenas na primeira renderização)
+    useEffect(() => {
+        setCurrentOpportunity(opportunity);
+    }, [opportunity.id]); // Mudei para depender apenas do ID, não do objeto inteiro
+
     useEffect(() => {
         loadCustomFields();
         loadNotes();
-    }, [opportunity.id]);
+    }, [currentOpportunity.id]);
 
     const loadCustomFields = async () => {
         try {
@@ -50,7 +68,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
             if (startDate) filters.startDate = startDate;
             if (endDate) filters.endDate = endDate;
 
-            const data = await opportunityNotesService.getNotes(opportunity.id, filters);
+            const data = await opportunityNotesService.getNotes(currentOpportunity.id, filters);
             setNotes(data);
         } catch (error) {
             console.error('Erro ao carregar notas:', error);
@@ -73,13 +91,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
         try {
             setSavingNote(true);
             console.log('Adicionando nota:', {
-                opportunityId: opportunity.id,
+                opportunityId: currentOpportunity.id,
                 content: newNote.trim(),
                 createdBy: user?.name || user?.email || 'Usuário'
             });
 
             const result = await opportunityNotesService.createNote(
-                opportunity.id,
+                currentOpportunity.id,
                 newNote.trim(),
                 user?.name || user?.email || 'Usuário'
             );
@@ -102,15 +120,21 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
     };
 
     const handleDeleteNote = async (noteId) => {
-        if (!window.confirm('Tem certeza que deseja excluir esta nota?')) return;
-
-        try {
-            await opportunityNotesService.deleteNote(noteId);
-            loadNotes();
-        } catch (error) {
-            console.error('Erro ao excluir nota:', error);
-            alert('Erro ao excluir nota. Tente novamente.');
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Excluir Nota',
+            message: 'Tem certeza que deseja excluir esta nota? Esta ação não pode ser desfeita.',
+            type: 'danger',
+            onConfirm: async () => {
+                try {
+                    await opportunityNotesService.deleteNote(noteId);
+                    loadNotes();
+                } catch (error) {
+                    console.error('Erro ao excluir nota:', error);
+                    alert('Erro ao excluir nota. Tente novamente.');
+                }
+            }
+        });
     };
 
     const handleStartEditNote = (note) => {
@@ -164,20 +188,26 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
     };
 
     const handleEdit = () => {
-        onEdit(opportunity);
+        onEdit(currentOpportunity);
         onClose();
     };
 
     const handleDelete = () => {
-        if (window.confirm('Tem certeza que deseja excluir esta oportunidade?')) {
-            onDelete(opportunity.id);
-            onClose();
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Excluir Oportunidade',
+            message: 'Tem certeza que deseja excluir esta oportunidade? Todas as previsões de faturamento serão excluídas também. Esta ação não pode ser desfeita.',
+            type: 'danger',
+            onConfirm: () => {
+                onDelete(currentOpportunity.id);
+                onClose();
+            }
+        });
     };
 
     // Ordenar estágios e determinar posição atual
     const sortedStages = [...stages].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-    const currentStageIndex = sortedStages.findIndex(s => s.name === opportunity.stage);
+    const currentStageIndex = sortedStages.findIndex(s => s.name === currentOpportunity.stage);
 
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
@@ -190,9 +220,9 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                 <div className={styles.modalHeader} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                         <div>
-                            <h3 style={{ margin: 0 }}>Oportunidade {opportunity.opportunity_number}</h3>
+                            <h3 style={{ margin: 0 }}>Oportunidade {currentOpportunity.opportunity_number}</h3>
                             <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                                Criado em {formatDate(opportunity.creation_date)}
+                                Criado em {formatDate(currentOpportunity.creation_date)}
                             </span>
                         </div>
                         <button className={styles.closeBtn} onClick={onClose}><X size={24} /></button>
@@ -200,156 +230,108 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                 </div>
 
                 <div className={styles.modalBody}>
-                    {/* Roadmap de Estágios - Dinâmico */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '12px 20px',
-                            background: 'var(--bg-main)',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border-color-light)',
-                            overflowX: 'auto'
-                        }}>
-                            {sortedStages.map((stage, index) => {
-                                const isPassed = index <= currentStageIndex;
-                                const isCurrent = index === currentStageIndex;
-                                const isLast = index === sortedStages.length - 1;
+                    {/* Roadmap de Estágios - Dinâmico (Esconder se for Meta) */}
+                    {!currentOpportunity.is_goal && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '12px 20px',
+                                background: 'var(--bg-main)',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color-light)',
+                                overflowX: 'auto'
+                            }}>
+                                {sortedStages.map((stage, index) => {
+                                    const isPassed = index <= currentStageIndex;
+                                    const isCurrent = index === currentStageIndex;
+                                    const isLast = index === sortedStages.length - 1;
 
-                                // Lógica de Transição
-                                const currentStageDef = sortedStages[currentStageIndex];
-                                // Se não tiver allowed_next_stages definido (null ou vazio), assume comportamento linear padrão (próximo índice)
-                                // Mas se tiver definido, respeita estritamente
-                                const allowedNext = currentStageDef?.allowed_next_stages;
+                                    return (
+                                        <React.Fragment key={stage.id || stage.name}>
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    minWidth: '70px',
+                                                    cursor: 'default',
+                                                    opacity: isPassed ? 1 : 0.5,
+                                                    position: 'relative'
+                                                }}
+                                                title={isCurrent ? 'Estágio Atual' : (isPassed ? 'Estágio Concluído' : 'Estágio Futuro')}
+                                            >
 
-                                let isAllowed = false;
-                                if (isCurrent) {
-                                    isAllowed = false; // Já está nele
-                                } else if (allowedNext && allowedNext.length > 0) {
-                                    // Se tem regras explícitas, verifica se o nome está na lista
-                                    isAllowed = allowedNext.includes(stage.name);
-                                } else {
-                                    // Comportamento padrão (fallback): permite ir para o próximo imediato ou voltar para qualquer anterior
-                                    isAllowed = index === currentStageIndex + 1 || index < currentStageIndex;
-                                }
-
-                                return (
-                                    <React.Fragment key={stage.id || stage.name}>
-                                        <div
-                                            onClick={async () => {
-                                                if (isAllowed) {
-                                                    if (window.confirm(`Mover oportunidade para "${stage.name}"?`)) {
-                                                        try {
-                                                            await opportunityService.updateOpportunity(opportunity.id, { stage: stage.name });
-                                                            if (onUpdate) onUpdate(); // Recarrega dados
-                                                            onClose(); // Fecha modal (opcional, ou apenas recarrega)
-                                                        } catch (error) {
-                                                            console.error('Erro ao mudar estágio:', error);
-                                                            alert('Erro ao mudar estágio.');
-                                                        }
-                                                    }
-                                                }
-                                            }}
-                                            style={{
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'center',
-                                                minWidth: '70px',
-                                                cursor: isAllowed ? 'pointer' : 'default',
-                                                opacity: (isPassed || isAllowed) ? 1 : 0.5,
-                                                position: 'relative'
-                                            }}
-                                            title={isAllowed ? `Mover para ${stage.name}` : (isCurrent ? 'Estágio Atual' : 'Transição não permitida')}
-                                        >
-                                            {/* Indicador de "Clicável" */}
-                                            {isAllowed && (
+                                                {/* Círculo do estágio */}
                                                 <div style={{
-                                                    position: 'absolute',
-                                                    top: '-8px',
-                                                    fontSize: '10px',
-                                                    fontWeight: 'bold',
-                                                    color: 'var(--color-primary)',
-                                                    animation: 'bounce 1s infinite'
+                                                    width: isCurrent ? '28px' : '22px',
+                                                    height: isCurrent ? '28px' : '22px',
+                                                    borderRadius: '50%',
+                                                    background: isPassed
+                                                        ? (stage.color || 'var(--color-primary)')
+                                                        : 'var(--bg-secondary)',
+                                                    border: `2px solid ${isPassed
+                                                        ? (stage.color || 'var(--color-primary)')
+                                                        : 'var(--border-color)'}`,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    transition: 'all 0.3s ease',
+                                                    boxShadow: isCurrent
+                                                        ? `0 0 0 4px ${stage.color || 'var(--color-primary)'}30`
+                                                        : 'none'
                                                 }}>
-                                                    ↓
+                                                    {isPassed && (
+                                                        <div style={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            borderRadius: '50%',
+                                                            background: 'white'
+                                                        }} />
+                                                    )}
                                                 </div>
-                                            )}
-
-                                            {/* Círculo do estágio */}
-                                            <div style={{
-                                                width: isCurrent ? '28px' : '22px',
-                                                height: isCurrent ? '28px' : '22px',
-                                                borderRadius: '50%',
-                                                background: isPassed
-                                                    ? (stage.color || 'var(--color-primary)')
-                                                    : 'var(--bg-secondary)',
-                                                border: `2px solid ${isPassed
-                                                    ? (stage.color || 'var(--color-primary)')
-                                                    : (isAllowed ? 'var(--color-primary)' : 'var(--border-color)')}`,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                transition: 'all 0.3s ease',
-                                                boxShadow: isCurrent
-                                                    ? `0 0 0 4px ${stage.color || 'var(--color-primary)'}30`
-                                                    : (isAllowed ? `0 0 6px ${stage.color || 'var(--color-primary)'}40` : 'none')
-                                            }}>
-                                                {isPassed && (
-                                                    <div style={{
-                                                        width: '8px',
-                                                        height: '8px',
-                                                        borderRadius: '50%',
-                                                        background: 'white'
-                                                    }} />
-                                                )}
+                                                {/* Nome do estágio */}
+                                                <span style={{
+                                                    marginTop: '4px',
+                                                    fontSize: '10px',
+                                                    fontWeight: isCurrent ? 600 : 400,
+                                                    color: isCurrent
+                                                        ? 'var(--text-primary)'
+                                                        : 'var(--text-tertiary)',
+                                                    textAlign: 'center',
+                                                    maxWidth: '70px',
+                                                    lineHeight: 1.2
+                                                }}>
+                                                    {stage.name}
+                                                </span>
                                             </div>
-                                            {/* Nome do estágio */}
-                                            <span style={{
-                                                marginTop: '4px',
-                                                fontSize: '10px',
-                                                fontWeight: isCurrent ? 600 : 400,
-                                                color: isCurrent
-                                                    ? 'var(--text-primary)'
-                                                    : (isAllowed ? 'var(--color-primary)' : 'var(--text-tertiary)'),
-                                                textAlign: 'center',
-                                                maxWidth: '70px',
-                                                lineHeight: 1.2
-                                            }}>
-                                                {stage.name}
-                                            </span>
-                                        </div>
 
-                                        {/* Linha de conexão */}
-                                        {!isLast && (
-                                            <div style={{
-                                                flex: 1,
-                                                height: '2px',
-                                                background: index < currentStageIndex
-                                                    ? `linear-gradient(90deg, ${sortedStages[index].color || 'var(--color-primary)'}, ${sortedStages[index + 1].color || 'var(--color-primary)'})`
-                                                    : 'var(--border-color)',
-                                                margin: '0 4px',
-                                                marginBottom: '20px',
-                                                borderRadius: '1px',
-                                                minWidth: '16px'
-                                            }} />
-                                        )}
-                                    </React.Fragment>
-                                );
-                            })}
+                                            {/* Linha de conexão */}
+                                            {!isLast && (
+                                                <div style={{
+                                                    flex: 1,
+                                                    height: '2px',
+                                                    background: index < currentStageIndex
+                                                        ? `linear-gradient(90deg, ${sortedStages[index].color || 'var(--color-primary)'}, ${sortedStages[index + 1].color || 'var(--color-primary)'})`
+                                                        : 'var(--border-color)',
+                                                    margin: '0 4px',
+                                                    marginBottom: '20px',
+                                                    borderRadius: '1px',
+                                                    minWidth: '16px'
+                                                }} />
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <style>{`
-                            @keyframes bounce {
-                                0%, 100% { transform: translateY(0); }
-                                50% { transform: translateY(-3px); }
-                            }
-                        `}</style>
-                    </div>
+                    )}
 
                     {/* Título da Oportunidade */}
                     <div style={{ marginBottom: '24px' }}>
                         <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text-primary)' }}>
-                            {opportunity.title || '-'}
+                            {currentOpportunity.title || '-'}
                         </h2>
                     </div>
 
@@ -358,15 +340,15 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                         <div className="input-group">
                             <label className="label">Cliente / Empresa</label>
                             <div className={styles.viewField}>
-                                {opportunity.client?.name || opportunity.client_name}
+                                {currentOpportunity.client?.name || currentOpportunity.client_name}
                             </div>
                         </div>
 
                         <div className="input-group">
                             <label className="label">Valor Total</label>
                             <div className={styles.viewField} style={{ fontWeight: 600, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {formatCurrency(opportunity.total_value || opportunity.estimated_value)}
-                                {(opportunity.forecast_count || opportunity.forecasts?.length || 0) > 1 && (
+                                {formatCurrency(currentOpportunity.total_value || currentOpportunity.estimated_value)}
+                                {(currentOpportunity.forecast_count || currentOpportunity.forecasts?.length || 0) > 1 && (
                                     <span style={{
                                         fontSize: '0.75rem',
                                         color: 'var(--text-secondary)',
@@ -376,7 +358,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                         fontWeight: 'normal'
                                     }}>
                                         <Layers size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                                        {opportunity.forecast_count || opportunity.forecasts?.length} previsões
+                                        {currentOpportunity.forecast_count || currentOpportunity.forecasts?.length} previsões
                                     </span>
                                 )}
                             </div>
@@ -384,12 +366,12 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
 
                         <div className="input-group">
                             <label className="label">Responsável</label>
-                            <div className={styles.viewField}>{opportunity.responsible || '-'}</div>
+                            <div className={styles.viewField}>{currentOpportunity.responsible || '-'}</div>
                         </div>
                     </div>
 
                     {/* Seção de Previsões de Faturamento */}
-                    {opportunity.forecasts && opportunity.forecasts.length > 0 && (
+                    {currentOpportunity.forecasts && currentOpportunity.forecasts.length > 0 && (
                         <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color-light)', paddingTop: '20px' }}>
                             <h4 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Calendar size={18} />
@@ -410,7 +392,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {opportunity.forecasts
+                                        {currentOpportunity.forecasts
                                             .sort((a, b) => new Date(a.period_start) - new Date(b.period_start))
                                             .map((forecast, idx) => (
                                                 <tr
@@ -433,15 +415,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                                         {formatCurrency(forecast.estimated_value)}
                                                     </td>
                                                     <td style={{ padding: '12px', textAlign: 'center' }}>
-                                                        <button
-                                                            onClick={async () => {
-                                                                try {
-                                                                    await opportunityService.updateForecastInvoiced(forecast.id, !forecast.invoiced);
-                                                                    if (onUpdate) onUpdate();
-                                                                } catch (error) {
-                                                                    console.error('Erro ao atualizar status:', error);
-                                                                }
-                                                            }}
+                                                        <span
                                                             style={{
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -449,21 +423,21 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                                                 padding: '4px 10px',
                                                                 borderRadius: '12px',
                                                                 border: 'none',
-                                                                cursor: 'pointer',
                                                                 fontSize: '0.8rem',
                                                                 fontWeight: 500,
-                                                                background: forecast.invoiced ? 'var(--color-success)' : 'var(--bg-secondary)',
-                                                                color: forecast.invoiced ? 'white' : 'var(--text-secondary)',
-                                                                transition: 'all 0.2s'
+                                                                background: currentOpportunity.is_goal ? 'var(--bg-secondary)' : (forecast.invoiced ? 'var(--color-success)' : 'var(--bg-secondary)'),
+                                                                color: currentOpportunity.is_goal ? 'var(--text-tertiary)' : (forecast.invoiced ? 'white' : 'var(--text-secondary)'),
+                                                                opacity: currentOpportunity.is_goal ? 0.7 : 1
                                                             }}
-                                                            title={forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado'}
                                                         >
-                                                            {forecast.invoiced ? (
+                                                            {currentOpportunity.is_goal ? (
+                                                                <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+                                                            ) : forecast.invoiced ? (
                                                                 <><CheckCircle size={14} /> Faturado</>
                                                             ) : (
                                                                 <><Circle size={14} /> Pendente</>
                                                             )}
-                                                        </button>
+                                                        </span>
                                                     </td>
                                                     <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                                                         {forecast.notes || '-'}
@@ -475,10 +449,10 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                         <tr style={{ borderTop: '2px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
                                             <td style={{ padding: '12px', fontWeight: 600 }}>Total</td>
                                             <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>
-                                                {formatCurrency(opportunity.forecasts.reduce((sum, f) => sum + parseFloat(f.estimated_value || 0), 0))}
+                                                {formatCurrency(currentOpportunity.forecasts.reduce((sum, f) => sum + parseFloat(f.estimated_value || 0), 0))}
                                             </td>
                                             <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                                {opportunity.forecasts.filter(f => f.invoiced).length}/{opportunity.forecasts.length} faturados
+                                                {currentOpportunity.forecasts.filter(f => f.invoiced).length}/{currentOpportunity.forecasts.length} faturados
                                             </td>
                                             <td></td>
                                         </tr>
@@ -488,20 +462,20 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                         </div>
                     )}
 
-                    {opportunity.notes && (
+                    {currentOpportunity.notes && (
                         <div className="input-group" style={{ marginTop: '16px' }}>
                             <label className="label">Observações</label>
-                            <div className={styles.viewField}>{opportunity.notes}</div>
+                            <div className={styles.viewField}>{currentOpportunity.notes}</div>
                         </div>
                     )}
 
                     {/* Campos customizados */}
-                    {customFields.length > 0 && opportunity.custom_data && (
+                    {customFields.length > 0 && currentOpportunity.custom_data && (
                         <>
                             <h4 className={styles.sectionSubtitle}>Informações Adicionais</h4>
                             <div className={styles.formGrid}>
                                 {customFields.map(field => {
-                                    const value = opportunity.custom_data[field.field_name];
+                                    const value = currentOpportunity.custom_data[field.field_name];
                                     if (!value && value !== false) return null;
 
                                     let displayValue;
@@ -819,6 +793,18 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                         Excluir
                     </button>
                 </div>
+
+                {/* Modal de Confirmação */}
+                <ConfirmModal
+                    isOpen={confirmModal.isOpen}
+                    onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                    onConfirm={confirmModal.onConfirm}
+                    title={confirmModal.title}
+                    message={confirmModal.message}
+                    type={confirmModal.type}
+                    confirmText="Confirmar"
+                    cancelText="Cancelar"
+                />
             </div>
         </div>
     );

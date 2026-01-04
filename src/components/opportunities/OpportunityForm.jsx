@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Search, Trash2, Calendar, DollarSign, Copy, Target, Tag } from 'lucide-react';
+import { X, Plus, Search, Trash2, Calendar, DollarSign, Copy, Target, Tag, Trash } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
@@ -196,7 +196,6 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         !selectedTags.includes(tag.name)
     );
 
-    // Toggle goal mode
     const handleGoalToggle = (isGoal) => {
         setFormData(prev => ({
             ...prev,
@@ -206,6 +205,22 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         }));
         if (isGoal) {
             setSearchTerm('');
+        }
+    };
+
+    const handleDeleteTag = async (tagId, tagName, e) => {
+        e.stopPropagation();
+        if (window.confirm(`Tem certeza que deseja excluir a tag "${tagName}"?`)) {
+            try {
+                await tagService.deleteTag(tagId);
+                loadTags(); // Reload list
+                // If selected, remove from selection
+                if (selectedTags.includes(tagName)) {
+                    removeTag(tagName);
+                }
+            } catch (error) {
+                alert(error.message);
+            }
         }
     };
 
@@ -588,6 +603,24 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                         onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                                                     >
                                                         {tag.name}
+                                                        <button
+                                                            onClick={(e) => handleDeleteTag(tag.id, tag.name, e)}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                padding: '4px',
+                                                                color: 'var(--text-tertiary)',
+                                                                marginLeft: 'auto',
+                                                                display: 'flex',
+                                                                alignItems: 'center'
+                                                            }}
+                                                            title="Excluir tag"
+                                                            onMouseEnter={(e) => e.target.style.color = 'var(--color-danger)'}
+                                                            onMouseLeave={(e) => e.target.style.color = 'var(--text-tertiary)'}
+                                                        >
+                                                            <Trash size={12} />
+                                                        </button>
                                                     </div>
                                                 ))}
                                                 <div style={{ borderTop: '1px solid var(--border-color)', margin: '4px 0' }}></div>
@@ -822,8 +855,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                             <label className="label" style={{ fontSize: '0.85rem' }}>
                                                 Qtd. {recurrenceConfig.periodicity === 'monthly' ? 'Meses' :
                                                     recurrenceConfig.periodicity === 'bimonthly' ? 'Bimestres' :
-                                                    recurrenceConfig.periodicity === 'quarterly' ? 'Trimestres' :
-                                                        recurrenceConfig.periodicity === 'semiannual' ? 'Semestres' : 'Anos'} *
+                                                        recurrenceConfig.periodicity === 'quarterly' ? 'Trimestres' :
+                                                            recurrenceConfig.periodicity === 'semiannual' ? 'Semestres' : 'Anos'} *
                                             </label>
                                             <input
                                                 type="number"
@@ -1081,12 +1114,13 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                     </div>
 
                                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px' }}>
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: formData.is_goal ? 'not-allowed' : 'pointer', fontSize: '0.9rem', opacity: formData.is_goal ? 0.5 : 1 }}>
                                                             <input
                                                                 type="checkbox"
-                                                                checked={forecast.invoiced}
-                                                                onChange={(e) => updateForecast(index, 'invoiced', e.target.checked)}
-                                                                style={{ width: '16px', height: '16px' }}
+                                                                checked={formData.is_goal ? false : forecast.invoiced}
+                                                                onChange={(e) => !formData.is_goal && updateForecast(index, 'invoiced', e.target.checked)}
+                                                                style={{ width: '16px', height: '16px', cursor: formData.is_goal ? 'not-allowed' : 'pointer' }}
+                                                                disabled={formData.is_goal}
                                                             />
                                                             Faturado
                                                         </label>

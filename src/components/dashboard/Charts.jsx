@@ -195,15 +195,7 @@ export const StageDistributionChart = ({ data, stages = [] }) => {
 };
 
 // Componente de Gráfico de Projeção de Forecast
-export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => {
-    const today = new Date();
-    // 12 meses começando 3 meses antes do mês atual (3 meses atrás + 9 meses à frente = 12 meses)
-    const defaultStartDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-    const defaultEndDate = new Date(today.getFullYear(), today.getMonth() + 9, 0);
-
-    const [startDate, setStartDate] = useState(defaultStartDate.toISOString().split('T')[0]);
-    const [endDate, setEndDate] = useState(defaultEndDate.toISOString().split('T')[0]);
-
+export const ForecastProjectionChart = ({ opportunities = [], stages = [], startDate, endDate }) => {
     // Todos os estágios disponíveis para filtro (incluindo todos)
     const availableStages = useMemo(() => {
         return [...stages].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
@@ -213,6 +205,9 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
     const [selectedStages, setSelectedStages] = useState(() => {
         return availableStages.map(s => s.name);
     });
+
+    // Estado para exibir ou não a meta
+    const [showMeta, setShowMeta] = useState(true);
 
     // Atualiza seleção quando estágios mudam
     React.useEffect(() => {
@@ -253,7 +248,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
         // Inicializa dados por mês
         const dataByMonth = {};
         monthRange.forEach(month => {
-            const monthData = { name: month.label };
+            const monthData = { name: month.label, meta: 0 };
             availableStages.forEach(stage => {
                 monthData[stage.name] = 0;
             });
@@ -269,18 +264,26 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
             }
 
             forecasts.forEach(forecast => {
-                if (!forecast.period_start) return;
+                // Use period_end if available, otherwise period_start
+                const dateToUse = forecast.period_end || forecast.period_start;
+                if (!dateToUse) return;
 
-                const forecastDate = new Date(forecast.period_start);
+                const forecastDate = new Date(dateToUse);
                 const monthKey = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, '0')}`;
 
                 if (!dataByMonth[monthKey]) return;
 
                 const value = Number(forecast.estimated_value) || 0;
-                const stageName = opp.stage;
 
-                if (dataByMonth[monthKey][stageName] !== undefined) {
-                    dataByMonth[monthKey][stageName] += value;
+                if (opp.is_goal) {
+                    // Para metas, sempre adiciona ao campo meta
+                    dataByMonth[monthKey].meta += value;
+                } else {
+                    // Para oportunidades normais, verifica se o estágio existe
+                    const stageName = opp.stage;
+                    if (dataByMonth[monthKey][stageName] !== undefined) {
+                        dataByMonth[monthKey][stageName] += value;
+                    }
                 }
             });
         });
@@ -289,7 +292,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
     }, [opportunities, startDate, endDate, availableStages]);
 
     const hasData = chartData.some(d => {
-        return availableStages.some(stage => d[stage.name] > 0);
+        return availableStages.some(stage => d[stage.name] > 0) || d.meta > 0;
     });
 
     // Ordena estágios por valor total (maior para menor) para renderização
@@ -355,26 +358,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
         <div className={styles.forecastChartContainer}>
             <div className={styles.forecastHeader}>
                 <h3 className={styles.chartTitle}>Projeção de Forecast</h3>
-                <div className={styles.dateFilters}>
-                    <div className={styles.dateFilter}>
-                        <label>De:</label>
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className={styles.dateInput}
-                        />
-                    </div>
-                    <div className={styles.dateFilter}>
-                        <label>Até:</label>
-                        <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className={styles.dateInput}
-                        />
-                    </div>
-                </div>
+                {/* Date filters are now global in dashboard */}
             </div>
 
             {/* Filtro de estágios com estilo melhorado */}
@@ -394,6 +378,19 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
                         <span className={styles.stageChipLabel}>{stage.name}</span>
                     </label>
                 ))}
+                <label className={`${styles.stageChip} ${showMeta ? styles.stageChipActive : ''}`}>
+                    <input
+                        type="checkbox"
+                        checked={showMeta}
+                        onChange={() => setShowMeta(prev => !prev)}
+                        className={styles.stageChipInput}
+                    />
+                    <span
+                        className={styles.stageChipColor}
+                        style={{ background: '#f59e0b' }}
+                    />
+                    <span className={styles.stageChipLabel}>Meta</span>
+                </label>
             </div>
 
             {!hasData ? (
@@ -450,6 +447,20 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
                                     />
                                 )
                             ))}
+                            {/* Meta Line - Dashed Orange */}
+                            {showMeta && (
+                                <Line
+                                    type="monotone"
+                                    dataKey="meta"
+                                    name="Meta"
+                                    stroke="#f59e0b"
+                                    strokeWidth={2}
+                                    strokeDasharray="5 5"
+                                    dot={false}
+                                    activeDot={{ r: 6 }}
+                                    isAnimationActive={false}
+                                />
+                            )}
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>
@@ -460,6 +471,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
 
 // Tipos de gráficos disponíveis
 const CHART_TYPES = [
+    { value: 'big_number', label: 'Big Number (Métrica)' },
     { value: 'pie', label: 'Pizza' },
     { value: 'barVertical', label: 'Barras Vertical' },
     { value: 'barHorizontal', label: 'Barras Horizontal' },
@@ -472,10 +484,12 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
     const [chartConfig, setChartConfig] = useState({
         title: '',
         field: 'stage',
-        chartType: 'pie',
+        chartType: 'big_number',
         timeDistributed: false,
         dateField: 'period_start',
-        is_public: false
+        is_public: false,
+        stage_filter: 'all',
+        color: '#6366F1'
     });
 
     // Campos disponíveis para agrupar
@@ -498,38 +512,42 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
         <div className={styles.modalOverlay}>
             <div className={styles.chartModal}>
                 <div className={styles.chartModalHeader}>
-                    <h3>Criar Novo Gráfico</h3>
+                    <h3>{chartConfig.chartType === 'big_number' ? 'Criar Novo Indicador' : 'Criar Novo Gráfico'}</h3>
                     <button className={styles.closeBtn} onClick={onClose}>
                         <X size={20} />
                     </button>
                 </div>
                 <div className={styles.chartModalBody}>
                     <div className="input-group">
-                        <label className="label">Título do Gráfico *</label>
+                        <label className="label">
+                            {chartConfig.chartType === 'big_number' ? 'Nome do Indicador *' : 'Título do Gráfico *'}
+                        </label>
                         <input
                             type="text"
                             className="input"
                             value={chartConfig.title}
                             onChange={(e) => setChartConfig(prev => ({ ...prev, title: e.target.value }))}
-                            placeholder="Ex: Oportunidades por Responsável"
+                            placeholder={chartConfig.chartType === 'big_number' ? 'Ex: Valor Total em Negociação' : 'Ex: Oportunidades por Responsável'}
                         />
                     </div>
 
-                    <div className="input-group">
-                        <label className="label">Agrupar por</label>
-                        <select
-                            className="input"
-                            value={chartConfig.field}
-                            onChange={(e) => setChartConfig(prev => ({ ...prev, field: e.target.value }))}
-                        >
-                            {availableFields.map(f => (
-                                <option key={f.value} value={f.value}>{f.label}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {chartConfig.chartType !== 'big_number' && (
+                        <div className="input-group">
+                            <label className="label">Agrupar por</label>
+                            <select
+                                className="input"
+                                value={chartConfig.field}
+                                onChange={(e) => setChartConfig(prev => ({ ...prev, field: e.target.value }))}
+                            >
+                                {availableFields.map(f => (
+                                    <option key={f.value} value={f.value}>{f.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     <div className="input-group">
-                        <label className="label">Tipo de Gráfico</label>
+                        <label className="label">Tipo de Visualização</label>
                         <select
                             className="input"
                             value={chartConfig.chartType}
@@ -541,19 +559,64 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
                         </select>
                     </div>
 
-                    <div className="input-group">
-                        <label className={styles.toggleLabel}>
-                            <div className={styles.toggleSwitch}>
-                                <input
-                                    type="checkbox"
-                                    checked={chartConfig.timeDistributed}
-                                    onChange={(e) => setChartConfig(prev => ({ ...prev, timeDistributed: e.target.checked }))}
-                                />
-                                <span className={styles.toggleSlider}></span>
+                    {/* Campos específicos para Big Number */}
+                    {chartConfig.chartType === 'big_number' && (
+                        <>
+                            <div className="input-group">
+                                <label className="label">Filtrar por Estágio</label>
+                                <select
+                                    className="input"
+                                    value={chartConfig.stage_filter}
+                                    onChange={(e) => setChartConfig(prev => ({ ...prev, stage_filter: e.target.value }))}
+                                >
+                                    <option value="all">Todos os estágios</option>
+                                    {stages.map(stage => (
+                                        <option key={stage.id} value={stage.name}>{stage.name}</option>
+                                    ))}
+                                </select>
                             </div>
-                            <span>Distribuir no tempo (por mês)</span>
-                        </label>
-                    </div>
+
+                            <div className="input-group">
+                                <label className="label">Cor do Indicador</label>
+                                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                    {['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#EC4899', '#059669'].map(color => (
+                                        <div
+                                            key={color}
+                                            onClick={() => setChartConfig(prev => ({ ...prev, color }))}
+                                            style={{
+                                                width: '40px',
+                                                height: '40px',
+                                                borderRadius: '8px',
+                                                background: color,
+                                                cursor: 'pointer',
+                                                border: chartConfig.color === color ? '3px solid var(--text-primary)' : '2px solid var(--border-color-light)',
+                                                transition: 'all 0.2s',
+                                                boxShadow: chartConfig.color === color ? '0 4px 8px rgba(0,0,0,0.15)' : 'none'
+                                            }}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Campos específicos para Gráficos */}
+                    {chartConfig.chartType !== 'big_number' && (
+                        <div className="input-group">
+                            <label className={styles.toggleLabel}>
+                                <div className={styles.toggleSwitch}>
+                                    <input
+                                        type="checkbox"
+                                        checked={chartConfig.timeDistributed}
+                                        onChange={(e) => setChartConfig(prev => ({ ...prev, timeDistributed: e.target.checked }))}
+                                    />
+                                    <span className={styles.toggleSlider}></span>
+                                </div>
+                                <span>Distribuir no tempo (por mês)</span>
+                            </label>
+                        </div>
+                    )}
 
                     {chartConfig.timeDistributed && (
                         <div className="input-group">
@@ -588,7 +651,9 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
                 </div>
                 <div className={styles.chartModalFooter}>
                     <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-                    <button className="btn btn-primary" onClick={handleSave}>Criar Gráfico</button>
+                    <button className="btn btn-primary" onClick={handleSave}>
+                        {chartConfig.chartType === 'big_number' ? 'Criar Indicador' : 'Criar Gráfico'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -1056,14 +1121,8 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
     );
 };
 
-// Goals Comparison Chart - Meta vs Cadastrado vs Faturado
-export const GoalsComparisonChart = ({ opportunities = [] }) => {
-    const today = new Date();
-    const defaultStartDate = new Date(today.getFullYear(), today.getMonth() - 6, 1);
-    const defaultEndDate = new Date(today.getFullYear(), today.getMonth() + 6, 0);
-
-    const [startDate, setStartDate] = useState(defaultStartDate.toISOString().split('T')[0]);
-    const [endDate, setEndDate] = useState(defaultEndDate.toISOString().split('T')[0]);
+// Goals Comparison Chart - Meta vs Projetado vs Faturado
+export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate }) => {
 
     const chartData = useMemo(() => {
         if (!opportunities || opportunities.length === 0) return [];
@@ -1078,7 +1137,7 @@ export const GoalsComparisonChart = ({ opportunities = [] }) => {
             dataByMonth[month.key] = {
                 name: month.label,
                 meta: 0,
-                cadastrado: 0,
+                projetado: 0,
                 faturado: 0
             };
         });
@@ -1088,9 +1147,11 @@ export const GoalsComparisonChart = ({ opportunities = [] }) => {
             const forecasts = opp.forecasts || [];
 
             forecasts.forEach(forecast => {
-                if (!forecast.period_start) return;
+                // Use period_end if available, otherwise period_start
+                const dateToUse = forecast.period_end || forecast.period_start;
+                if (!dateToUse) return;
 
-                const forecastDate = new Date(forecast.period_start);
+                const forecastDate = new Date(dateToUse);
                 const monthKey = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, '0')}`;
 
                 if (!dataByMonth[monthKey]) return;
@@ -1102,7 +1163,7 @@ export const GoalsComparisonChart = ({ opportunities = [] }) => {
                     dataByMonth[monthKey].meta += value;
                 } else {
                     // Regular opportunity
-                    dataByMonth[monthKey].cadastrado += value;
+                    dataByMonth[monthKey].projetado += value;
                     if (forecast.invoiced) {
                         dataByMonth[monthKey].faturado += value;
                     }
@@ -1113,7 +1174,7 @@ export const GoalsComparisonChart = ({ opportunities = [] }) => {
         return monthRange.map(month => dataByMonth[month.key]);
     }, [opportunities, startDate, endDate]);
 
-    const hasData = chartData.some(d => d.meta > 0 || d.cadastrado > 0 || d.faturado > 0);
+    const hasData = chartData.some(d => d.meta > 0 || d.projetado > 0 || d.faturado > 0);
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (!active || !payload || !payload.length) return null;
@@ -1150,27 +1211,7 @@ export const GoalsComparisonChart = ({ opportunities = [] }) => {
     return (
         <div className={styles.forecastChartContainer}>
             <div className={styles.forecastHeader}>
-                <h3 className={styles.chartTitle}>Meta vs Cadastrado vs Faturado</h3>
-                <div className={styles.dateFilters}>
-                    <div className={styles.dateFilter}>
-                        <label>De:</label>
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className={styles.dateInput}
-                        />
-                    </div>
-                    <div className={styles.dateFilter}>
-                        <label>Até:</label>
-                        <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className={styles.dateInput}
-                        />
-                    </div>
-                </div>
+                <h3 className={styles.chartTitle}>Meta vs Projetado vs Faturado</h3>
             </div>
 
             {/* Legend */}
@@ -1181,7 +1222,7 @@ export const GoalsComparisonChart = ({ opportunities = [] }) => {
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
                     <span style={{ width: '12px', height: '3px', background: '#3b82f6', borderRadius: '2px' }}></span>
-                    Cadastrado
+                    Projetado
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
                     <span style={{ width: '12px', height: '3px', background: '#10b981', borderRadius: '2px' }}></span>
@@ -1231,8 +1272,8 @@ export const GoalsComparisonChart = ({ opportunities = [] }) => {
                             />
                             <Line
                                 type="monotone"
-                                dataKey="cadastrado"
-                                name="Cadastrado"
+                                dataKey="projetado"
+                                name="Projetado"
                                 stroke="#3b82f6"
                                 strokeWidth={2}
                                 dot={{ r: 3, fill: '#3b82f6' }}

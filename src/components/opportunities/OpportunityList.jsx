@@ -48,6 +48,11 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
 
     const formatDate = (dateString) => {
         if (!dateString) return '-';
+        // Handle YYYY-MM-DD strings directly to avoid timezone issues
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
         return new Date(dateString).toLocaleDateString('pt-BR');
     };
 
@@ -242,7 +247,7 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         if (forecasts.length === 0) return null;
 
         return (
-            <tr key={`${opportunity.id}-forecasts`} style={{ backgroundColor: 'var(--bg-secondary)' }}>
+            <tr key={`${opportunity.id}-forecasts`} style={{ backgroundColor: '#f1f5f9' }}> {/* Darker shade (slate-100) */}
                 <td colSpan={activeColumns.length + 2} style={{ padding: 0 }}>
                     <div style={{ padding: '12px 16px 12px 48px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -265,7 +270,9 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                                             {formatCurrency(forecast.estimated_value)}
                                         </td>
                                         <td style={{ padding: '8px', textAlign: 'center' }}>
-                                            {forecast.invoiced ? (
+                                            {opportunity.is_goal ? (
+                                                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>-</span>
+                                            ) : forecast.invoiced ? (
                                                 <span style={{
                                                     display: 'inline-flex',
                                                     alignItems: 'center',

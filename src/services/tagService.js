@@ -131,5 +131,36 @@ export const tagService = {
         }
 
         return this.assignTags(opportunityId, tagIds);
+    },
+
+    // Delete a tag (if not in use)
+    async deleteTag(tagId) {
+        // Check if tag is assigned to any opportunity
+        const { count, error: countError } = await supabase
+            .from('opportunity_tag_assignments')
+            .select('*', { count: 'exact', head: true })
+            .eq('tag_id', tagId);
+
+        if (countError) {
+            console.error('Erro ao verificar uso da tag:', countError);
+            throw countError;
+        }
+
+        if (count > 0) {
+            throw new Error(`Esta tag não pode ser excluída pois está vinculada a ${count} oportunidade(s).`);
+        }
+
+        // Delete the tag
+        const { error } = await supabase
+            .from('opportunity_tags')
+            .delete()
+            .eq('id', tagId);
+
+        if (error) {
+            console.error('Erro ao excluir tag:', error);
+            throw error;
+        }
+
+        return true;
     }
 };

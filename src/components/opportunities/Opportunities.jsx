@@ -21,7 +21,7 @@ const Opportunities = () => {
     const [showViewModal, setShowViewModal] = useState(false);
     const [editingOpportunity, setEditingOpportunity] = useState(null);
     const [viewingOpportunity, setViewingOpportunity] = useState(null);
-    const [includeGoals, setIncludeGoals] = useState(true); // Show goals by default
+    const [includeGoals, setIncludeGoals] = useState(false); // Hide goals by default
 
     useEffect(() => {
         if (user) {
@@ -177,10 +177,7 @@ const Opportunities = () => {
                                         <Grid3x3 size={16} /> Cartões
                                     </button>
                                 </div>
-                                <Link to="/" className="btn btn-secondary" title="Ir para o Painel">
-                                    <LayoutDashboard size={16} />
-                                    Painel
-                                </Link>
+
                                 <button className="btn btn-primary" onClick={handleCreate}>
                                     <Plus size={16} />
                                     Nova Oportunidade

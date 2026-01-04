@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Briefcase, Activity, Plus } from 'lucide-react';
+import { DollarSign, Briefcase, Target, TrendingUp, Plus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
@@ -21,14 +21,73 @@ const Dashboard = () => {
     const [metrics, setMetrics] = useState({
         totalOpportunities: 0,
         totalValue: 0,
-        avgTicket: 0,
-        winRate: 0,
-        dealValue: 0,
-        invoicedValue: 0
+        invoicedValue: 0,
+        goalsValue: 0,
+        totalForecastValue: 0
     });
     // Estado para gráficos customizados
     const [customCharts, setCustomCharts] = useState([]);
     const [showChartModal, setShowChartModal] = useState(false);
+
+    // Global Date Filter
+    const today = new Date();
+    // Start: 1st day of 3rd month ago
+    const defaultStartDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+    // End: Last day of current year
+    const defaultEndDate = new Date(today.getFullYear(), 11, 31);
+
+    const [dateRange, setDateRange] = useState({
+        startDate: defaultStartDate.toISOString().split('T')[0],
+        endDate: defaultEndDate.toISOString().split('T')[0]
+    });
+
+    // Função para definir períodos padrão
+    const setPredefinedPeriod = (period) => {
+        const today = new Date();
+        let start, end;
+
+        switch (period) {
+            case 'thisMonth':
+                start = new Date(today.getFullYear(), today.getMonth(), 1);
+                end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                break;
+            case 'lastMonth':
+                start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                end = new Date(today.getFullYear(), today.getMonth(), 0);
+                break;
+            case 'last3Months':
+                start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+                end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                break;
+            case 'last6Months':
+                start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+                end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                break;
+            case 'thisYear':
+                start = new Date(today.getFullYear(), 0, 1);
+                end = new Date(today.getFullYear(), 11, 31);
+                break;
+            case 'lastYear':
+                start = new Date(today.getFullYear() - 1, 0, 1);
+                end = new Date(today.getFullYear() - 1, 11, 31);
+                break;
+            case 'next3Months':
+                start = new Date(today.getFullYear(), today.getMonth(), 1);
+                end = new Date(today.getFullYear(), today.getMonth() + 3, 0);
+                break;
+            case 'next6Months':
+                start = new Date(today.getFullYear(), today.getMonth(), 1);
+                end = new Date(today.getFullYear(), today.getMonth() + 6, 0);
+                break;
+            default:
+                return;
+        }
+
+        setDateRange({
+            startDate: start.toISOString().split('T')[0],
+            endDate: end.toISOString().split('T')[0]
+        });
+    };
 
     useEffect(() => {
         if (user) {
@@ -60,35 +119,55 @@ const Dashboard = () => {
     };
 
     const calculateMetrics = (opportunities) => {
-        const totalOpportunities = opportunities.length;
-        const totalValue = opportunities.reduce((sum, opp) => sum + Number(opp.estimated_value), 0);
-        const avgTicket = totalOpportunities > 0 ? totalValue / totalOpportunities : 0;
+        // Filtrar apenas oportunidades reais (não metas)
+        const realOpportunities = opportunities.filter(opp => !opp.is_goal);
+        const totalOpportunities = realOpportunities.length;
+        const totalValue = realOpportunities.reduce((sum, opp) => sum + Number(opp.estimated_value || 0), 0);
 
-        // Taxa de conversão = Deal / Total de oportunidades
-        const wonOpportunities = opportunities.filter(opp => opp.stage === 'Deal').length;
-        const winRate = totalOpportunities > 0 ? (wonOpportunities / totalOpportunities) * 100 : 0;
+        // Valor Faturado - somar todos os forecasts marcados como invoiced = true
+        let invoicedValue = 0;
+        opportunities.forEach(opp => {
+            if (opp.forecasts && opp.forecasts.length > 0) {
+                const invoicedForecasts = opp.forecasts.filter(f => f.invoiced === true);
+                invoicedValue += invoicedForecasts.reduce((sum, f) => sum + Number(f.estimated_value || 0), 0);
+            }
+        });
 
-        // Valor total Deal e Faturado
-        const dealValue = opportunities
-            .filter(opp => opp.stage === 'Deal')
-            .reduce((sum, opp) => sum + Number(opp.estimated_value), 0);
+        // Valor total das Metas (is_goal = true)
+        const goals = opportunities.filter(opp => opp.is_goal);
+        const goalsValue = goals.reduce((sum, opp) => sum + Number(opp.estimated_value || 0), 0);
 
-        const invoicedValue = opportunities
-            .filter(opp => opp.stage === 'Deal' && opp.invoiced === true)
-            .reduce((sum, opp) => sum + Number(opp.estimated_value), 0);
+        // Previsão Total de Faturamento - somar todos os forecasts (faturados e não faturados)
+        let totalForecastValue = 0;
+        opportunities.forEach(opp => {
+            if (opp.forecasts && opp.forecasts.length > 0) {
+                totalForecastValue += opp.forecasts.reduce((sum, f) => sum + Number(f.estimated_value || 0), 0);
+            }
+        });
 
         setMetrics({
             totalOpportunities,
             totalValue,
-            avgTicket,
-            winRate,
-            dealValue,
-            invoicedValue
+            invoicedValue,
+            goalsValue,
+            totalForecastValue
         });
     };
 
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    };
+
+    const calculateBigNumberValue = (opportunities, chartConfig) => {
+        let filtered = opportunities.filter(opp => !opp.is_goal); // Excluir metas por padrão
+
+        // Filtrar por estágio se especificado
+        if (chartConfig.stage_filter && chartConfig.stage_filter !== 'all') {
+            filtered = filtered.filter(opp => opp.stage === chartConfig.stage_filter);
+        }
+
+        // Calcular valor total
+        return filtered.reduce((sum, opp) => sum + Number(opp.estimated_value || 0), 0);
     };
 
     const handleSaveCustomChart = async (config) => {
@@ -107,13 +186,19 @@ const Dashboard = () => {
     };
 
     const handleDeleteCustomChart = async (chartId) => {
-        if (window.confirm('Tem certeza que deseja excluir este gráfico?')) {
+        const chart = customCharts.find(c => c.id === chartId);
+        const isBigNumber = chart?.chart_type === 'big_number';
+        const message = isBigNumber
+            ? 'Tem certeza que deseja excluir este indicador?'
+            : 'Tem certeza que deseja excluir este gráfico?';
+
+        if (window.confirm(message)) {
             try {
                 await chartService.deleteChart(chartId);
                 setCustomCharts(prev => prev.filter(c => c.id !== chartId));
             } catch (error) {
-                console.error('Erro ao excluir gráfico:', error);
-                alert('Erro ao excluir gráfico. Tente novamente.');
+                console.error(`Erro ao excluir ${isBigNumber ? 'indicador' : 'gráfico'}:`, error);
+                alert(`Erro ao excluir ${isBigNumber ? 'indicador' : 'gráfico'}. Tente novamente.`);
             }
         }
     };
@@ -138,11 +223,11 @@ const Dashboard = () => {
                         margin: '0 auto'
                     }}></div>
                     <style>{`
-                        @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                        }
-                    `}</style>
+@keyframes spin {
+    0 % { transform: rotate(0deg); }
+    100 % { transform: rotate(360deg); }
+}
+`}</style>
                 </div>
             </div>
         );
@@ -166,7 +251,7 @@ const Dashboard = () => {
                 <h1 className="page-title">Painel</h1>
                 <button className="btn btn-primary" onClick={() => setShowChartModal(true)}>
                     <Plus size={18} />
-                    Novo Gráfico
+                    Nova Visualização
                 </button>
             </div>
 
@@ -184,28 +269,28 @@ const Dashboard = () => {
 
             <div className={styles.metricsGrid}>
                 <MetricsCard
-                    title="Pipeline Total"
+                    title="Valor Oportunidades"
                     value={formatCurrency(metrics.totalValue)}
                     icon={DollarSign}
                     color="#2563EB"
                 />
                 <MetricsCard
-                    title="Oportunidades Ativas"
+                    title="Quantidade Oportunidades"
                     value={metrics.totalOpportunities}
                     icon={Briefcase}
                     color="#64748B"
                 />
                 <MetricsCard
-                    title="Taxa de Conversão"
-                    value={`${metrics.winRate.toFixed(1)}%`}
-                    icon={Activity}
-                    color="#F59E0B"
+                    title="Previsão Total"
+                    value={formatCurrency(metrics.totalForecastValue)}
+                    icon={TrendingUp}
+                    color="#8B5CF6"
                 />
                 <MetricsCard
-                    title="Valor Total Deal"
-                    value={formatCurrency(metrics.dealValue)}
-                    icon={DollarSign}
-                    color="#10B981"
+                    title="Metas"
+                    value={formatCurrency(metrics.goalsValue)}
+                    icon={Target}
+                    color="#F59E0B"
                 />
                 <MetricsCard
                     title="Valor Faturado"
@@ -213,26 +298,148 @@ const Dashboard = () => {
                     icon={DollarSign}
                     color="#059669"
                 />
+
+                {/* Big Numbers Customizados */}
+                {customCharts
+                    .filter(chart => chart.chart_type === 'big_number')
+                    .map(chart => {
+                        const value = calculateBigNumberValue(opportunities, chart);
+                        return (
+                            <div key={chart.id} style={{ position: 'relative' }}>
+                                <MetricsCard
+                                    title={chart.title}
+                                    value={formatCurrency(value)}
+                                    icon={DollarSign}
+                                    color={chart.color || "#6366F1"}
+                                />
+                                <button
+                                    onClick={() => handleDeleteCustomChart(chart.id)}
+                                    style={{
+                                        position: 'absolute',
+                                        top: '8px',
+                                        right: '8px',
+                                        background: 'white',
+                                        border: '1px solid var(--border-color-light)',
+                                        borderRadius: '4px',
+                                        padding: '4px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        opacity: 0,
+                                        transition: 'opacity 0.2s',
+                                        color: 'var(--text-tertiary)'
+                                    }}
+                                    className="custom-metric-delete-btn"
+                                    title="Excluir indicador"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        );
+                    })}
+            </div>
+
+            {/* Filtro de período */}
+            <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'center',
+                background: 'white',
+                padding: '16px 20px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color-light)',
+                boxShadow: 'var(--shadow-sm)',
+                marginBottom: '24px',
+                width: '100%',
+                flexWrap: 'wrap'
+            }}>
+                <span style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--text-primary)' }}>Período:</span>
+
+                {/* Seletor de períodos padrão */}
+                <select
+                    onChange={(e) => setPredefinedPeriod(e.target.value)}
+                    defaultValue=""
+                    style={{
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        padding: '8px 12px',
+                        fontSize: '0.9rem',
+                        background: 'white',
+                        cursor: 'pointer',
+                        minWidth: '160px'
+                    }}
+                >
+                    <option value="">Selecione um período</option>
+                    <option value="thisMonth">Este mês</option>
+                    <option value="lastMonth">Mês passado</option>
+                    <option value="last3Months">Últimos 3 meses</option>
+                    <option value="last6Months">Últimos 6 meses</option>
+                    <option value="next3Months">Próximos 3 meses</option>
+                    <option value="next6Months">Próximos 6 meses</option>
+                    <option value="thisYear">Este ano</option>
+                    <option value="lastYear">Ano passado</option>
+                </select>
+
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 500, marginLeft: '8px' }}>ou personalize:</span>
+
+                <input
+                    type="date"
+                    value={dateRange.startDate}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                    style={{
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        padding: '8px 12px',
+                        fontSize: '0.9rem'
+                    }}
+                />
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>até</span>
+                <input
+                    type="date"
+                    value={dateRange.endDate}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                    style={{
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        padding: '8px 12px',
+                        fontSize: '0.9rem'
+                    }}
+                />
             </div>
 
             {/* Gráfico de Projeção de Forecast */}
-            <ForecastProjectionChart opportunities={opportunities} stages={stages} />
+            <ForecastProjectionChart
+                opportunities={opportunities}
+                stages={stages}
+                startDate={dateRange.startDate}
+                endDate={dateRange.endDate}
+            />
 
             {/* Gráfico de Comparação Metas vs Cadastrado vs Faturado */}
-            <GoalsComparisonChart opportunities={opportunities} />
+            <GoalsComparisonChart
+                opportunities={opportunities}
+                startDate={dateRange.startDate}
+                endDate={dateRange.endDate}
+            />
 
-            {/* Gráficos customizados - aparecem no final */}
-            {customCharts.length > 0 && (
+            {/* Gráficos customizados - aparecem no final (exceto big_numbers que já estão no grid de métricas) */}
+            {customCharts.filter(chart => chart.chart_type !== 'big_number').length > 0 && (
                 <div className={styles.customChartsGrid}>
-                    {customCharts.map(chart => (
-                        <CustomChart
-                            key={chart.id}
-                            config={chart}
-                            opportunities={opportunities}
-                            stages={stages}
-                            onDelete={() => handleDeleteCustomChart(chart.id)}
-                        />
-                    ))}
+                    {customCharts
+                        .filter(chart => chart.chart_type !== 'big_number')
+                        .map(chart => (
+                            <CustomChart
+                                key={chart.id}
+                                config={chart}
+                                opportunities={opportunities}
+                                stages={stages}
+                                onDelete={() => handleDeleteCustomChart(chart.id)}
+                            />
+                        ))}
                 </div>
             )}
 
