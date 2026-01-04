@@ -592,36 +592,39 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                                         zIndex: 1000
                                     }}>
-                                        {filteredAvailableTags.length > 0 ? (
-                                            filteredAvailableTags.map(tag => (
-                                                <div
-                                                    key={tag.id}
-                                                    onClick={() => addTag(tag.name)}
-                                                    style={{
-                                                        padding: '8px 12px',
-                                                        cursor: 'pointer',
-                                                        borderBottom: '1px solid var(--border-color)'
-                                                    }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                                >
-                                                    {tag.name}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div
-                                                onClick={() => addTag(tagInput)}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    cursor: 'pointer',
-                                                    color: 'var(--color-primary)'
-                                                }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                            >
-                                                + Criar tag "{tagInput}"
-                                            </div>
+                                        {filteredAvailableTags.length > 0 && (
+                                            <>
+                                                {filteredAvailableTags.map(tag => (
+                                                    <div
+                                                        key={tag.id}
+                                                        onClick={() => addTag(tag.name)}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            cursor: 'pointer',
+                                                            borderBottom: '1px solid var(--border-color)'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                    >
+                                                        {tag.name}
+                                                    </div>
+                                                ))}
+                                                <div style={{ borderTop: '1px solid var(--border-color)', margin: '4px 0' }}></div>
+                                            </>
                                         )}
+                                        <div
+                                            onClick={() => addTag(tagInput)}
+                                            style={{
+                                                padding: '8px 12px',
+                                                cursor: 'pointer',
+                                                color: 'var(--color-primary)',
+                                                fontWeight: 600
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                        >
+                                            + Criar tag "{tagInput}"
+                                        </div>
                                     </div>
                                 )}
                             </div>
