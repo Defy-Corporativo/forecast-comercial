@@ -39,22 +39,35 @@ const ExportData = () => {
         setExporting(true);
         setMessage({ type: '', text: '' });
         try {
-            const data = await opportunityService.getOpportunities();
-            const rows = data.map((opp) => ({
-                id: opp.id,
-                opportunity_number: opp.opportunity_number,
-                client_name: opp.client?.name || opp.client_name || '',
-                estimated_value: opp.estimated_value,
-                creation_date: opp.creation_date,
-                stage: opp.stage,
-                forecast_date: opp.forecast_date || '',
-                responsible: opp.responsible || '',
-                notes: opp.notes || '',
-                invoiced: opp.invoiced ? 'Sim' : 'Não',
+            // Use flat mode to get one row per forecast (or 1 per opp if no forecasts)
+            const data = await opportunityService.getOpportunitiesFlat(undefined, { includeGoals: true });
+
+            const rows = data.map((item) => ({
+                id_oportunidade: item.id,
+                numero: item.opportunity_number,
+                titulo: item.title || '',
+                cliente: item.client?.name || item.client_name || '',
+                valor_total_opp: parseFloat(item.total_value || item.estimated_value || 0).toFixed(2).replace('.', ','),
+                data_criacao: item.creation_date ? new Date(item.creation_date).toLocaleDateString('pt-BR') : '',
+                estagio: item.stage,
+                responsavel: item.responsible || '',
+                tipo: item.is_goal ? 'Meta' : 'Real',
+                tags: (item.tagList || []).map(t => t.name).join(', '),
+                obs_oportunidade: item.notes || '',
+
+                // Forecast specific fields
+                id_previsao: item.forecast_id || '',
+                inicio_periodo: item.period_start ? new Date(item.period_start).toLocaleDateString('pt-BR') : '',
+                fim_periodo: item.period_end ? new Date(item.period_end).toLocaleDateString('pt-BR') : '',
+                valor_previsao: item.forecast_id ? parseFloat(item.estimated_value || 0).toFixed(2).replace('.', ',') : '',
+                faturado: item.forecast_id ? (item.invoiced ? 'Sim' : 'Não') : '',
+                obs_previsao: item.forecast_notes || ''
             }));
-            downloadCsv(rows, 'oportunidades.csv');
-            setMessage({ type: 'success', text: 'Exportação de oportunidades concluída.' });
+
+            downloadCsv(rows, `oportunidades_${new Date().toISOString().split('T')[0]}.csv`);
+            setMessage({ type: 'success', text: 'Exportação de oportunidades concluída com sucesso!' });
         } catch (error) {
+            console.error(error);
             setMessage({ type: 'error', text: 'Erro ao exportar oportunidades: ' + error.message });
         } finally {
             setExporting(false);
@@ -68,18 +81,30 @@ const ExportData = () => {
             const data = await clientService.getClients(undefined, true);
             const rows = data.map((client) => ({
                 id: client.id,
-                name: client.name,
-                document: client.document || '',
-                address: client.address || '',
-                notes: client.notes || '',
-                is_deleted: client.is_deleted ? 'Sim' : 'Não',
-                contacts: (client.contacts || [])
-                    .map((c) => `${c.name} | ${c.email || ''} | ${c.phone || ''} | ${c.position || ''} | ${c.is_primary ? 'Principal' : ''}`)
+                nome: client.name,
+                documento: client.document || '',
+                endereco: client.address || '',
+                obs: client.notes || '',
+                excluido: client.is_deleted ? 'Sim' : 'Não',
+                contatos: (client.contacts || [])
+                    .map((c) => {
+                        const parts = [
+                            c.name,
+                            c.email,
+                            c.phone,
+                            c.position,
+                            c.is_primary ? '(Principal)' : ''
+                        ].filter(Boolean);
+                        return parts.join(' - ');
+                    })
                     .join(' || '),
+                data_criacao: client.created_at ? new Date(client.created_at).toLocaleDateString('pt-BR') : ''
             }));
-            downloadCsv(rows, 'clientes.csv');
-            setMessage({ type: 'success', text: 'Exportação de clientes concluída.' });
+
+            downloadCsv(rows, `clientes_${new Date().toISOString().split('T')[0]}.csv`);
+            setMessage({ type: 'success', text: 'Exportação de clientes concluída com sucesso!' });
         } catch (error) {
+            console.error(error);
             setMessage({ type: 'error', text: 'Erro ao exportar clientes: ' + error.message });
         } finally {
             setExporting(false);
