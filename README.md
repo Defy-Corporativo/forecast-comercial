@@ -1,4 +1,4 @@
-# Forecast Comercial
+# Forecast Comercial 
 
 ## Descrição
 Sistema web para gestão e acompanhamento de oportunidades comerciais (pipeline de vendas), permitindo consolidação de informações, previsão de receita e acompanhamento do funil de vendas.
