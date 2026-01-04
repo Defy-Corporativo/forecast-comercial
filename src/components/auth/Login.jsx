@@ -14,7 +14,7 @@ const Login = () => {
                 provider: 'azure',
                 options: {
                     scopes: 'email',
-                    redirectTo: window.location.origin,
+                    redirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
                     queryParams: {
                         prompt: 'select_account'
                     }
