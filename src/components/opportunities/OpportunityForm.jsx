@@ -247,49 +247,46 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
     };
 
     // Helper function to calculate period end based on periodicity
+    // Formula: End Date = (Start Date + Period) - 1 day
     const calculatePeriodEnd = (startDate, periodicity) => {
-        const date = new Date(startDate);
+        const date = new Date(startDate + 'T00:00:00');
+        let endDate;
+
         switch (periodicity) {
             case 'monthly':
-                // Last day of the month
-                return new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+                // Add 1 month, then subtract 1 day
+                endDate = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
+                break;
+            case 'bimonthly':
+                // Add 2 months, then subtract 1 day
+                endDate = new Date(date.getFullYear(), date.getMonth() + 2, date.getDate());
+                break;
             case 'quarterly':
-                // Last day of the quarter
-                const quarterMonth = Math.floor(date.getMonth() / 3) * 3 + 2;
-                return new Date(date.getFullYear(), quarterMonth + 1, 0).toISOString().split('T')[0];
+                // Add 3 months, then subtract 1 day
+                endDate = new Date(date.getFullYear(), date.getMonth() + 3, date.getDate());
+                break;
             case 'semiannual':
-                // Last day of the semester
-                const semesterMonth = date.getMonth() < 6 ? 5 : 11;
-                return new Date(date.getFullYear(), semesterMonth + 1, 0).toISOString().split('T')[0];
+                // Add 6 months, then subtract 1 day
+                endDate = new Date(date.getFullYear(), date.getMonth() + 6, date.getDate());
+                break;
             case 'annual':
-                // Last day of the year
-                return new Date(date.getFullYear(), 11, 31).toISOString().split('T')[0];
+                // Add 1 year, then subtract 1 day
+                endDate = new Date(date.getFullYear() + 1, date.getMonth(), date.getDate());
+                break;
             default:
                 return startDate;
         }
+
+        // Subtract 1 day
+        endDate.setDate(endDate.getDate() - 1);
+        return endDate.toISOString().split('T')[0];
     };
 
-    // Helper function to get next period start based on periodicity
-    const getNextPeriodStart = (currentStart, periodicity) => {
-        const date = new Date(currentStart);
-        switch (periodicity) {
-            case 'monthly':
-                date.setMonth(date.getMonth() + 1);
-                return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
-            case 'quarterly':
-                date.setMonth(date.getMonth() + 3);
-                const qMonth = Math.floor(date.getMonth() / 3) * 3;
-                return new Date(date.getFullYear(), qMonth, 1).toISOString().split('T')[0];
-            case 'semiannual':
-                date.setMonth(date.getMonth() + 6);
-                const sMonth = date.getMonth() < 6 ? 0 : 6;
-                return new Date(date.getFullYear(), sMonth, 1).toISOString().split('T')[0];
-            case 'annual':
-                date.setFullYear(date.getFullYear() + 1);
-                return new Date(date.getFullYear(), 0, 1).toISOString().split('T')[0];
-            default:
-                return currentStart;
-        }
+    // Helper function to get next period start (day after the previous period end)
+    const getNextPeriodStart = (previousPeriodEnd) => {
+        const date = new Date(previousPeriodEnd + 'T00:00:00');
+        date.setDate(date.getDate() + 1);
+        return date.toISOString().split('T')[0];
     };
 
     // Generate forecasts via recurrence
@@ -306,34 +303,20 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         const numGrowthValue = parseFloat(growth_value) || 0;
 
         const newForecasts = [];
-        let currentStart = start_date;
+        let periodStart = start_date;
+        let periodEnd = '';
 
         for (let i = 0; i < numPeriods; i++) {
-            // Adjust start date to first day of the period
-            const startDate = new Date(currentStart);
-            let periodStart;
-
-            switch (periodicity) {
-                case 'monthly':
-                    periodStart = new Date(startDate.getFullYear(), startDate.getMonth(), 1).toISOString().split('T')[0];
-                    break;
-                case 'quarterly':
-                    const qMonth = Math.floor(startDate.getMonth() / 3) * 3;
-                    periodStart = new Date(startDate.getFullYear(), qMonth, 1).toISOString().split('T')[0];
-                    break;
-                case 'semiannual':
-                    const sMonth = startDate.getMonth() < 6 ? 0 : 6;
-                    periodStart = new Date(startDate.getFullYear(), sMonth, 1).toISOString().split('T')[0];
-                    break;
-                case 'annual':
-                    periodStart = new Date(startDate.getFullYear(), 0, 1).toISOString().split('T')[0];
-                    break;
-                default:
-                    periodStart = currentStart;
+            // For first occurrence, use the initial date provided
+            // For subsequent occurrences, use the day after the previous period end
+            if (i > 0) {
+                periodStart = getNextPeriodStart(periodEnd);
             }
 
-            const periodEnd = calculatePeriodEnd(periodStart, periodicity);
+            // Calculate period end by adding the periodicity to period start
+            periodEnd = calculatePeriodEnd(periodStart, periodicity);
 
+            // Calculate value with growth
             let value = numBaseValue;
             if (i > 0 && growth_type && numGrowthValue > 0) {
                 if (growth_type === 'percentage') {
@@ -351,8 +334,6 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 invoiced: false,
                 notes: ''
             });
-
-            currentStart = getNextPeriodStart(periodStart, periodicity);
         }
 
         setForecasts(prev => [...prev, ...newForecasts]);
@@ -822,6 +803,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                 onChange={(e) => setRecurrenceConfig(prev => ({ ...prev, periodicity: e.target.value }))}
                                             >
                                                 <option value="monthly">Mensal</option>
+                                                <option value="bimonthly">Bimestral</option>
                                                 <option value="quarterly">Trimestral</option>
                                                 <option value="semiannual">Semestral</option>
                                                 <option value="annual">Anual</option>
@@ -839,6 +821,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                         <div className="input-group" style={{ marginBottom: 0 }}>
                                             <label className="label" style={{ fontSize: '0.85rem' }}>
                                                 Qtd. {recurrenceConfig.periodicity === 'monthly' ? 'Meses' :
+                                                    recurrenceConfig.periodicity === 'bimonthly' ? 'Bimestres' :
                                                     recurrenceConfig.periodicity === 'quarterly' ? 'Trimestres' :
                                                         recurrenceConfig.periodicity === 'semiannual' ? 'Semestres' : 'Anos'} *
                                             </label>
