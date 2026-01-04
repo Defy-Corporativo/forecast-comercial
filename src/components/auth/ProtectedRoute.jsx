@@ -1,37 +1,52 @@
 import React, { useEffect, useState } from 'react';
-import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 const ALLOWED_DOMAIN = 'defysolutions.com.br';
 
 const DomainGuard = ({ children }) => {
-    const { user, signOut } = useAuth();
+    const { user, loading } = useAuth();
     const [status, setStatus] = useState('checking'); // checking | allowed | blocked
 
     useEffect(() => {
-        if (!user) return;
+        if (loading) return;
+
+        if (!user) {
+            setStatus('unauthenticated');
+            return;
+        }
+
         const domain = user.email?.split('@')[1]?.toLowerCase();
         if (domain !== ALLOWED_DOMAIN) {
             setStatus('blocked');
-            signOut().catch(() => {});
         } else {
             setStatus('allowed');
         }
-    }, [user, signOut]);
+    }, [user, loading]);
 
-    if (status === 'blocked') {
+    if (loading || status === 'checking') {
         return (
-            <div style={{ padding: '32px', maxWidth: 500, margin: '40px auto' }}>
-                <h3 style={{ marginTop: 0 }}>Acesso restrito</h3>
-                <p>Somente contas com domínio {ALLOWED_DOMAIN} podem acessar.</p>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                <div className="spinner"></div>
             </div>
         );
     }
 
-    if (status === 'checking') {
+    if (status === 'unauthenticated') {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (status === 'blocked') {
         return (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-                <div>Validando acesso...</div>
+            <div style={{ padding: '32px', maxWidth: 500, margin: '40px auto', textAlign: 'center' }}>
+                <h3 style={{ marginTop: 0 }}>Acesso restrito</h3>
+                <p>Somente contas com domínio <strong>{ALLOWED_DOMAIN}</strong> podem acessar este sistema.</p>
+                <button
+                    onClick={() => window.location.href = '/login'}
+                    style={{ marginTop: '16px', padding: '8px 16px', cursor: 'pointer' }}
+                >
+                    Voltar para Login
+                </button>
             </div>
         );
     }
@@ -41,14 +56,7 @@ const DomainGuard = ({ children }) => {
 
 const ProtectedRoute = ({ children }) => {
     return (
-        <>
-            <SignedIn>
-                <DomainGuard>{children}</DomainGuard>
-            </SignedIn>
-            <SignedOut>
-                <RedirectToSignIn />
-            </SignedOut>
-        </>
+        <DomainGuard>{children}</DomainGuard>
     );
 };
 

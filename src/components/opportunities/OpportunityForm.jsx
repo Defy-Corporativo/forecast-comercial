@@ -20,6 +20,29 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
     const [filteredClients, setFilteredClients] = useState([]);
     const searchRef = useRef(null);
 
+    // Currency formatting functions
+    const formatCurrency = (value) => {
+        if (!value) return '';
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return '';
+        return numValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const handleCurrencyChange = (e) => {
+        const { name, value } = e.target;
+        // Remove everything that is not a digit
+        const onlyDigits = value.replace(/\D/g, '');
+
+        if (onlyDigits === '') {
+            setFormData(prev => ({ ...prev, [name]: '' }));
+            return;
+        }
+
+        // Convert to float (divide by 100) to treat as cents
+        const numericValue = parseFloat(onlyDigits) / 100;
+        setFormData(prev => ({ ...prev, [name]: numericValue.toFixed(2) }));
+    };
+
     // Form State
     const [formData, setFormData] = useState({
         title: '',
@@ -212,20 +235,20 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 const baseValue = parseFloat(formData.estimated_value);
                 const growthType = formData.growth_type;
                 const growthValue = formData.growth_value;
-                
+
                 // Criar oportunidades para cada mês, começando a partir da data de previsão
                 // i=0 = primeiro mês (mesma data), i=1 = segundo mês, etc.
-                for (let i = 0; i < months; i++) {
+                for (let i = 1; i < months; i++) {
                     const futureDate = addMonthsToDate(baseDate, i);
                     // O crescimento começa a partir do segundo mês (i=1), então passamos i como monthIndex
                     const calculatedValue = calculateGrowthValue(baseValue, i, growthType, growthValue);
-                    
+
                     const recurringOpportunity = {
                         ...opportunityData,
                         forecast_date: futureDate,
                         estimated_value: calculatedValue
                     };
-                    
+
                     try {
                         await opportunityService.createOpportunity(user.id, recurringOpportunity);
                         console.log(`Oportunidade recorrente criada para o mês ${i + 1}:`, futureDate, `Valor: R$ ${calculatedValue}`);
@@ -376,15 +399,27 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
 
                             <div className="input-group">
                                 <label className="label">Valor Estimado (R$) *</label>
-                                <input
-                                    name="estimated_value"
-                                    type="number"
-                                    step="0.01"
-                                    className="input"
-                                    value={formData.estimated_value}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{
+                                        position: 'absolute',
+                                        left: '12px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        color: 'var(--text-secondary)',
+                                        pointerEvents: 'none',
+                                        fontWeight: 500
+                                    }}>R$</span>
+                                    <input
+                                        name="estimated_value"
+                                        type="text"
+                                        className="input"
+                                        style={{ paddingLeft: '40px' }}
+                                        value={formatCurrency(formData.estimated_value)}
+                                        onChange={handleCurrencyChange}
+                                        placeholder="0,00"
+                                        required
+                                    />
+                                </div>
                             </div>
 
                             <div className="input-group">
@@ -419,31 +454,10 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                     required
                                 />
                             </div>
-
-                            <div className="input-group">
-                                <label className="label">Responsável</label>
-                                <input
-                                    name="responsible"
-                                    className="input"
-                                    value={formData.responsible}
-                                    onChange={handleChange}
-                                />
-                            </div>
                         </div>
 
-                        <div className="input-group">
-                            <label className="label">Observações</label>
-                            <textarea
-                                name="notes"
-                                className="input"
-                                rows="3"
-                                value={formData.notes}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* Recorrência */}
-                        <div className="input-group">
+                        {/* Recorrência - Exatamente abaixo da data de previsão */}
+                        <div className="input-group" style={{ marginTop: '1rem' }}>
                             <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                 <input
                                     type="checkbox"
@@ -454,8 +468,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                             alert('Por favor, informe a data de previsão antes de marcar a recorrência.');
                                             return;
                                         }
-                                        setFormData(prev => ({ 
-                                            ...prev, 
+                                        setFormData(prev => ({
+                                            ...prev,
                                             is_recurring: e.target.checked,
                                             recurrence_months: e.target.checked ? prev.recurrence_months : '',
                                             growth_type: e.target.checked ? prev.growth_type : '',
@@ -487,7 +501,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                             style={{ maxWidth: '200px' }}
                                         />
                                     </div>
-                                    
+
                                     {/* Crescimento Mensal */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         <label className="label" style={{ fontSize: '0.9rem', fontWeight: 500 }}>
@@ -505,7 +519,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                 <option value="percentage">Percentual (%)</option>
                                                 <option value="value">Valor fixo (R$)</option>
                                             </select>
-                                            
+
                                             {formData.growth_type && (
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                     {formData.growth_type === 'percentage' ? (
@@ -544,20 +558,45 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                         </div>
                                         {formData.growth_type && (
                                             <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                                {formData.growth_type === 'percentage' 
+                                                {formData.growth_type === 'percentage'
                                                     ? `O valor aumentará ${formData.growth_value || 0}% a cada mês a partir do segundo mês.`
                                                     : `O valor aumentará R$ ${formData.growth_value || 0} a cada mês a partir do segundo mês.`
                                                 }
                                             </small>
                                         )}
                                     </div>
-                                    
+
                                     <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
                                         A oportunidade será duplicada automaticamente para cada mês informado, iniciando a partir da data de previsão.
                                     </small>
                                 </div>
                             )}
                         </div>
+
+                        <div className={styles.formGrid}>
+                            <div className="input-group">
+                                <label className="label">Responsável</label>
+                                <input
+                                    name="responsible"
+                                    className="input"
+                                    value={formData.responsible}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="input-group">
+                            <label className="label">Observações</label>
+                            <textarea
+                                name="notes"
+                                className="input"
+                                rows="3"
+                                value={formData.notes}
+                                onChange={handleChange}
+                            />
+                        </div>
+
+
 
                         {/* Invoiced Field - Only show if stage is Deal */}
                         {formData.stage === 'Deal' && (

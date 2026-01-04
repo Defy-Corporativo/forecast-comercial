@@ -74,6 +74,8 @@ CREATE TABLE opportunities (
   creation_date date NOT NULL DEFAULT CURRENT_DATE,
   stage text NOT NULL,
   forecast_date date,
+  growth_type text,
+  growth_value decimal(12, 2),
   responsible text,
   notes text,
   custom_data jsonb DEFAULT '{}'::jsonb,

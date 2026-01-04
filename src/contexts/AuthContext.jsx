@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useEffect } from 'react';
-import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 const AuthContext = createContext({});
@@ -7,52 +6,78 @@ const AuthContext = createContext({});
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-    const { isLoaded, user } = useUser();
-    const { signOut } = useClerkAuth();
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const ensureProfile = async () => {
-            if (!user) return;
-            const profileId = user.id;
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('id', profileId)
-                .maybeSingle();
-            if (error) return;
-            if (!data) {
-                await supabase.from('profiles').insert({
-                    id: profileId,
-                    email: user.primaryEmailAddress?.emailAddress,
-                    name: user.fullName,
-                    role: 'user',
-                });
-            }
-        };
-        ensureProfile();
-    }, [user]);
+        // Check active session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            handleSession(session);
+        });
 
-    // Map Clerk user to the shape expected in the app
-    const mappedUser = user
-        ? {
-            id: user.id,
-            email: user.primaryEmailAddress?.emailAddress,
-            user_metadata: { name: user.fullName },
+        // Listen for changes
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            handleSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const handleSession = async (session) => {
+        if (!session?.user) {
+            setUser(null);
+            setLoading(false);
+            return;
         }
-        : null;
+
+        const userEmail = session.user.email;
+        if (!userEmail?.endsWith('@defysolutions.com.br')) {
+            await supabase.auth.signOut();
+            alert('Acesso restrito apenas para o domínio @defysolutions.com.br');
+            setUser(null);
+            setLoading(false);
+            return;
+        }
+
+        setUser(session.user);
+
+        // Ensure profile exists
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+        if (!error && !data) {
+            await supabase.from('profiles').insert({
+                id: session.user.id,
+                email: userEmail,
+                name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || userEmail.split('@')[0],
+                role: 'user',
+            });
+        }
+
+        setLoading(false);
+    };
+
+    const signOut = async () => {
+        await supabase.auth.signOut();
+        setUser(null);
+    };
 
     const value = {
-        user: mappedUser,
-        profile: null,
-        isFirstLogin: false,
-        clearFirstLogin: () => {},
+        user,
+        loading,
         signOut,
-        loading: !isLoaded,
+        isFirstLogin: false, // Legacy support if needed
+        clearFirstLogin: () => { },
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {children}
+            {!loading && children}
         </AuthContext.Provider>
     );
 };

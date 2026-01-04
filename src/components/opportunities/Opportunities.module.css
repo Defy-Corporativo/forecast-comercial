@@ -19,6 +19,7 @@
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -28,7 +29,7 @@
     background-color: white;
     border-radius: var(--border-radius-lg);
     width: 100%;
-    max-width: 800px;
+    max-width: 950px;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
@@ -52,6 +53,7 @@
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -581,9 +583,7 @@
 }
 
 /* Filters */
-.filtersContainer {
-    /* Margins handled by parent flex container */
-}
+
 
 .searchBar {
     display: flex;
@@ -695,6 +695,7 @@
         opacity: 0;
         transform: translateY(-10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
