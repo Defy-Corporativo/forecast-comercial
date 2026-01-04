@@ -40,6 +40,30 @@ $$;
 
 DO $$
 BEGIN
+  IF to_regclass('public.opportunity_tag_assignments') IS NOT NULL THEN
+    DROP TABLE public.opportunity_tag_assignments CASCADE;
+  END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.opportunity_tags') IS NOT NULL THEN
+    DROP TABLE public.opportunity_tags CASCADE;
+  END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.opportunity_forecasts') IS NOT NULL THEN
+    DROP TABLE public.opportunity_forecasts CASCADE;
+  END IF;
+END;
+$$;
+
+DO $$
+BEGIN
   IF to_regclass('public.opportunities') IS NOT NULL THEN
     DROP TABLE public.opportunities CASCADE;
   END IF;

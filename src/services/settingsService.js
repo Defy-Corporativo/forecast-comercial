@@ -138,6 +138,7 @@ export const settingsService = {
             description: stage.description,
             order_index: stage.order_index,
             color: stage.color,
+            allowed_next_stages: stage.allowed_next_stages || [],
         }));
 
         const { data, error } = await supabase

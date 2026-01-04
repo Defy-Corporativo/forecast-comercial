@@ -60,6 +60,7 @@ CREATE TABLE stage_definitions (
   description text,
   order_index integer DEFAULT 0,
   color varchar(7) DEFAULT '#64748B',
+  allowed_next_stages text[] DEFAULT NULL,
   created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -70,19 +71,32 @@ CREATE TABLE opportunities (
   title text NOT NULL DEFAULT '',
   client_id uuid REFERENCES clients(id) ON DELETE SET NULL,
   client_name text NOT NULL,
-  estimated_value decimal(12, 2) NOT NULL,
   creation_date date NOT NULL DEFAULT CURRENT_DATE,
   stage text NOT NULL,
-  forecast_date date,
-  growth_type text,
-  growth_value decimal(12, 2),
   responsible text,
   notes text,
   custom_data jsonb DEFAULT '{}'::jsonb,
-  invoiced boolean DEFAULT false,
+  is_goal boolean DEFAULT false,
   created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Tabela de previsões de faturamento (1 oportunidade : N forecasts)
+CREATE TABLE opportunity_forecasts (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  opportunity_id uuid REFERENCES opportunities(id) ON DELETE CASCADE NOT NULL,
+  period_start date NOT NULL,
+  period_end date NOT NULL,
+  estimated_value decimal(12, 2) NOT NULL,
+  invoiced boolean DEFAULT false,
+  notes text,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX idx_opportunity_forecasts_opportunity_id ON opportunity_forecasts(opportunity_id);
+CREATE INDEX idx_opportunity_forecasts_period_start ON opportunity_forecasts(period_start);
+CREATE INDEX idx_opportunity_forecasts_period_end ON opportunity_forecasts(period_end);
 
 CREATE TABLE opportunity_history (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -134,3 +148,23 @@ CREATE TABLE opportunity_notes (
 CREATE INDEX idx_opportunity_notes_opportunity_id ON opportunity_notes(opportunity_id);
 CREATE INDEX idx_opportunity_notes_created_at ON opportunity_notes(created_at);
 CREATE INDEX idx_opportunity_notes_content ON opportunity_notes USING gin(to_tsvector('portuguese', content));
+
+-- Tabela de tags para categorização de oportunidades
+CREATE TABLE opportunity_tags (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name text NOT NULL UNIQUE,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Relacionamento N:N entre oportunidades e tags
+CREATE TABLE opportunity_tag_assignments (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  opportunity_id uuid REFERENCES opportunities(id) ON DELETE CASCADE NOT NULL,
+  tag_id uuid REFERENCES opportunity_tags(id) ON DELETE CASCADE NOT NULL,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(opportunity_id, tag_id)
+);
+
+CREATE INDEX idx_opportunity_tag_assignments_opportunity ON opportunity_tag_assignments(opportunity_id);
+CREATE INDEX idx_opportunity_tag_assignments_tag ON opportunity_tag_assignments(tag_id);
+CREATE INDEX idx_opportunities_is_goal ON opportunities(is_goal);

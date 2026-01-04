@@ -1,13 +1,13 @@
 import React from 'react';
-import { Edit2, Trash2, Calendar, User, DollarSign } from 'lucide-react';
+import { Edit2, Trash2, Calendar, User, DollarSign, Layers } from 'lucide-react';
 import { useStageContext } from '../../contexts/StageContext';
 import styles from './Opportunities.module.css';
 
-const OpportunityCards = ({ opportunities, onView, onEdit, onDelete }) => {
+const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit, onDelete }) => {
     const { stages } = useStageContext();
 
     const formatCurrency = (value) => {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
     };
 
     const formatDate = (dateString) => {
@@ -15,28 +15,30 @@ const OpportunityCards = ({ opportunities, onView, onEdit, onDelete }) => {
         return new Date(dateString).toLocaleDateString('pt-BR');
     };
 
-    const getStageColor = (stage) => {
-        const colors = {
-            'Pipeline': '#64748B',
-            'Strong Upside': '#2563EB',
-            'Committed': '#F59E0B',
-            'Deal': '#10B981',
-            'Lost': '#EF4444'
-        };
-        return colors[stage] || '#64748B';
+    const getStageColor = (stageName) => {
+        const stage = stages.find(s => s.name === stageName);
+        return stage?.color || '#64748B';
     };
 
-    // Get stage description for tooltip
     const getStageDescription = (stageName) => {
         const stage = stages.find(s => s.name === stageName);
         return stage?.description || '';
+    };
+
+    // Get next forecast period for grouped mode
+    const getNextForecastPeriod = (opp) => {
+        const forecasts = opp.forecasts || [];
+        const nextForecast = forecasts
+            .filter(f => !f.invoiced)
+            .sort((a, b) => new Date(a.period_start) - new Date(b.period_start))[0];
+        return nextForecast ? { start: nextForecast.period_start, end: nextForecast.period_end } : null;
     };
 
     return (
         <div className={styles.cardsContainer}>
             {opportunities.map(opp => (
                 <div
-                    key={opp.id}
+                    key={groupMode === 'flat' ? `${opp.id}-${opp.forecast_id}` : opp.id}
                     className={styles.opportunityCard}
                     onClick={() => onView(opp)}
                 >
@@ -56,13 +58,39 @@ const OpportunityCards = ({ opportunities, onView, onEdit, onDelete }) => {
 
                     <div className={styles.cardValue}>
                         <DollarSign size={16} />
-                        {formatCurrency(opp.estimated_value)}
+                        {groupMode === 'grouped'
+                            ? formatCurrency(opp.total_value || opp.estimated_value)
+                            : formatCurrency(opp.estimated_value)
+                        }
+                        {groupMode === 'grouped' && (opp.forecast_count || 0) > 1 && (
+                            <span style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-secondary)',
+                                background: 'var(--bg-secondary)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                marginLeft: '8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}>
+                                <Layers size={12} />
+                                {opp.forecast_count} prev.
+                            </span>
+                        )}
                     </div>
 
                     <div className={styles.cardDetails}>
                         <div className={styles.cardDetailItem}>
                             <Calendar size={14} />
-                            <span>{formatDate(opp.forecast_date)}</span>
+                            <span>
+                                {groupMode === 'grouped'
+                                    ? (getNextForecastPeriod(opp)
+                                        ? `${formatDate(getNextForecastPeriod(opp).start)} - ${formatDate(getNextForecastPeriod(opp).end)}`
+                                        : '-')
+                                    : (opp.period_start ? `${formatDate(opp.period_start)} - ${formatDate(opp.period_end)}` : '-')
+                                }
+                            </span>
                         </div>
                         {opp.responsible && (
                             <div className={styles.cardDetailItem}>
@@ -71,6 +99,45 @@ const OpportunityCards = ({ opportunities, onView, onEdit, onDelete }) => {
                             </div>
                         )}
                     </div>
+
+                    {/* Show forecast list for grouped mode */}
+                    {groupMode === 'grouped' && opp.forecasts && opp.forecasts.length > 1 && (
+                        <div style={{
+                            marginTop: '12px',
+                            paddingTop: '12px',
+                            borderTop: '1px solid var(--border-color)',
+                            fontSize: '0.85rem'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px',
+                                maxHeight: '120px',
+                                overflowY: 'auto'
+                            }}>
+                                {opp.forecasts.slice(0, 4).map((forecast, idx) => (
+                                    <div
+                                        key={forecast.id || idx}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            padding: '4px 0',
+                                            color: forecast.invoiced ? 'var(--text-secondary)' : 'var(--text-primary)',
+                                            textDecoration: forecast.invoiced ? 'line-through' : 'none'
+                                        }}
+                                    >
+                                        <span>{formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}</span>
+                                        <span style={{ fontWeight: 500 }}>{formatCurrency(forecast.estimated_value)}</span>
+                                    </div>
+                                ))}
+                                {opp.forecasts.length > 4 && (
+                                    <div style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
+                                        +{opp.forecasts.length - 4} mais...
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
                         <button
@@ -100,4 +167,3 @@ const OpportunityCards = ({ opportunities, onView, onEdit, onDelete }) => {
 };
 
 export default OpportunityCards;
-

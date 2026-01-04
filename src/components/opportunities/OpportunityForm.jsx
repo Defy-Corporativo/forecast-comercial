@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Search } from 'lucide-react';
+import { X, Plus, Search, Trash2, Calendar, DollarSign, Copy, Target, Tag } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
 import { settingsService } from '../../services/settingsService';
 import { clientService } from '../../services/clientService';
+import { tagService } from '../../services/tagService';
 import ClientForm from '../clients/ClientForm';
 import styles from './Opportunities.module.css';
 
@@ -22,25 +23,16 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
 
     // Currency formatting functions
     const formatCurrency = (value) => {
-        if (!value) return '';
+        if (!value && value !== 0) return '';
         const numValue = parseFloat(value);
         if (isNaN(numValue)) return '';
         return numValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
-    const handleCurrencyChange = (e) => {
-        const { name, value } = e.target;
-        // Remove everything that is not a digit
+    const parseCurrencyToNumber = (value) => {
         const onlyDigits = value.replace(/\D/g, '');
-
-        if (onlyDigits === '') {
-            setFormData(prev => ({ ...prev, [name]: '' }));
-            return;
-        }
-
-        // Convert to float (divide by 100) to treat as cents
-        const numericValue = parseFloat(onlyDigits) / 100;
-        setFormData(prev => ({ ...prev, [name]: numericValue.toFixed(2) }));
+        if (onlyDigits === '') return '';
+        return (parseFloat(onlyDigits) / 100).toFixed(2);
     };
 
     // Form State
@@ -48,36 +40,62 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         title: '',
         client_id: '',
         client_name: '',
-        estimated_value: '',
         stage: stages.length > 0 ? stages[0].name : 'Pipeline',
-        forecast_date: '',
         responsible: '',
         notes: '',
-        invoiced: false,
         custom_data: {},
-        is_recurring: false,
-        recurrence_months: '',
-        growth_type: '', // 'percentage' ou 'value'
+        is_goal: false
+    });
+
+    // Forecasts state (multiple forecasts per opportunity)
+    const [forecasts, setForecasts] = useState([]);
+
+    // Tags state
+    const [tagInput, setTagInput] = useState('');
+    const [selectedTags, setSelectedTags] = useState([]);
+    const [availableTags, setAvailableTags] = useState([]);
+    const [showTagDropdown, setShowTagDropdown] = useState(false);
+    const tagRef = useRef(null);
+
+    // Recurrence state
+    const [showRecurrence, setShowRecurrence] = useState(false);
+    const [recurrenceConfig, setRecurrenceConfig] = useState({
+        start_date: '',
+        periodicity: 'monthly', // monthly, quarterly, semiannual, annual
+        count: '', // number of periods
+        base_value: '',
+        growth_type: '',
         growth_value: ''
     });
 
     useEffect(() => {
         loadCustomFields();
         loadClients();
+        loadTags();
         if (opportunity) {
             setFormData({
                 title: opportunity.title || '',
                 client_id: opportunity.client_id || '',
                 client_name: opportunity.client_name || '',
-                estimated_value: opportunity.estimated_value,
                 stage: opportunity.stage,
-                forecast_date: opportunity.forecast_date,
                 responsible: opportunity.responsible || '',
                 notes: opportunity.notes || '',
-                invoiced: opportunity.invoiced || false,
-                custom_data: opportunity.custom_data || {}
+                custom_data: opportunity.custom_data || {},
+                is_goal: opportunity.is_goal || false
             });
             setSearchTerm(opportunity.client_name || '');
+            // Load existing forecasts with period fields
+            setForecasts((opportunity.forecasts || []).map(f => ({
+                id: f.id,
+                period_start: f.period_start || '',
+                period_end: f.period_end || '',
+                estimated_value: f.estimated_value,
+                invoiced: f.invoiced || false,
+                notes: f.notes || '',
+                inputMode: 'date' // Default to date mode for existing items unless we infer otherwise
+            })));
+            // Load existing tags
+            setSelectedTags((opportunity.tagList || []).map(t => t.name));
         }
     }, [opportunity]);
 
@@ -96,6 +114,15 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
             setClients(data || []);
         } catch (error) {
             console.error('Error loading clients:', error);
+        }
+    };
+
+    const loadTags = async () => {
+        try {
+            const tags = await tagService.getTags();
+            setAvailableTags(tags || []);
+        } catch (error) {
+            console.error('Error loading tags:', error);
         }
     };
 
@@ -150,136 +177,255 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         }));
     };
 
-    // Função auxiliar para adicionar meses a uma data
-    const addMonthsToDate = (dateString, months) => {
-        const date = new Date(dateString);
-        date.setMonth(date.getMonth() + months);
-        return date.toISOString().split('T')[0];
+    // Tag management
+    const addTag = (tagName) => {
+        const normalizedTag = tagName.trim();
+        if (normalizedTag && !selectedTags.includes(normalizedTag)) {
+            setSelectedTags(prev => [...prev, normalizedTag]);
+        }
+        setTagInput('');
+        setShowTagDropdown(false);
     };
 
-    // Função para calcular o valor com crescimento
-    // monthIndex: 0 = primeiro mês (sem crescimento), 1 = segundo mês (primeiro crescimento), etc.
-    const calculateGrowthValue = (baseValue, monthIndex, growthType, growthValue) => {
-        if (!growthType || !growthValue || growthValue <= 0 || monthIndex === 0) {
-            return baseValue;
+    const removeTag = (tagName) => {
+        setSelectedTags(prev => prev.filter(t => t !== tagName));
+    };
+
+    const filteredAvailableTags = availableTags.filter(tag =>
+        tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
+        !selectedTags.includes(tag.name)
+    );
+
+    // Toggle goal mode
+    const handleGoalToggle = (isGoal) => {
+        setFormData(prev => ({
+            ...prev,
+            is_goal: isGoal,
+            // Reset client/stage/responsible when switching to goal mode
+            ...(isGoal ? { client_id: '', client_name: '', stage: 'Meta', responsible: '' } : {})
+        }));
+        if (isGoal) {
+            setSearchTerm('');
+        }
+    };
+
+    // Forecast management
+    const addForecast = () => {
+        setForecasts(prev => [...prev, {
+            id: null,
+            period_start: '',
+            period_end: '',
+            estimated_value: '',
+            invoiced: false,
+            notes: ''
+        }]);
+    };
+
+    const updateForecast = (index, field, value) => {
+        setForecasts(prev => prev.map((f, i) => {
+            if (i === index) {
+                // If setting period via quarter selection
+                if (field === 'quarter') {
+                    const { year, quarter } = value;
+                    const quarterRanges = {
+                        'Q1': { start: `${year}-01-01`, end: `${year}-03-31` },
+                        'Q2': { start: `${year}-04-01`, end: `${year}-06-30` },
+                        'Q3': { start: `${year}-07-01`, end: `${year}-09-30` },
+                        'Q4': { start: `${year}-10-01`, end: `${year}-12-31` }
+                    };
+                    const range = quarterRanges[quarter];
+                    return { ...f, period_start: range.start, period_end: range.end };
+                }
+                return { ...f, [field]: value };
+            }
+            return f;
+        }));
+    };
+
+    const removeForecast = (index) => {
+        setForecasts(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Helper function to calculate period end based on periodicity
+    const calculatePeriodEnd = (startDate, periodicity) => {
+        const date = new Date(startDate);
+        switch (periodicity) {
+            case 'monthly':
+                // Last day of the month
+                return new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+            case 'quarterly':
+                // Last day of the quarter
+                const quarterMonth = Math.floor(date.getMonth() / 3) * 3 + 2;
+                return new Date(date.getFullYear(), quarterMonth + 1, 0).toISOString().split('T')[0];
+            case 'semiannual':
+                // Last day of the semester
+                const semesterMonth = date.getMonth() < 6 ? 5 : 11;
+                return new Date(date.getFullYear(), semesterMonth + 1, 0).toISOString().split('T')[0];
+            case 'annual':
+                // Last day of the year
+                return new Date(date.getFullYear(), 11, 31).toISOString().split('T')[0];
+            default:
+                return startDate;
+        }
+    };
+
+    // Helper function to get next period start based on periodicity
+    const getNextPeriodStart = (currentStart, periodicity) => {
+        const date = new Date(currentStart);
+        switch (periodicity) {
+            case 'monthly':
+                date.setMonth(date.getMonth() + 1);
+                return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+            case 'quarterly':
+                date.setMonth(date.getMonth() + 3);
+                const qMonth = Math.floor(date.getMonth() / 3) * 3;
+                return new Date(date.getFullYear(), qMonth, 1).toISOString().split('T')[0];
+            case 'semiannual':
+                date.setMonth(date.getMonth() + 6);
+                const sMonth = date.getMonth() < 6 ? 0 : 6;
+                return new Date(date.getFullYear(), sMonth, 1).toISOString().split('T')[0];
+            case 'annual':
+                date.setFullYear(date.getFullYear() + 1);
+                return new Date(date.getFullYear(), 0, 1).toISOString().split('T')[0];
+            default:
+                return currentStart;
+        }
+    };
+
+    // Generate forecasts via recurrence
+    const generateRecurringForecasts = () => {
+        const { start_date, periodicity, count, base_value, growth_type, growth_value } = recurrenceConfig;
+
+        if (!start_date || !count || !base_value) {
+            alert('Preencha a data inicial, quantidade de períodos e valor base para gerar a recorrência.');
+            return;
         }
 
-        const base = parseFloat(baseValue);
-        const growth = parseFloat(growthValue);
+        const numPeriods = parseInt(count, 10);
+        const numBaseValue = parseFloat(base_value);
+        const numGrowthValue = parseFloat(growth_value) || 0;
 
-        if (growthType === 'percentage') {
-            // Crescimento percentual composto: aumenta X% a cada mês a partir do segundo mês
-            // Ex: 10% ao mês, base R$ 1000
-            // Mês 1 (i=0): R$ 1000 (sem crescimento)
-            // Mês 2 (i=1): R$ 1000 * 1.10 = R$ 1100
-            // Mês 3 (i=2): R$ 1000 * 1.10^2 = R$ 1210
-            return (base * Math.pow(1 + (growth / 100), monthIndex)).toFixed(2);
-        } else if (growthType === 'value') {
-            // Crescimento em valor fixo: aumenta X reais a cada mês a partir do segundo mês
-            // Ex: R$ 100 ao mês, base R$ 1000
-            // Mês 1 (i=0): R$ 1000 (sem crescimento)
-            // Mês 2 (i=1): R$ 1000 + R$ 100 = R$ 1100
-            // Mês 3 (i=2): R$ 1000 + (R$ 100 * 2) = R$ 1200
-            return (base + (growth * monthIndex)).toFixed(2);
+        const newForecasts = [];
+        let currentStart = start_date;
+
+        for (let i = 0; i < numPeriods; i++) {
+            // Adjust start date to first day of the period
+            const startDate = new Date(currentStart);
+            let periodStart;
+
+            switch (periodicity) {
+                case 'monthly':
+                    periodStart = new Date(startDate.getFullYear(), startDate.getMonth(), 1).toISOString().split('T')[0];
+                    break;
+                case 'quarterly':
+                    const qMonth = Math.floor(startDate.getMonth() / 3) * 3;
+                    periodStart = new Date(startDate.getFullYear(), qMonth, 1).toISOString().split('T')[0];
+                    break;
+                case 'semiannual':
+                    const sMonth = startDate.getMonth() < 6 ? 0 : 6;
+                    periodStart = new Date(startDate.getFullYear(), sMonth, 1).toISOString().split('T')[0];
+                    break;
+                case 'annual':
+                    periodStart = new Date(startDate.getFullYear(), 0, 1).toISOString().split('T')[0];
+                    break;
+                default:
+                    periodStart = currentStart;
+            }
+
+            const periodEnd = calculatePeriodEnd(periodStart, periodicity);
+
+            let value = numBaseValue;
+            if (i > 0 && growth_type && numGrowthValue > 0) {
+                if (growth_type === 'percentage') {
+                    value = numBaseValue * Math.pow(1 + (numGrowthValue / 100), i);
+                } else if (growth_type === 'value') {
+                    value = numBaseValue + (numGrowthValue * i);
+                }
+            }
+
+            newForecasts.push({
+                id: null,
+                period_start: periodStart,
+                period_end: periodEnd,
+                estimated_value: value.toFixed(2),
+                invoiced: false,
+                notes: ''
+            });
+
+            currentStart = getNextPeriodStart(periodStart, periodicity);
         }
 
-        return baseValue;
+        setForecasts(prev => [...prev, ...newForecasts]);
+        setShowRecurrence(false);
+        setRecurrenceConfig({
+            start_date: '',
+            periodicity: 'monthly',
+            count: '',
+            base_value: '',
+            growth_type: '',
+            growth_value: ''
+        });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Validação adicional
-        if (!formData.client_id || !formData.client_name) {
+        // Only require client for non-goal opportunities
+        if (!formData.is_goal && (!formData.client_id || !formData.client_name)) {
             alert('Por favor, selecione um cliente da lista.');
             return;
         }
 
-        // Validação de recorrência
-        if (formData.is_recurring) {
-            if (!formData.forecast_date) {
-                alert('Por favor, informe a data de previsão antes de marcar a recorrência.');
-                return;
-            }
-            if (!formData.recurrence_months || formData.recurrence_months <= 0) {
-                alert('Por favor, informe a quantidade de meses para a recorrência.');
-                return;
-            }
-            // Validação de crescimento (se informado)
-            if (formData.growth_type && (!formData.growth_value || formData.growth_value <= 0)) {
-                alert('Por favor, informe o valor do crescimento mensal.');
+        if (forecasts.length === 0) {
+            alert('Por favor, adicione pelo menos uma previsão de faturamento.');
+            return;
+        }
+
+        // Validate forecasts
+        for (let i = 0; i < forecasts.length; i++) {
+            if (!forecasts[i].period_start || !forecasts[i].period_end || !forecasts[i].estimated_value) {
+                alert(`Por favor, preencha o período (início e fim) e o valor da previsão ${i + 1}.`);
                 return;
             }
         }
 
         setLoading(true);
         try {
-            console.log('Salvando oportunidade com dados:', formData);
-
-            const { is_recurring, recurrence_months, ...opportunityData } = formData;
+            const opportunityData = {
+                ...formData,
+                // For goals, set special values
+                client_id: formData.is_goal ? null : formData.client_id,
+                client_name: formData.is_goal ? 'META' : formData.client_name,
+                stage: formData.is_goal ? 'Meta' : formData.stage,
+                responsible: formData.is_goal ? null : formData.responsible,
+                forecasts: forecasts.map(f => ({
+                    period_start: f.period_start,
+                    period_end: f.period_end,
+                    estimated_value: parseFloat(f.estimated_value),
+                    invoiced: f.invoiced,
+                    notes: f.notes
+                })),
+                tagNames: selectedTags
+            };
 
             if (opportunity) {
-                // Edição: atualizar oportunidade original
-                const result = await opportunityService.updateOpportunity(opportunity.id, opportunityData);
-                console.log('Oportunidade atualizada:', result);
+                await opportunityService.updateOpportunity(opportunity.id, opportunityData);
             } else {
-                // Criação: criar oportunidade original
-                const result = await opportunityService.createOpportunity(user.id, opportunityData);
-                console.log('Oportunidade criada:', result);
+                await opportunityService.createOpportunity(user.id, opportunityData);
             }
 
-            // Se for recorrente, criar oportunidades futuras (tanto na criação quanto na edição)
-            if (is_recurring && recurrence_months && recurrence_months > 0) {
-                const months = parseInt(recurrence_months, 10);
-                const baseDate = formData.forecast_date;
-                const baseValue = parseFloat(formData.estimated_value);
-                const growthType = formData.growth_type;
-                const growthValue = formData.growth_value;
-
-                // Criar oportunidades para cada mês, começando a partir da data de previsão
-                // i=0 = primeiro mês (mesma data), i=1 = segundo mês, etc.
-                for (let i = 1; i < months; i++) {
-                    const futureDate = addMonthsToDate(baseDate, i);
-                    // O crescimento começa a partir do segundo mês (i=1), então passamos i como monthIndex
-                    const calculatedValue = calculateGrowthValue(baseValue, i, growthType, growthValue);
-
-                    const recurringOpportunity = {
-                        ...opportunityData,
-                        forecast_date: futureDate,
-                        estimated_value: calculatedValue
-                    };
-
-                    try {
-                        await opportunityService.createOpportunity(user.id, recurringOpportunity);
-                        console.log(`Oportunidade recorrente criada para o mês ${i + 1}:`, futureDate, `Valor: R$ ${calculatedValue}`);
-                    } catch (recurringError) {
-                        console.error(`Erro ao criar oportunidade recorrente para o mês ${i + 1}:`, recurringError);
-                        // Continua criando as outras mesmo se uma falhar
-                    }
-                }
-            }
             onSave();
             onClose();
         } catch (error) {
-            console.error('Erro completo ao salvar oportunidade:', error);
-            console.error('Detalhes do erro:', error.message, error.details, error.hint);
-
-            let errorMessage = 'Erro ao salvar oportunidade.';
-            if (error.message) {
-                errorMessage += '\n' + error.message;
-            }
-            if (error.details) {
-                errorMessage += '\nDetalhes: ' + error.details;
-            }
-            if (error.hint) {
-                errorMessage += '\nDica: ' + error.hint;
-            }
-
-            alert(errorMessage);
+            console.error('Erro ao salvar oportunidade:', error);
+            alert('Erro ao salvar oportunidade: ' + (error.message || 'Erro desconhecido'));
         } finally {
             setLoading(false);
         }
     };
+
+    // Calculate total value
+    const totalValue = forecasts.reduce((sum, f) => sum + (parseFloat(f.estimated_value) || 0), 0);
 
     return (
         <div className={styles.modalOverlay}>
@@ -291,335 +437,718 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
 
                 <form onSubmit={handleSubmit} className={styles.modalForm}>
                     <div className={styles.modalBody}>
+                        {/* Opportunity Type Selector */}
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label className="label" style={{ marginBottom: '8px' }}>Tipo de Oportunidade *</label>
+                            <div style={{ display: 'flex', gap: '0' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleGoalToggle(false)}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px 16px',
+                                        border: '1px solid var(--border-color)',
+                                        borderRight: 'none',
+                                        borderRadius: '8px 0 0 8px',
+                                        background: !formData.is_goal ? 'linear-gradient(135deg, #3b82f615, #3b82f608)' : 'white',
+                                        borderColor: !formData.is_goal ? '#3b82f640' : 'var(--border-color)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        fontWeight: !formData.is_goal ? 600 : 400,
+                                        color: !formData.is_goal ? '#3b82f6' : 'var(--text-secondary)',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    <DollarSign size={18} />
+                                    Oportunidade Real
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleGoalToggle(true)}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px 16px',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '0 8px 8px 0',
+                                        background: formData.is_goal ? 'linear-gradient(135deg, #f59e0b15, #f59e0b08)' : 'white',
+                                        borderColor: formData.is_goal ? '#f59e0b40' : 'var(--border-color)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        fontWeight: formData.is_goal ? 600 : 400,
+                                        color: formData.is_goal ? '#f59e0b' : 'var(--text-secondary)',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    <Target size={18} />
+                                    Oportunidade Meta
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Fixed Fields */}
                         <div className="input-group" style={{ marginBottom: '1rem' }}>
-                            <label className="label">Título da Oportunidade *</label>
+                            <label className="label">Título da {formData.is_goal ? 'Meta' : 'Oportunidade'} *</label>
                             <input
                                 name="title"
                                 type="text"
                                 className="input"
-                                placeholder="Ex: Projeto de Consultoria, Contrato de Manutenção..."
+                                placeholder={formData.is_goal ? 'Ex: Meta Q1 2026, Meta Anual 2026...' : 'Ex: Projeto de Consultoria, Contrato de Manutenção...'}
                                 value={formData.title}
                                 onChange={handleChange}
                                 required
                             />
                         </div>
 
-                        <div className={styles.formGrid}>
-                            <div className="input-group">
-                                <label className="label">Cliente / Empresa *</label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <div ref={searchRef} style={{ flex: 1, position: 'relative', minWidth: '350px' }}>
-                                        <div style={{ position: 'relative' }}>
-                                            <Search size={18} style={{
-                                                position: 'absolute',
-                                                left: '12px',
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                color: '#666',
-                                                pointerEvents: 'none'
-                                            }} />
-                                            <input
-                                                type="text"
-                                                className="input"
-                                                placeholder="Buscar cliente..."
-                                                value={searchTerm}
-                                                onChange={(e) => {
-                                                    setSearchTerm(e.target.value);
-                                                    setShowDropdown(true);
-                                                    // Limpa client_id se o usuário começar a digitar
-                                                    if (formData.client_id) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            client_id: '',
-                                                            client_name: ''
-                                                        }));
-                                                    }
-                                                }}
-                                                onFocus={() => setShowDropdown(true)}
-                                                readOnly={false}
-                                                required
+                        {/* Tags Field */}
+                        <div className="input-group" style={{ marginBottom: '1rem' }}>
+                            <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Tag size={14} />
+                                Tags
+                            </label>
+                            <div ref={tagRef} style={{ position: 'relative' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '6px',
+                                    padding: '8px',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '8px',
+                                    minHeight: '42px',
+                                    background: 'white'
+                                }}>
+                                    {selectedTags.map(tag => (
+                                        <span
+                                            key={tag}
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '4px 8px',
+                                                background: 'var(--color-primary)',
+                                                color: 'white',
+                                                borderRadius: '4px',
+                                                fontSize: '0.85rem'
+                                            }}
+                                        >
+                                            {tag}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeTag(tag)}
                                                 style={{
-                                                    paddingLeft: '40px'
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    padding: '0 2px',
+                                                    display: 'flex'
                                                 }}
-                                            />
-                                        </div>
-                                        {showDropdown && (
-                                            <div style={{
-                                                position: 'absolute',
-                                                top: '100%',
-                                                left: 0,
-                                                right: 0,
-                                                background: 'white',
-                                                border: '1px solid var(--border-color)',
-                                                borderRadius: '8px',
-                                                marginTop: '4px',
-                                                maxHeight: '300px',
-                                                overflowY: 'auto',
-                                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                                zIndex: 1000
-                                            }}>
-                                                {filteredClients.length === 0 ? (
-                                                    <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
-                                                        Nenhum cliente encontrado
-                                                    </div>
-                                                ) : (
-                                                    filteredClients.map(client => (
-                                                        <div
-                                                            key={client.id}
-                                                            onClick={() => handleClientSelect(client)}
-                                                            style={{
-                                                                padding: '0.75rem 1rem',
-                                                                cursor: 'pointer',
-                                                                borderBottom: '1px solid var(--border-color)',
-                                                                transition: 'background 0.2s'
-                                                            }}
-                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                                        >
-                                                            <div style={{ fontWeight: 500 }}>
-                                                                {client.name}
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                )}
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={(e) => {
+                                            setTagInput(e.target.value);
+                                            setShowTagDropdown(true);
+                                        }}
+                                        onFocus={() => setShowTagDropdown(true)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && tagInput.trim()) {
+                                                e.preventDefault();
+                                                addTag(tagInput);
+                                            }
+                                        }}
+                                        placeholder={selectedTags.length === 0 ? 'Digite para adicionar tags...' : ''}
+                                        style={{
+                                            border: 'none',
+                                            outline: 'none',
+                                            flex: 1,
+                                            minWidth: '120px',
+                                            padding: '4px'
+                                        }}
+                                    />
+                                </div>
+                                {showTagDropdown && tagInput && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        right: 0,
+                                        background: 'white',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '8px',
+                                        marginTop: '4px',
+                                        maxHeight: '200px',
+                                        overflowY: 'auto',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                        zIndex: 1000
+                                    }}>
+                                        {filteredAvailableTags.length > 0 ? (
+                                            filteredAvailableTags.map(tag => (
+                                                <div
+                                                    key={tag.id}
+                                                    onClick={() => addTag(tag.name)}
+                                                    style={{
+                                                        padding: '8px 12px',
+                                                        cursor: 'pointer',
+                                                        borderBottom: '1px solid var(--border-color)'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                >
+                                                    {tag.name}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div
+                                                onClick={() => addTag(tagInput)}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    cursor: 'pointer',
+                                                    color: 'var(--color-primary)'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                            >
+                                                + Criar tag "{tagInput}"
                                             </div>
                                         )}
                                     </div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary"
-                                        onClick={() => setShowClientModal(true)}
-                                        title="Adicionar novo cliente"
-                                    >
-                                        <Plus size={16} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="input-group">
-                                <label className="label">Valor Estimado (R$) *</label>
-                                <div style={{ position: 'relative' }}>
-                                    <span style={{
-                                        position: 'absolute',
-                                        left: '12px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        color: 'var(--text-secondary)',
-                                        pointerEvents: 'none',
-                                        fontWeight: 500
-                                    }}>R$</span>
-                                    <input
-                                        name="estimated_value"
-                                        type="text"
-                                        className="input"
-                                        style={{ paddingLeft: '40px' }}
-                                        value={formatCurrency(formData.estimated_value)}
-                                        onChange={handleCurrencyChange}
-                                        placeholder="0,00"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="input-group">
-                                <label className="label">Estágio *</label>
-                                <select
-                                    name="stage"
-                                    className="input"
-                                    value={formData.stage}
-                                    onChange={handleChange}
-                                    required
-                                >
-                                    {stages.map(stage => (
-                                        <option
-                                            key={stage.id || stage.name}
-                                            value={stage.name}
-                                            title={stage.description || ''}
-                                        >
-                                            {stage.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="input-group">
-                                <label className="label">Data de Previsão *</label>
-                                <input
-                                    name="forecast_date"
-                                    type="date"
-                                    className="input"
-                                    value={formData.forecast_date}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                )}
                             </div>
                         </div>
 
-                        {/* Recorrência - Exatamente abaixo da data de previsão */}
-                        <div className="input-group" style={{ marginTop: '1rem' }}>
-                            <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={formData.is_recurring}
-                                    disabled={!formData.forecast_date}
-                                    onChange={(e) => {
-                                        if (!formData.forecast_date) {
-                                            alert('Por favor, informe a data de previsão antes de marcar a recorrência.');
-                                            return;
-                                        }
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            is_recurring: e.target.checked,
-                                            recurrence_months: e.target.checked ? prev.recurrence_months : '',
-                                            growth_type: e.target.checked ? prev.growth_type : '',
-                                            growth_value: e.target.checked ? prev.growth_value : ''
-                                        }));
-                                    }}
-                                    style={{ cursor: formData.forecast_date ? 'pointer' : 'not-allowed', width: '18px', height: '18px' }}
-                                />
-                                <span>Recorrência (em meses)</span>
-                            </label>
-                            {!formData.forecast_date && (
-                                <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                                    Informe a data de previsão para habilitar a recorrência.
-                                </small>
-                            )}
-                            {formData.is_recurring && (
-                                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    <div>
-                                        <input
-                                            name="recurrence_months"
-                                            type="number"
+                        {/* Client, Stage, Responsible (only for non-goals) */}
+                        {!formData.is_goal && (
+                            <>
+                                <div className={styles.formGrid}>
+                                    <div className="input-group">
+                                        <label className="label">Cliente / Empresa *</label>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div ref={searchRef} style={{ flex: 1, position: 'relative', minWidth: '350px' }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <Search size={18} style={{
+                                                        position: 'absolute',
+                                                        left: '12px',
+                                                        top: '50%',
+                                                        transform: 'translateY(-50%)',
+                                                        color: '#666',
+                                                        pointerEvents: 'none'
+                                                    }} />
+                                                    <input
+                                                        type="text"
+                                                        className="input"
+                                                        placeholder="Buscar cliente..."
+                                                        value={searchTerm}
+                                                        onChange={(e) => {
+                                                            setSearchTerm(e.target.value);
+                                                            setShowDropdown(true);
+                                                            if (formData.client_id) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    client_id: '',
+                                                                    client_name: ''
+                                                                }));
+                                                            }
+                                                        }}
+                                                        onFocus={() => setShowDropdown(true)}
+                                                        required
+                                                        style={{ paddingLeft: '40px' }}
+                                                    />
+                                                </div>
+                                                {showDropdown && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        left: 0,
+                                                        right: 0,
+                                                        background: 'white',
+                                                        border: '1px solid var(--border-color)',
+                                                        borderRadius: '8px',
+                                                        marginTop: '4px',
+                                                        maxHeight: '300px',
+                                                        overflowY: 'auto',
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                                        zIndex: 1000
+                                                    }}>
+                                                        {filteredClients.length === 0 ? (
+                                                            <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                                                                Nenhum cliente encontrado
+                                                            </div>
+                                                        ) : (
+                                                            filteredClients.map(client => (
+                                                                <div
+                                                                    key={client.id}
+                                                                    onClick={() => handleClientSelect(client)}
+                                                                    style={{
+                                                                        padding: '0.75rem 1rem',
+                                                                        cursor: 'pointer',
+                                                                        borderBottom: '1px solid var(--border-color)',
+                                                                        transition: 'background 0.2s'
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                                >
+                                                                    <div style={{ fontWeight: 500 }}>
+                                                                        {client.name}
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary"
+                                                onClick={() => setShowClientModal(true)}
+                                                title="Adicionar novo cliente"
+                                            >
+                                                <Plus size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="input-group">
+                                        <label className="label">Estágio *</label>
+                                        <select
+                                            name="stage"
                                             className="input"
-                                            placeholder="Quantidade de meses"
-                                            value={formData.recurrence_months}
+                                            value={formData.stage}
                                             onChange={handleChange}
-                                            min="1"
-                                            max="60"
-                                            required={formData.is_recurring}
-                                            style={{ maxWidth: '200px' }}
+                                            required
+                                        >
+                                            {stages.map(stage => (
+                                                <option
+                                                    key={stage.id || stage.name}
+                                                    value={stage.name}
+                                                    title={stage.description || ''}
+                                                >
+                                                    {stage.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="input-group">
+                                        <label className="label">Responsável</label>
+                                        <input
+                                            name="responsible"
+                                            className="input"
+                                            value={formData.responsible}
+                                            onChange={handleChange}
                                         />
                                     </div>
-
-                                    {/* Crescimento Mensal */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <label className="label" style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                                            Crescimento Mensal (opcional)
-                                        </label>
-                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                            <select
-                                                name="growth_type"
-                                                className="input"
-                                                value={formData.growth_type}
-                                                onChange={handleChange}
-                                                style={{ maxWidth: '150px' }}
-                                            >
-                                                <option value="">Sem crescimento</option>
-                                                <option value="percentage">Percentual (%)</option>
-                                                <option value="value">Valor fixo (R$)</option>
-                                            </select>
-
-                                            {formData.growth_type && (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    {formData.growth_type === 'percentage' ? (
-                                                        <>
-                                                            <input
-                                                                name="growth_value"
-                                                                type="number"
-                                                                className="input"
-                                                                placeholder="Ex: 10"
-                                                                value={formData.growth_value}
-                                                                onChange={handleChange}
-                                                                min="0"
-                                                                step="0.01"
-                                                                style={{ maxWidth: '120px' }}
-                                                            />
-                                                            <span style={{ color: 'var(--text-secondary)' }}>%</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <span style={{ color: 'var(--text-secondary)' }}>R$</span>
-                                                            <input
-                                                                name="growth_value"
-                                                                type="number"
-                                                                className="input"
-                                                                placeholder="Ex: 1000"
-                                                                value={formData.growth_value}
-                                                                onChange={handleChange}
-                                                                min="0"
-                                                                step="0.01"
-                                                                style={{ maxWidth: '120px' }}
-                                                            />
-                                                        </>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        {formData.growth_type && (
-                                            <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                                {formData.growth_type === 'percentage'
-                                                    ? `O valor aumentará ${formData.growth_value || 0}% a cada mês a partir do segundo mês.`
-                                                    : `O valor aumentará R$ ${formData.growth_value || 0} a cada mês a partir do segundo mês.`
-                                                }
-                                            </small>
-                                        )}
-                                    </div>
-
-                                    <small style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                                        A oportunidade será duplicada automaticamente para cada mês informado, iniciando a partir da data de previsão.
-                                    </small>
                                 </div>
-                            )}
-                        </div>
-
-                        <div className={styles.formGrid}>
-                            <div className="input-group">
-                                <label className="label">Responsável</label>
-                                <input
-                                    name="responsible"
-                                    className="input"
-                                    value={formData.responsible}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                        </div>
+                            </>
+                        )}
 
                         <div className="input-group">
                             <label className="label">Observações</label>
                             <textarea
                                 name="notes"
                                 className="input"
-                                rows="3"
+                                rows="2"
                                 value={formData.notes}
                                 onChange={handleChange}
                             />
                         </div>
 
-
-
-                        {/* Invoiced Field - Only show if stage is Deal */}
-                        {formData.stage === 'Deal' && (
-                            <div className="input-group">
-                                <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.invoiced}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, invoiced: e.target.checked }))}
-                                        style={{ cursor: 'pointer', width: '18px', height: '18px' }}
-                                    />
-                                    <span>Faturado</span>
-                                </label>
-                                <small style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                                    Marque se o contrato já foi faturado
-                                </small>
+                        {/* Forecasts Section */}
+                        <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Calendar size={18} />
+                                    Previsões de Faturamento
+                                    <span style={{
+                                        fontSize: '0.85rem',
+                                        fontWeight: 'normal',
+                                        color: 'var(--text-secondary)',
+                                        marginLeft: '8px'
+                                    }}>
+                                        ({forecasts.length} {forecasts.length === 1 ? 'registro' : 'registros'})
+                                    </span>
+                                </h4>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={() => setShowRecurrence(!showRecurrence)}
+                                        style={{ fontSize: '0.85rem' }}
+                                    >
+                                        <Copy size={14} />
+                                        Recorrência
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={addForecast}
+                                        style={{ fontSize: '0.85rem' }}
+                                    >
+                                        <Plus size={14} />
+                                        Adicionar
+                                    </button>
+                                </div>
                             </div>
-                        )}
+
+                            {/* Recurrence Panel */}
+                            {showRecurrence && (
+                                <div style={{
+                                    background: 'var(--bg-secondary)',
+                                    padding: '1rem',
+                                    borderRadius: '8px',
+                                    marginBottom: '1rem',
+                                    border: '1px solid var(--border-color)'
+                                }}>
+                                    <h5 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem' }}>Gerar Previsões Recorrentes</h5>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                                        <div className="input-group" style={{ marginBottom: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.85rem' }}>Periodicidade *</label>
+                                            <select
+                                                className="input"
+                                                value={recurrenceConfig.periodicity}
+                                                onChange={(e) => setRecurrenceConfig(prev => ({ ...prev, periodicity: e.target.value }))}
+                                            >
+                                                <option value="monthly">Mensal</option>
+                                                <option value="quarterly">Trimestral</option>
+                                                <option value="semiannual">Semestral</option>
+                                                <option value="annual">Anual</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group" style={{ marginBottom: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.85rem' }}>Data Inicial *</label>
+                                            <input
+                                                type="date"
+                                                className="input"
+                                                value={recurrenceConfig.start_date}
+                                                onChange={(e) => setRecurrenceConfig(prev => ({ ...prev, start_date: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="input-group" style={{ marginBottom: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.85rem' }}>
+                                                Qtd. {recurrenceConfig.periodicity === 'monthly' ? 'Meses' :
+                                                    recurrenceConfig.periodicity === 'quarterly' ? 'Trimestres' :
+                                                        recurrenceConfig.periodicity === 'semiannual' ? 'Semestres' : 'Anos'} *
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="input"
+                                                min="1"
+                                                max="60"
+                                                placeholder="Quantidade"
+                                                value={recurrenceConfig.count}
+                                                onChange={(e) => setRecurrenceConfig(prev => ({ ...prev, count: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="input-group" style={{ marginBottom: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.85rem' }}>Valor Base (R$) *</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                placeholder="0,00"
+                                                value={formatCurrency(recurrenceConfig.base_value)}
+                                                onChange={(e) => setRecurrenceConfig(prev => ({
+                                                    ...prev,
+                                                    base_value: parseCurrencyToNumber(e.target.value)
+                                                }))}
+                                            />
+                                        </div>
+                                        <div className="input-group" style={{ marginBottom: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.85rem' }}>Crescimento</label>
+                                            <select
+                                                className="input"
+                                                value={recurrenceConfig.growth_type}
+                                                onChange={(e) => setRecurrenceConfig(prev => ({ ...prev, growth_type: e.target.value }))}
+                                            >
+                                                <option value="">Sem crescimento</option>
+                                                <option value="percentage">Percentual (%)</option>
+                                                <option value="value">Valor fixo (R$)</option>
+                                            </select>
+                                        </div>
+                                        {recurrenceConfig.growth_type && (
+                                            <div className="input-group" style={{ marginBottom: 0 }}>
+                                                <label className="label" style={{ fontSize: '0.85rem' }}>
+                                                    {recurrenceConfig.growth_type === 'percentage' ? 'Percentual (%)' : 'Valor (R$)'}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    className="input"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={recurrenceConfig.growth_value}
+                                                    onChange={(e) => setRecurrenceConfig(prev => ({ ...prev, growth_value: e.target.value }))}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '1rem', justifyContent: 'flex-end' }}>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={() => setShowRecurrence(false)}
+                                            style={{ fontSize: '0.85rem' }}
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={generateRecurringForecasts}
+                                            style={{ fontSize: '0.85rem' }}
+                                        >
+                                            Gerar Previsões
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Forecasts List */}
+                            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                {forecasts.length === 0 ? (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        padding: '2rem',
+                                        color: 'var(--text-secondary)',
+                                        background: 'var(--bg-secondary)',
+                                        borderRadius: '8px',
+                                        border: '1px dashed var(--border-color)'
+                                    }}>
+                                        Nenhuma previsão adicionada. Clique em "Adicionar" ou "Recorrência" para começar.
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        {forecasts.map((forecast, index) => (
+                                            <div key={index} style={{
+                                                background: '#f8fafc',
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: '8px',
+                                                padding: '16px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '12px'
+                                            }}>
+                                                {/* Header Row: Remove Button */}
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '-8px' }}>
+                                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Previsão {index + 1}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeForecast(index)}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: '4px',
+                                                            color: 'var(--color-danger)',
+                                                            opacity: 0.7,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px',
+                                                            fontSize: '0.8rem'
+                                                        }}
+                                                        title="Remover previsão"
+                                                    >
+                                                        <Trash2 size={14} /> Remover
+                                                    </button>
+                                                </div>
+
+                                                {/* Row 1: Period and Quarter Selector */}
+                                                <div style={{ flex: 1, minWidth: '350px' }}>
+                                                    <div style={{ display: 'flex', gap: '16px', marginBottom: '8px', alignItems: 'center' }}>
+                                                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Definir Período Por:</label>
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newForecasts = [...forecasts];
+                                                                    newForecasts[index].inputMode = 'date';
+                                                                    setForecasts(newForecasts);
+                                                                }}
+                                                                style={{
+                                                                    padding: '4px 12px',
+                                                                    borderRadius: '16px',
+                                                                    border: '1px solid var(--border-color)',
+                                                                    background: (!forecast.inputMode || forecast.inputMode === 'date') ? 'var(--color-primary)' : 'white',
+                                                                    color: (!forecast.inputMode || forecast.inputMode === 'date') ? 'white' : 'var(--text-secondary)',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.75rem',
+                                                                    transition: 'all 0.2s'
+                                                                }}
+                                                            >
+                                                                Datas
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newForecasts = [...forecasts];
+                                                                    newForecasts[index].inputMode = 'quarter';
+                                                                    setForecasts(newForecasts);
+                                                                }}
+                                                                style={{
+                                                                    padding: '4px 12px',
+                                                                    borderRadius: '16px',
+                                                                    border: '1px solid var(--border-color)',
+                                                                    background: forecast.inputMode === 'quarter' ? 'var(--color-primary)' : 'white',
+                                                                    color: forecast.inputMode === 'quarter' ? 'white' : 'var(--text-secondary)',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.75rem',
+                                                                    transition: 'all 0.2s'
+                                                                }}
+                                                            >
+                                                                Trimestre
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {(!forecast.inputMode || forecast.inputMode === 'date') ? (
+                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                            <input
+                                                                type="date"
+                                                                className="input"
+                                                                style={{ padding: '6px 8px', fontSize: '0.9rem' }}
+                                                                value={forecast.period_start}
+                                                                onChange={(e) => updateForecast(index, 'period_start', e.target.value)}
+                                                                required
+                                                            />
+                                                            <span style={{ color: 'var(--text-secondary)' }}>até</span>
+                                                            <input
+                                                                type="date"
+                                                                className="input"
+                                                                style={{ padding: '6px 8px', fontSize: '0.9rem' }}
+                                                                value={forecast.period_end}
+                                                                onChange={(e) => updateForecast(index, 'period_end', e.target.value)}
+                                                                required
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <select
+                                                                className="input"
+                                                                style={{ padding: '6px 8px', fontSize: '0.9rem' }}
+                                                                value={
+                                                                    // Try to infer current Q from dates if not explicit
+                                                                    forecast.quarter || ''
+                                                                }
+                                                                onChange={(e) => {
+                                                                    const yearSelect = document.getElementById(`year-${index}`);
+                                                                    const year = yearSelect?.value || new Date().getFullYear();
+                                                                    updateForecast(index, 'quarter', { year: parseInt(year), quarter: e.target.value });
+                                                                    // Store the explicit Q selection in state so it persists in UI
+                                                                    const newForecasts = [...forecasts];
+                                                                    newForecasts[index].quarter = e.target.value;
+                                                                    newForecasts[index].year = parseInt(year);
+                                                                    setForecasts(newForecasts);
+                                                                }}
+                                                            >
+                                                                <option value="">Selecione...</option>
+                                                                <option value="Q1">Q1 (Jan-Mar)</option>
+                                                                <option value="Q2">Q2 (Abr-Jun)</option>
+                                                                <option value="Q3">Q3 (Jul-Set)</option>
+                                                                <option value="Q4">Q4 (Out-Dez)</option>
+                                                            </select>
+                                                            <select
+                                                                id={`year-${index}`}
+                                                                className="input"
+                                                                style={{ padding: '6px 8px', fontSize: '0.9rem', width: '80px' }}
+                                                                value={forecast.year || new Date().getFullYear()}
+                                                                onChange={(e) => {
+                                                                    const newForecasts = [...forecasts];
+                                                                    newForecasts[index].year = parseInt(e.target.value);
+                                                                    setForecasts(newForecasts);
+
+                                                                    // Update dates if quarter is already selected
+                                                                    if (forecast.quarter) {
+                                                                        updateForecast(index, 'quarter', { year: parseInt(e.target.value), quarter: forecast.quarter });
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {[...Array(5)].map((_, i) => {
+                                                                    const year = new Date().getFullYear() + i;
+                                                                    return <option key={year} value={year}>{year}</option>;
+                                                                })}
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Row 2: Value, Invoiced, Notes */}
+                                                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                                    <div style={{ flex: 1, minWidth: '150px' }}>
+                                                        <label className="label" style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Valor (R$)</label>
+                                                        <input
+                                                            type="text"
+                                                            className="input"
+                                                            style={{ padding: '6px 8px', fontSize: '0.9rem', fontWeight: 600 }}
+                                                            placeholder="0,00"
+                                                            value={formatCurrency(forecast.estimated_value)}
+                                                            onChange={(e) => updateForecast(index, 'estimated_value', parseCurrencyToNumber(e.target.value))}
+                                                            required
+                                                        />
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px' }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={forecast.invoiced}
+                                                                onChange={(e) => updateForecast(index, 'invoiced', e.target.checked)}
+                                                                style={{ width: '16px', height: '16px' }}
+                                                            />
+                                                            Faturado
+                                                        </label>
+                                                    </div>
+
+                                                    <div style={{ flex: 2, minWidth: '200px' }}>
+                                                        <label className="label" style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Observação</label>
+                                                        <input
+                                                            type="text"
+                                                            className="input"
+                                                            style={{ padding: '6px 8px', fontSize: '0.9rem' }}
+                                                            placeholder="Obs..."
+                                                            value={forecast.notes || ''}
+                                                            onChange={(e) => updateForecast(index, 'notes', e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Total Value */}
+                            {forecasts.length > 0 && (
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    marginTop: '1rem',
+                                    paddingTop: '1rem',
+                                    borderTop: '1px solid var(--border-color)'
+                                }}>
+                                    <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
+                                        <DollarSign size={16} style={{ verticalAlign: 'middle' }} /> Total:
+                                    </span>
+                                    <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                                        R$ {formatCurrency(totalValue)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Custom Fields */}
                         {customFields.length > 0 && (
                             <>
-                                <h4 className={styles.sectionSubtitle}>Informações Adicionais</h4>
+                                <h4 className={styles.sectionSubtitle} style={{ marginTop: '1.5rem' }}>Informações Adicionais</h4>
                                 <div className={styles.formGrid}>
                                     {customFields.map(field => (
                                         <div key={field.id} className="input-group">

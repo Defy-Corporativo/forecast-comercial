@@ -10,6 +10,7 @@ const defaultStageDefinitions = [
     description: 'Oportunidades em prospecção inicial ou pipeline geral.',
     order_index: 0,
     color: '#9CA3AF',
+    allowed_next_stages: ['Strong Upside', 'Lost'],
   },
   {
     id: 'default-strong-upside',
@@ -17,6 +18,7 @@ const defaultStageDefinitions = [
     description: 'Oportunidades com forte probabilidade de avanço.',
     order_index: 1,
     color: '#3B82F6',
+    allowed_next_stages: ['Committed', 'Lost'],
   },
   {
     id: 'default-committed',
@@ -24,6 +26,7 @@ const defaultStageDefinitions = [
     description: 'Oportunidades com previsão assumida para o período.',
     order_index: 2,
     color: '#2563EB',
+    allowed_next_stages: ['Deal', 'Lost'],
   },
   {
     id: 'default-deal',
@@ -31,6 +34,7 @@ const defaultStageDefinitions = [
     description: 'Contrato fechado.',
     order_index: 3,
     color: '#10B981',
+    allowed_next_stages: [], // Fim do fluxo
   },
   {
     id: 'default-lost',
@@ -38,13 +42,14 @@ const defaultStageDefinitions = [
     description: 'Oportunidades perdidas.',
     order_index: 4,
     color: '#6B7280',
+    allowed_next_stages: [], // Fim do fluxo
   },
 ];
 
 const StageContext = createContext({
   stages: defaultStageDefinitions,
   loading: true,
-  refreshStages: () => {},
+  refreshStages: () => { },
 });
 
 export const StageProvider = ({ children }) => {

@@ -262,19 +262,27 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [] }) => 
 
         // Agrupa oportunidades por mês de forecast e estágio
         opportunities.forEach(opp => {
-            if (!opp.forecast_date) return;
-
-            const forecastDate = new Date(opp.forecast_date);
-            const monthKey = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, '0')}`;
-
-            if (!dataByMonth[monthKey]) return;
-
-            const value = Number(opp.estimated_value) || 0;
-            const stageName = opp.stage;
-
-            if (dataByMonth[monthKey][stageName] !== undefined) {
-                dataByMonth[monthKey][stageName] += value;
+            const forecasts = opp.forecasts || [];
+            if (forecasts.length === 0 && opp.period_start) {
+                // Compatibility if forecasts not present but period_start is (unlikely with new service)
+                // But let's assume opp.forecasts is the source of truth
             }
+
+            forecasts.forEach(forecast => {
+                if (!forecast.period_start) return;
+
+                const forecastDate = new Date(forecast.period_start);
+                const monthKey = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, '0')}`;
+
+                if (!dataByMonth[monthKey]) return;
+
+                const value = Number(forecast.estimated_value) || 0;
+                const stageName = opp.stage;
+
+                if (dataByMonth[monthKey][stageName] !== undefined) {
+                    dataByMonth[monthKey][stageName] += value;
+                }
+            });
         });
 
         return monthRange.map(month => dataByMonth[month.key]);
@@ -466,7 +474,7 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
         field: 'stage',
         chartType: 'pie',
         timeDistributed: false,
-        dateField: 'forecast_date',
+        dateField: 'period_start',
         is_public: false
     });
 
@@ -555,7 +563,7 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
                                 value={chartConfig.dateField}
                                 onChange={(e) => setChartConfig(prev => ({ ...prev, dateField: e.target.value }))}
                             >
-                                <option value="forecast_date">Data de Previsão</option>
+                                <option value="period_start">Período Início</option>
                                 <option value="created_at">Data de Criação</option>
                             </select>
                         </div>
@@ -1044,6 +1052,205 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
             <div style={{ width: '100%', minHeight: 300, height: 300 }}>
                 {renderChart()}
             </div>
+        </div>
+    );
+};
+
+// Goals Comparison Chart - Meta vs Cadastrado vs Faturado
+export const GoalsComparisonChart = ({ opportunities = [] }) => {
+    const today = new Date();
+    const defaultStartDate = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+    const defaultEndDate = new Date(today.getFullYear(), today.getMonth() + 6, 0);
+
+    const [startDate, setStartDate] = useState(defaultStartDate.toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(defaultEndDate.toISOString().split('T')[0]);
+
+    const chartData = useMemo(() => {
+        if (!opportunities || opportunities.length === 0) return [];
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const monthRange = generateMonthRange(start, end);
+
+        // Initialize data by month
+        const dataByMonth = {};
+        monthRange.forEach(month => {
+            dataByMonth[month.key] = {
+                name: month.label,
+                meta: 0,
+                cadastrado: 0,
+                faturado: 0
+            };
+        });
+
+        // Process opportunities
+        opportunities.forEach(opp => {
+            const forecasts = opp.forecasts || [];
+
+            forecasts.forEach(forecast => {
+                if (!forecast.period_start) return;
+
+                const forecastDate = new Date(forecast.period_start);
+                const monthKey = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, '0')}`;
+
+                if (!dataByMonth[monthKey]) return;
+
+                const value = Number(forecast.estimated_value) || 0;
+
+                if (opp.is_goal) {
+                    // Goal opportunity
+                    dataByMonth[monthKey].meta += value;
+                } else {
+                    // Regular opportunity
+                    dataByMonth[monthKey].cadastrado += value;
+                    if (forecast.invoiced) {
+                        dataByMonth[monthKey].faturado += value;
+                    }
+                }
+            });
+        });
+
+        return monthRange.map(month => dataByMonth[month.key]);
+    }, [opportunities, startDate, endDate]);
+
+    const hasData = chartData.some(d => d.meta > 0 || d.cadastrado > 0 || d.faturado > 0);
+
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (!active || !payload || !payload.length) return null;
+
+        return (
+            <div style={{
+                background: 'white',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                boxShadow: 'var(--shadow-md)',
+                minWidth: '180px'
+            }}>
+                <p style={{ margin: '0 0 8px 0', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '8px' }}>{label}</p>
+                {payload.map((entry, index) => (
+                    <p key={index} style={{
+                        margin: '4px 0',
+                        fontSize: '13px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: '16px'
+                    }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: entry.color }}>
+                            <span style={{ width: '10px', height: '3px', borderRadius: '2px', background: entry.color }}></span>
+                            {entry.name}:
+                        </span>
+                        <span style={{ fontWeight: 500 }}>{formatCurrency(entry.value)}</span>
+                    </p>
+                ))}
+            </div>
+        );
+    };
+
+    return (
+        <div className={styles.forecastChartContainer}>
+            <div className={styles.forecastHeader}>
+                <h3 className={styles.chartTitle}>Meta vs Cadastrado vs Faturado</h3>
+                <div className={styles.dateFilters}>
+                    <div className={styles.dateFilter}>
+                        <label>De:</label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className={styles.dateInput}
+                        />
+                    </div>
+                    <div className={styles.dateFilter}>
+                        <label>Até:</label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className={styles.dateInput}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '16px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                    <span style={{ width: '12px', height: '3px', background: '#f59e0b', borderRadius: '2px' }}></span>
+                    Meta
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                    <span style={{ width: '12px', height: '3px', background: '#3b82f6', borderRadius: '2px' }}></span>
+                    Cadastrado
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                    <span style={{ width: '12px', height: '3px', background: '#10b981', borderRadius: '2px' }}></span>
+                    Faturado
+                </span>
+            </div>
+
+            {!hasData ? (
+                <div className={styles.emptyChart}>
+                    Nenhuma meta ou oportunidade no período selecionado.
+                </div>
+            ) : (
+                <div style={{ width: '100%', height: 350 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                            <defs>
+                                <linearGradient id="metaGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" />
+                            <XAxis
+                                dataKey="name"
+                                tick={{ fontSize: 12, fill: 'var(--text-secondary)' }}
+                                axisLine={{ stroke: 'var(--border-color)' }}
+                            />
+                            <YAxis
+                                tickFormatter={(value) => {
+                                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                                    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+                                    return value;
+                                }}
+                                tick={{ fontSize: 12, fill: 'var(--text-secondary)' }}
+                                axisLine={{ stroke: 'var(--border-color)' }}
+                            />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Line
+                                type="monotone"
+                                dataKey="meta"
+                                name="Meta"
+                                stroke="#f59e0b"
+                                strokeWidth={3}
+                                strokeDasharray="5 5"
+                                dot={{ r: 4, fill: '#f59e0b' }}
+                                activeDot={{ r: 6 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="cadastrado"
+                                name="Cadastrado"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                dot={{ r: 3, fill: '#3b82f6' }}
+                                activeDot={{ r: 5 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="faturado"
+                                name="Faturado"
+                                stroke="#10b981"
+                                strokeWidth={2}
+                                dot={{ r: 3, fill: '#10b981' }}
+                                activeDot={{ r: 5 }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            )}
         </div>
     );
 };

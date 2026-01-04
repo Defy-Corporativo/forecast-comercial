@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Edit2, RefreshCcw, Lock } from 'lucide-react';
+import { Plus, Trash2, Edit2, RefreshCcw, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
 import styles from './Settings.module.css';
 
-// Estágios padrão que não podem ser editados/excluídos
-const DEFAULT_STAGE_NAMES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost'];
+
 
 const StageSettings = () => {
     const { user } = useAuth();
@@ -29,10 +28,7 @@ const StageSettings = () => {
         return typeof stage.id === 'string' && stage.id.startsWith('default-');
     };
 
-    // Helper to check if a stage name is a protected default
-    const isProtectedStage = (stageName) => {
-        return DEFAULT_STAGE_NAMES.includes(stageName);
-    };
+
 
     useEffect(() => {
         setLocalStages(stages);
@@ -47,6 +43,7 @@ const StageSettings = () => {
                 description: stage.description || '',
                 order_index: stage.order_index ?? 0,
                 color: stage.color || '#64748B',
+                allowed_next_stages: stage.allowed_next_stages || [],
             });
         } else {
             setEditingStage(null);
@@ -55,6 +52,7 @@ const StageSettings = () => {
                 description: '',
                 order_index: stages.length,
                 color: '#64748B',
+                allowed_next_stages: [],
             });
         }
         setShowModal(true);
@@ -160,7 +158,6 @@ const StageSettings = () => {
                         </thead>
                         <tbody>
                             {sortedStages.map(stage => {
-                                const isProtected = isProtectedStage(stage.name);
                                 return (
                                     <tr key={stage.id}>
                                         <td style={{ width: '80px' }}>{stage.order_index ?? 0}</td>
@@ -176,29 +173,24 @@ const StageSettings = () => {
                                         <td>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 {stage.name}
-                                                {isProtected && (
-                                                    <span title="Estágio padrão do sistema" style={{ color: 'var(--text-tertiary)' }}>
-                                                        <Lock size={14} />
-                                                    </span>
-                                                )}
                                             </div>
                                         </td>
                                         <td style={{ maxWidth: '400px' }}>{stage.description || '-'}</td>
                                         <td>
                                             <div className={styles.actions}>
-                                                <button 
-                                                    className={styles.actionBtn} 
+                                                <button
+                                                    className={styles.actionBtn}
                                                     onClick={() => handleOpenModal(stage)}
-                                                    title={isProtected ? 'Editar descrição, ordem e cor' : 'Editar estágio'}
+                                                    title="Editar estágio"
                                                 >
                                                     <Edit2 size={16} />
                                                 </button>
-                                                <button 
-                                                    className={`${styles.actionBtn} ${styles.danger}`} 
-                                                    onClick={() => handleDelete(stage.id)} 
-                                                    disabled={isDefaultStage(stage) || isProtected}
-                                                    title={isProtected ? 'Estágio padrão não pode ser excluído' : 'Excluir estágio'}
-                                                    style={(isDefaultStage(stage) || isProtected) ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                                                <button
+                                                    className={`${styles.actionBtn} ${styles.danger}`}
+                                                    onClick={() => handleDelete(stage.id)}
+                                                    disabled={isDefaultStage(stage)}
+                                                    title={isDefaultStage(stage) ? 'Salve o estágio primeiro para poder excluí-lo' : 'Excluir estágio'}
+                                                    style={isDefaultStage(stage) ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>
@@ -212,6 +204,102 @@ const StageSettings = () => {
                 )}
             </div>
 
+            {/* Diagrama Visual do Fluxo de Estágios */}
+            <div style={{ marginTop: '24px' }}>
+                <h4 style={{ marginBottom: '12px', color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600 }}>
+                    Fluxo de Transições
+                </h4>
+                <div style={{
+                    padding: '20px',
+                    background: 'var(--bg-main)',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    overflowX: 'auto'
+                }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-start' }}>
+                        {sortedStages.map((stage, index) => {
+                            const nextStages = stage.allowed_next_stages || [];
+                            const hasTransitions = nextStages.length > 0;
+
+                            return (
+                                <div key={stage.id || index} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 12px',
+                                    background: 'white',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border-color-light)',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                }}>
+                                    {/* Estágio de origem */}
+                                    <div style={{
+                                        padding: '6px 12px',
+                                        borderRadius: '6px',
+                                        background: stage.color || '#64748B',
+                                        color: 'white',
+                                        fontWeight: 500,
+                                        fontSize: '12px',
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        {stage.name}
+                                    </div>
+
+                                    {hasTransitions && (
+                                        <>
+                                            <ArrowRight size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+
+                                            {/* Estágios de destino */}
+                                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                                {nextStages.map((nextStageName, nIdx) => {
+                                                    const nextStageData = localStages.find(s => s.name === nextStageName);
+                                                    return (
+                                                        <span
+                                                            key={nIdx}
+                                                            style={{
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+                                                                background: nextStageData?.color ? `${nextStageData.color}20` : '#f1f5f9',
+                                                                color: nextStageData?.color || 'var(--text-secondary)',
+                                                                fontSize: '11px',
+                                                                fontWeight: 500,
+                                                                border: `1px solid ${nextStageData?.color || 'var(--border-color)'}`,
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            {nextStageName}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {!hasTransitions && (
+                                        <span style={{
+                                            fontSize: '11px',
+                                            color: 'var(--text-tertiary)',
+                                            fontStyle: 'italic',
+                                            marginLeft: '4px'
+                                        }}>
+                                            (fim)
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <p style={{
+                        marginTop: '12px',
+                        fontSize: '11px',
+                        color: 'var(--text-tertiary)',
+                        margin: '12px 0 0 0'
+                    }}>
+                        Clique em &quot;Editar&quot; em um estágio para configurar suas transições permitidas.
+                    </p>
+                </div>
+            </div>
+
             {showModal && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modal}>
@@ -222,26 +310,13 @@ const StageSettings = () => {
                         <form onSubmit={handleSave}>
                             <div className={styles.modalBody}>
                                 <div className="input-group">
-                                    <label className="label">
-                                        Nome do Estágio
-                                        {editingStage && isProtectedStage(editingStage.name) && (
-                                            <span style={{ marginLeft: '8px', color: 'var(--text-tertiary)', fontSize: '12px', fontWeight: 'normal' }}>
-                                                (não editável)
-                                            </span>
-                                        )}
-                                    </label>
+                                    <label className="label">Nome do Estágio</label>
                                     <input
                                         type="text"
                                         className="input"
                                         value={formData.name}
                                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                         required
-                                        disabled={editingStage && isProtectedStage(editingStage.name)}
-                                        style={editingStage && isProtectedStage(editingStage.name) ? { 
-                                            background: 'var(--bg-main)', 
-                                            cursor: 'not-allowed',
-                                            color: 'var(--text-secondary)'
-                                        } : {}}
                                     />
                                 </div>
                                 <div className="input-group">
@@ -292,6 +367,61 @@ const StageSettings = () => {
                                             />
                                         </div>
                                     </div>
+                                </div>
+                                <div className="input-group">
+                                    <label className="label">Próximos Estágios Permitidos</label>
+                                    <div style={{
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
+                                        gap: '8px',
+                                        padding: '12px',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '6px',
+                                        background: 'var(--bg-main)'
+                                    }}>
+                                        {localStages
+                                            .filter(s => s.id !== editingStage?.id && s.name !== formData.name) // Não incluir a si mesmo
+                                            .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+                                            .map(stage => {
+                                                const isSelected = formData.allowed_next_stages?.includes(stage.name);
+                                                return (
+                                                    <button
+                                                        key={stage.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFormData(prev => {
+                                                                const current = prev.allowed_next_stages || [];
+                                                                if (current.includes(stage.name)) {
+                                                                    return { ...prev, allowed_next_stages: current.filter(n => n !== stage.name) };
+                                                                } else {
+                                                                    return { ...prev, allowed_next_stages: [...current, stage.name] };
+                                                                }
+                                                            });
+                                                        }}
+                                                        style={{
+                                                            padding: '6px 12px',
+                                                            borderRadius: '16px',
+                                                            border: `1px solid ${isSelected ? (stage.color || 'var(--color-primary)') : 'var(--border-color)'}`,
+                                                            background: isSelected ? (stage.color || 'var(--color-primary)') : 'white',
+                                                            color: isSelected ? 'white' : 'var(--text-primary)',
+                                                            fontSize: '12px',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                    >
+                                                        {stage.name}
+                                                    </button>
+                                                );
+                                            })}
+                                        {localStages.length <= 1 && (
+                                            <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                                                Nenhum outro estágio disponível.
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                        Selecione para quais estágios uma oportunidade pode evoluir a partir deste. Se nenhum for selecionado, todos estarão disponíveis.
+                                    </p>
                                 </div>
                             </div>
                             <div className={styles.modalFooter}>

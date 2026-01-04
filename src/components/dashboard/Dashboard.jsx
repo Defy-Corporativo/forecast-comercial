@@ -7,7 +7,7 @@ import { settingsService } from '../../services/settingsService';
 import { chartService } from '../../services/chartService';
 import { logDebug } from '../../utils/logger';
 import MetricsCard from './MetricsCard';
-import { ForecastProjectionChart, CustomChartModal, CustomChart } from './Charts';
+import { ForecastProjectionChart, GoalsComparisonChart, CustomChartModal, CustomChart } from './Charts';
 import styles from './Dashboard.module.css';
 
 const Dashboard = () => {
@@ -217,6 +217,9 @@ const Dashboard = () => {
 
             {/* Gráfico de Projeção de Forecast */}
             <ForecastProjectionChart opportunities={opportunities} stages={stages} />
+
+            {/* Gráfico de Comparação Metas vs Cadastrado vs Faturado */}
+            <GoalsComparisonChart opportunities={opportunities} />
 
             {/* Gráficos customizados - aparecem no final */}
             {customCharts.length > 0 && (

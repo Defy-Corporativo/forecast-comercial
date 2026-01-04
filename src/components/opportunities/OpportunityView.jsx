@@ -1,28 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit2, Trash2, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle } from 'lucide-react';
+import { X, Edit2, Trash2, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle, DollarSign, Layers } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
 import { opportunityNotesService } from '../../services/opportunityNotesService';
+import { opportunityService } from '../../services/opportunityService';
 import styles from './Opportunities.module.css';
 
-const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
+const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) => {
     const { user } = useAuth();
     const { stages } = useStageContext();
     const [customFields, setCustomFields] = useState([]);
-    
+
     // Estado para notas
     const [notes, setNotes] = useState([]);
     const [newNote, setNewNote] = useState('');
     const [loadingNotes, setLoadingNotes] = useState(true);
     const [savingNote, setSavingNote] = useState(false);
-    
+
     // Filtros de notas
     const [searchText, setSearchText] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [showFilters, setShowFilters] = useState(false);
-    
+
     // Estado para edição de nota
     const [editingNoteId, setEditingNoteId] = useState(null);
     const [editingNoteContent, setEditingNoteContent] = useState('');
@@ -48,7 +49,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
             if (searchText) filters.searchText = searchText;
             if (startDate) filters.startDate = startDate;
             if (endDate) filters.endDate = endDate;
-            
+
             const data = await opportunityNotesService.getNotes(opportunity.id, filters);
             setNotes(data);
         } catch (error) {
@@ -68,7 +69,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
 
     const handleAddNote = async () => {
         if (!newNote.trim()) return;
-        
+
         try {
             setSavingNote(true);
             console.log('Adicionando nota:', {
@@ -76,13 +77,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                 content: newNote.trim(),
                 createdBy: user?.name || user?.email || 'Usuário'
             });
-            
+
             const result = await opportunityNotesService.createNote(
-                opportunity.id, 
-                newNote.trim(), 
+                opportunity.id,
+                newNote.trim(),
                 user?.name || user?.email || 'Usuário'
             );
-            
+
             console.log('Nota criada com sucesso:', result);
             setNewNote('');
             await loadNotes();
@@ -102,7 +103,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
 
     const handleDeleteNote = async (noteId) => {
         if (!window.confirm('Tem certeza que deseja excluir esta nota?')) return;
-        
+
         try {
             await opportunityNotesService.deleteNote(noteId);
             loadNotes();
@@ -124,7 +125,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
 
     const handleSaveEditNote = async () => {
         if (!editingNoteContent.trim()) return;
-        
+
         try {
             await opportunityNotesService.updateNote(editingNoteId, editingNoteContent.trim());
             setEditingNoteId(null);
@@ -180,8 +181,8 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
 
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
-            <div 
-                className={styles.modal} 
+            <div
+                className={styles.modal}
                 onClick={(e) => e.stopPropagation()}
                 style={{ maxWidth: '1150px' }}
             >
@@ -199,11 +200,11 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                 </div>
 
                 <div className={styles.modalBody}>
-                    {/* Roadmap de Estágios - Compacto (acima do título) */}
+                    {/* Roadmap de Estágios - Dinâmico */}
                     <div style={{ marginBottom: '20px' }}>
-                        <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
                             justifyContent: 'space-between',
                             padding: '12px 20px',
                             background: 'var(--bg-main)',
@@ -215,33 +216,84 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                 const isPassed = index <= currentStageIndex;
                                 const isCurrent = index === currentStageIndex;
                                 const isLast = index === sortedStages.length - 1;
-                                
+
+                                // Lógica de Transição
+                                const currentStageDef = sortedStages[currentStageIndex];
+                                // Se não tiver allowed_next_stages definido (null ou vazio), assume comportamento linear padrão (próximo índice)
+                                // Mas se tiver definido, respeita estritamente
+                                const allowedNext = currentStageDef?.allowed_next_stages;
+
+                                let isAllowed = false;
+                                if (isCurrent) {
+                                    isAllowed = false; // Já está nele
+                                } else if (allowedNext && allowedNext.length > 0) {
+                                    // Se tem regras explícitas, verifica se o nome está na lista
+                                    isAllowed = allowedNext.includes(stage.name);
+                                } else {
+                                    // Comportamento padrão (fallback): permite ir para o próximo imediato ou voltar para qualquer anterior
+                                    isAllowed = index === currentStageIndex + 1 || index < currentStageIndex;
+                                }
+
                                 return (
                                     <React.Fragment key={stage.id || stage.name}>
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            flexDirection: 'column', 
-                                            alignItems: 'center',
-                                            minWidth: '70px'
-                                        }}>
+                                        <div
+                                            onClick={async () => {
+                                                if (isAllowed) {
+                                                    if (window.confirm(`Mover oportunidade para "${stage.name}"?`)) {
+                                                        try {
+                                                            await opportunityService.updateOpportunity(opportunity.id, { stage: stage.name });
+                                                            if (onUpdate) onUpdate(); // Recarrega dados
+                                                            onClose(); // Fecha modal (opcional, ou apenas recarrega)
+                                                        } catch (error) {
+                                                            console.error('Erro ao mudar estágio:', error);
+                                                            alert('Erro ao mudar estágio.');
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                            style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                minWidth: '70px',
+                                                cursor: isAllowed ? 'pointer' : 'default',
+                                                opacity: (isPassed || isAllowed) ? 1 : 0.5,
+                                                position: 'relative'
+                                            }}
+                                            title={isAllowed ? `Mover para ${stage.name}` : (isCurrent ? 'Estágio Atual' : 'Transição não permitida')}
+                                        >
+                                            {/* Indicador de "Clicável" */}
+                                            {isAllowed && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '-8px',
+                                                    fontSize: '10px',
+                                                    fontWeight: 'bold',
+                                                    color: 'var(--color-primary)',
+                                                    animation: 'bounce 1s infinite'
+                                                }}>
+                                                    ↓
+                                                </div>
+                                            )}
+
                                             {/* Círculo do estágio */}
                                             <div style={{
                                                 width: isCurrent ? '28px' : '22px',
                                                 height: isCurrent ? '28px' : '22px',
                                                 borderRadius: '50%',
-                                                background: isPassed 
-                                                    ? (stage.color || 'var(--color-primary)') 
+                                                background: isPassed
+                                                    ? (stage.color || 'var(--color-primary)')
                                                     : 'var(--bg-secondary)',
-                                                border: `2px solid ${isPassed 
-                                                    ? (stage.color || 'var(--color-primary)') 
-                                                    : 'var(--border-color)'}`,
+                                                border: `2px solid ${isPassed
+                                                    ? (stage.color || 'var(--color-primary)')
+                                                    : (isAllowed ? 'var(--color-primary)' : 'var(--border-color)')}`,
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
                                                 transition: 'all 0.3s ease',
-                                                boxShadow: isPassed 
-                                                    ? `0 0 8px ${stage.color || 'var(--color-primary)'}40` 
-                                                    : 'none'
+                                                boxShadow: isCurrent
+                                                    ? `0 0 0 4px ${stage.color || 'var(--color-primary)'}30`
+                                                    : (isAllowed ? `0 0 6px ${stage.color || 'var(--color-primary)'}40` : 'none')
                                             }}>
                                                 {isPassed && (
                                                     <div style={{
@@ -257,7 +309,9 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                                 marginTop: '4px',
                                                 fontSize: '10px',
                                                 fontWeight: isCurrent ? 600 : 400,
-                                                color: isPassed ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                                                color: isCurrent
+                                                    ? 'var(--text-primary)'
+                                                    : (isAllowed ? 'var(--color-primary)' : 'var(--text-tertiary)'),
                                                 textAlign: 'center',
                                                 maxWidth: '70px',
                                                 lineHeight: 1.2
@@ -265,13 +319,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                                 {stage.name}
                                             </span>
                                         </div>
-                                        
+
                                         {/* Linha de conexão */}
                                         {!isLast && (
                                             <div style={{
                                                 flex: 1,
                                                 height: '2px',
-                                                background: index < currentStageIndex 
+                                                background: index < currentStageIndex
                                                     ? `linear-gradient(90deg, ${sortedStages[index].color || 'var(--color-primary)'}, ${sortedStages[index + 1].color || 'var(--color-primary)'})`
                                                     : 'var(--border-color)',
                                                 margin: '0 4px',
@@ -284,6 +338,12 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                 );
                             })}
                         </div>
+                        <style>{`
+                            @keyframes bounce {
+                                0%, 100% { transform: translateY(0); }
+                                50% { transform: translateY(-3px); }
+                            }
+                        `}</style>
                     </div>
 
                     {/* Título da Oportunidade */}
@@ -303,15 +363,23 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                         </div>
 
                         <div className="input-group">
-                            <label className="label">Valor Estimado</label>
-                            <div className={styles.viewField} style={{ fontWeight: 600, color: 'var(--color-success)' }}>
-                                {formatCurrency(opportunity.estimated_value)}
+                            <label className="label">Valor Total</label>
+                            <div className={styles.viewField} style={{ fontWeight: 600, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {formatCurrency(opportunity.total_value || opportunity.estimated_value)}
+                                {(opportunity.forecast_count || opportunity.forecasts?.length || 0) > 1 && (
+                                    <span style={{
+                                        fontSize: '0.75rem',
+                                        color: 'var(--text-secondary)',
+                                        background: 'var(--bg-secondary)',
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        fontWeight: 'normal'
+                                    }}>
+                                        <Layers size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                                        {opportunity.forecast_count || opportunity.forecasts?.length} previsões
+                                    </span>
+                                )}
                             </div>
-                        </div>
-
-                        <div className="input-group">
-                            <label className="label">Data de Previsão</label>
-                            <div className={styles.viewField}>{formatDate(opportunity.forecast_date)}</div>
                         </div>
 
                         <div className="input-group">
@@ -320,30 +388,103 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                         </div>
                     </div>
 
-                    {/* Status de Faturamento - apenas se estiver em Deal */}
-                    {opportunity.stage === 'Deal' && (
-                        <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px',
-                            marginTop: '16px',
-                            padding: '12px 16px',
-                            background: opportunity.invoiced ? 'var(--color-success-light, #ecfdf5)' : 'var(--bg-main)',
-                            borderRadius: '8px',
-                            border: `1px solid ${opportunity.invoiced ? 'var(--color-success, #10b981)' : 'var(--border-color-light)'}`
-                        }}>
-                            {opportunity.invoiced ? (
-                                <CheckCircle size={20} style={{ color: 'var(--color-success, #10b981)' }} />
-                            ) : (
-                                <Circle size={20} style={{ color: 'var(--text-tertiary)' }} />
-                            )}
-                            <span style={{ 
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                color: opportunity.invoiced ? 'var(--color-success, #10b981)' : 'var(--text-secondary)'
+                    {/* Seção de Previsões de Faturamento */}
+                    {opportunity.forecasts && opportunity.forecasts.length > 0 && (
+                        <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color-light)', paddingTop: '20px' }}>
+                            <h4 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Calendar size={18} />
+                                Previsões de Faturamento
+                            </h4>
+                            <div style={{
+                                border: '1px solid var(--border-color-light)',
+                                borderRadius: '8px',
+                                overflow: 'hidden'
                             }}>
-                                {opportunity.invoiced ? 'Faturado' : 'Aguardando faturamento'}
-                            </span>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ background: 'var(--bg-secondary)', fontSize: '0.85rem' }}>
+                                            <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500 }}>Período</th>
+                                            <th style={{ textAlign: 'right', padding: '12px', fontWeight: 500 }}>Valor</th>
+                                            <th style={{ textAlign: 'center', padding: '12px', fontWeight: 500 }}>Status</th>
+                                            <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500 }}>Observação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {opportunity.forecasts
+                                            .sort((a, b) => new Date(a.period_start) - new Date(b.period_start))
+                                            .map((forecast, idx) => (
+                                                <tr
+                                                    key={forecast.id || idx}
+                                                    style={{
+                                                        borderTop: '1px solid var(--border-color-light)',
+                                                        background: forecast.invoiced ? 'rgba(16, 185, 129, 0.05)' : 'white'
+                                                    }}
+                                                >
+                                                    <td style={{ padding: '12px' }}>
+                                                        {formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}
+                                                    </td>
+                                                    <td style={{
+                                                        padding: '12px',
+                                                        textAlign: 'right',
+                                                        fontWeight: 500,
+                                                        textDecoration: forecast.invoiced ? 'line-through' : 'none',
+                                                        color: forecast.invoiced ? 'var(--text-secondary)' : 'var(--text-primary)'
+                                                    }}>
+                                                        {formatCurrency(forecast.estimated_value)}
+                                                    </td>
+                                                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                        <button
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await opportunityService.updateForecastInvoiced(forecast.id, !forecast.invoiced);
+                                                                    if (onUpdate) onUpdate();
+                                                                } catch (error) {
+                                                                    console.error('Erro ao atualizar status:', error);
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px',
+                                                                padding: '4px 10px',
+                                                                borderRadius: '12px',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.8rem',
+                                                                fontWeight: 500,
+                                                                background: forecast.invoiced ? 'var(--color-success)' : 'var(--bg-secondary)',
+                                                                color: forecast.invoiced ? 'white' : 'var(--text-secondary)',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                            title={forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado'}
+                                                        >
+                                                            {forecast.invoiced ? (
+                                                                <><CheckCircle size={14} /> Faturado</>
+                                                            ) : (
+                                                                <><Circle size={14} /> Pendente</>
+                                                            )}
+                                                        </button>
+                                                    </td>
+                                                    <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                                        {forecast.notes || '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style={{ borderTop: '2px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+                                            <td style={{ padding: '12px', fontWeight: 600 }}>Total</td>
+                                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>
+                                                {formatCurrency(opportunity.forecasts.reduce((sum, f) => sum + parseFloat(f.estimated_value || 0), 0))}
+                                            </td>
+                                            <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                {opportunity.forecasts.filter(f => f.invoiced).length}/{opportunity.forecasts.length} faturados
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     )}
 
@@ -394,8 +535,8 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                 <MessageSquare size={20} />
                                 Notas ({notes.length})
                             </h4>
-                            <button 
-                                className="btn btn-secondary" 
+                            <button
+                                className="btn btn-secondary"
                                 onClick={() => setShowFilters(!showFilters)}
                                 style={{ fontSize: '13px', padding: '6px 12px' }}
                             >
@@ -406,9 +547,9 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
 
                         {/* Filtros */}
                         {showFilters && (
-                            <div style={{ 
-                                background: 'var(--bg-main)', 
-                                padding: '16px', 
+                            <div style={{
+                                background: 'var(--bg-main)',
+                                padding: '16px',
                                 borderRadius: '8px',
                                 marginBottom: '16px',
                                 border: '1px solid var(--border-color-light)'
@@ -417,10 +558,10 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                     <div className="input-group" style={{ margin: 0 }}>
                                         <label className="label" style={{ fontSize: '12px' }}>Buscar texto</label>
                                         <div style={{ position: 'relative' }}>
-                                            <Search size={16} style={{ 
-                                                position: 'absolute', 
-                                                left: '10px', 
-                                                top: '50%', 
+                                            <Search size={16} style={{
+                                                position: 'absolute',
+                                                left: '10px',
+                                                top: '50%',
                                                 transform: 'translateY(-50%)',
                                                 color: 'var(--text-tertiary)'
                                             }} />
@@ -456,9 +597,9 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                     </div>
                                 </div>
                                 {(searchText || startDate || endDate) && (
-                                    <button 
+                                    <button
                                         onClick={clearFilters}
-                                        style={{ 
+                                        style={{
                                             marginTop: '12px',
                                             background: 'none',
                                             border: 'none',
@@ -484,7 +625,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                 style={{ resize: 'vertical', minHeight: '80px' }}
                             />
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-                                <button 
+                                <button
                                     className="btn btn-primary"
                                     onClick={handleAddNote}
                                     disabled={!newNote.trim() || savingNote}
@@ -497,8 +638,8 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                         </div>
 
                         {/* Lista de notas */}
-                        <div style={{ 
-                            maxHeight: '300px', 
+                        <div style={{
+                            maxHeight: '300px',
                             overflowY: 'auto',
                             border: notes.length > 0 ? '1px solid var(--border-color-light)' : 'none',
                             borderRadius: '8px'
@@ -508,23 +649,23 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                     Carregando notas...
                                 </div>
                             ) : notes.length === 0 ? (
-                                <div style={{ 
-                                    padding: '32px', 
-                                    textAlign: 'center', 
+                                <div style={{
+                                    padding: '32px',
+                                    textAlign: 'center',
                                     color: 'var(--text-secondary)',
                                     background: 'var(--bg-main)',
                                     borderRadius: '8px'
                                 }}>
                                     <MessageSquare size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
                                     <p style={{ margin: 0 }}>
-                                        {searchText || startDate || endDate 
-                                            ? 'Nenhuma nota encontrada com os filtros aplicados.' 
+                                        {searchText || startDate || endDate
+                                            ? 'Nenhuma nota encontrada com os filtros aplicados.'
                                             : 'Nenhuma nota registrada ainda.'}
                                     </p>
                                 </div>
                             ) : (
                                 notes.map((note, index) => (
-                                    <div 
+                                    <div
                                         key={note.id}
                                         style={{
                                             padding: '16px',
@@ -532,14 +673,14 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                             background: editingNoteId === note.id ? 'var(--bg-main)' : 'white'
                                         }}
                                     >
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            justifyContent: 'space-between', 
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
                                             alignItems: 'flex-start',
                                             marginBottom: '8px'
                                         }}>
-                                            <div style={{ 
-                                                fontSize: '12px', 
+                                            <div style={{
+                                                fontSize: '12px',
                                                 color: 'var(--text-secondary)',
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -549,10 +690,10 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                                 <Calendar size={14} />
                                                 {formatDateTime(note.created_at)}
                                                 {note.created_by && (
-                                                    <span style={{ 
-                                                        background: 'var(--bg-hover)', 
-                                                        padding: '2px 8px', 
-                                                        borderRadius: '4px' 
+                                                    <span style={{
+                                                        background: 'var(--bg-hover)',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '4px'
                                                     }}>
                                                         {note.created_by}
                                                     </span>
@@ -563,7 +704,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                                     </span>
                                                 )}
                                             </div>
-                                            
+
                                             {editingNoteId !== note.id && (
                                                 <div style={{ display: 'flex', gap: '4px' }}>
                                                     <button
@@ -617,7 +758,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                                 </div>
                                             )}
                                         </div>
-                                        
+
                                         {editingNoteId === note.id ? (
                                             <div>
                                                 <textarea
@@ -649,8 +790,8 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete }) => {
                                                 </div>
                                             </div>
                                         ) : (
-                                            <p style={{ 
-                                                margin: 0, 
+                                            <p style={{
+                                                margin: 0,
                                                 whiteSpace: 'pre-wrap',
                                                 lineHeight: 1.5,
                                                 color: 'var(--text-primary)'

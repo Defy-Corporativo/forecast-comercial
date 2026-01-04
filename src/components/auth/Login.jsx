@@ -10,11 +10,15 @@ const Login = () => {
         try {
             setLoading(true);
             setError(null);
+
+            const redirectUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+            console.log('Login Redirect URL:', redirectUrl);
+
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'azure',
                 options: {
                     scopes: 'email',
-                    redirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
+                    redirectTo: redirectUrl,
                     queryParams: {
                         prompt: 'select_account'
                     }

@@ -28,8 +28,8 @@
 .modal {
     background-color: white;
     border-radius: var(--border-radius-lg);
-    width: 100%;
-    max-width: 950px;
+    width: 90%;
+    max-width: 1600px;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
@@ -190,7 +190,7 @@
     color: var(--text-secondary);
     font-size: 13px;
     white-space: nowrap;
-    text-transform: uppercase;
+    white-space: nowrap;
     letter-spacing: 0.5px;
     background-color: var(--bg-main);
 }

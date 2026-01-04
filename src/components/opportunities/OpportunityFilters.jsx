@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, X } from 'lucide-react';
+import { Search, Filter, X, Target } from 'lucide-react';
 import styles from './Opportunities.module.css';
 
-const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost'];
+const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost', 'Meta'];
 
-const OpportunityFilters = ({ opportunities, onFilterChange }) => {
+const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onIncludeGoalsChange }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
@@ -18,7 +18,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange }) => {
 
     useEffect(() => {
         // Aplicar filtros quando as oportunidades mudarem (apenas se não houver filtros ativos)
-        if (!searchTerm && !filters.stage && !filters.minValue && !filters.maxValue && 
+        if (!searchTerm && !filters.stage && !filters.minValue && !filters.maxValue &&
             !filters.responsible && !filters.dateFrom && !filters.dateTo) {
             if (opportunities) {
                 onFilterChange([...opportunities]);
@@ -73,24 +73,24 @@ const OpportunityFilters = ({ opportunities, onFilterChange }) => {
 
         // Filtro por responsável
         if (filterData.responsible) {
-            filtered = filtered.filter(opp => 
+            filtered = filtered.filter(opp =>
                 opp.responsible?.toLowerCase().includes(filterData.responsible.toLowerCase())
             );
         }
 
-        // Filtro por data de previsão (de)
+        // Filtro por período (de)
         if (filterData.dateFrom) {
             filtered = filtered.filter(opp => {
-                if (!opp.forecast_date) return false;
-                return new Date(opp.forecast_date) >= new Date(filterData.dateFrom);
+                if (!opp.period_start) return false;
+                return new Date(opp.period_start) >= new Date(filterData.dateFrom);
             });
         }
 
-        // Filtro por data de previsão (até)
+        // Filtro por período (até)
         if (filterData.dateTo) {
             filtered = filtered.filter(opp => {
-                if (!opp.forecast_date) return false;
-                return new Date(opp.forecast_date) <= new Date(filterData.dateTo);
+                if (!opp.period_start) return false;
+                return new Date(opp.period_start) <= new Date(filterData.dateTo);
             });
         }
 
@@ -112,8 +112,8 @@ const OpportunityFilters = ({ opportunities, onFilterChange }) => {
         }
     };
 
-    const hasActiveFilters = searchTerm || filters.stage || filters.minValue || filters.maxValue || 
-                            filters.responsible || filters.dateFrom || filters.dateTo;
+    const hasActiveFilters = searchTerm || filters.stage || filters.minValue || filters.maxValue ||
+        filters.responsible || filters.dateFrom || filters.dateTo;
 
     return (
         <div className={styles.filtersContainer}>
@@ -128,7 +128,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange }) => {
                         onChange={(e) => handleSearchChange(e.target.value)}
                     />
                     {searchTerm && (
-                        <button 
+                        <button
                             className={styles.clearSearchBtn}
                             onClick={() => handleSearchChange('')}
                         >
@@ -136,7 +136,19 @@ const OpportunityFilters = ({ opportunities, onFilterChange }) => {
                         </button>
                     )}
                 </div>
-                <button 
+                <button
+                    className={`${styles.filterToggleBtn} ${includeGoals ? styles.active : ''}`}
+                    onClick={() => onIncludeGoalsChange && onIncludeGoalsChange(!includeGoals)}
+                    title={includeGoals ? 'Ocultar Metas' : 'Mostrar Metas'}
+                    style={{
+                        background: includeGoals ? 'linear-gradient(135deg, #f59e0b15, #f59e0b08)' : undefined,
+                        borderColor: includeGoals ? '#f59e0b40' : undefined
+                    }}
+                >
+                    <Target size={18} style={{ color: includeGoals ? '#f59e0b' : undefined }} />
+                    Metas
+                </button>
+                <button
                     className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''}`}
                     onClick={() => setShowFilters(!showFilters)}
                 >
