@@ -43,7 +43,10 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         to="/opportunities"
                         className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
                         title="Oportunidades"
-                        onClick={() => window.innerWidth < 768 && onToggle()}
+                        onClick={() => {
+                            console.log('Sidebar: Clicked Opportunities link');
+                            window.innerWidth < 768 && onToggle();
+                        }}
                     >
                         <Briefcase size={20} />
                         {!isCollapsed && <span>Oportunidades</span>}
@@ -53,7 +56,9 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
                         end
                         title="Painel"
-                        onClick={() => window.innerWidth < 768 && onToggle()}
+                        onClick={() => {
+                            window.innerWidth < 768 && onToggle();
+                        }}
                     >
                         <LayoutDashboard size={20} />
                         {!isCollapsed && <span>Painel</span>}
@@ -62,7 +67,10 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         to="/clients"
                         className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
                         title="Clientes"
-                        onClick={() => window.innerWidth < 768 && onToggle()}
+                        onClick={() => {
+                            console.log('Sidebar: Clicked Clients link');
+                            window.innerWidth < 768 && onToggle();
+                        }}
                     >
                         <Building2 size={20} />
                         {!isCollapsed && <span>Clientes</span>}
@@ -71,7 +79,10 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         to="/settings"
                         className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
                         title="Configurações"
-                        onClick={() => window.innerWidth < 768 && onToggle()}
+                        onClick={() => {
+                            console.log('Sidebar: Clicked Settings link');
+                            window.innerWidth < 768 && onToggle();
+                        }}
                     >
                         <Settings size={20} />
                         {!isCollapsed && <span>Configurações</span>}

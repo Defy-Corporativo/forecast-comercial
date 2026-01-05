@@ -44,7 +44,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
     // Sincronizar estado local quando a prop mudar (apenas na primeira renderização)
     useEffect(() => {
         setCurrentOpportunity(opportunity);
-    }, [opportunity.id]); // Mudei para depender apenas do ID, não do objeto inteiro
+    }, [opportunity.id]);
 
     useEffect(() => {
         loadCustomFields();

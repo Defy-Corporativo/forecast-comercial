@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, List, Grid3x3, LayoutDashboard, Layers, LayoutList } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Plus, List, Grid3x3, Layers, LayoutList } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { opportunityService } from '../../services/opportunityService';
 import OpportunityList from './OpportunityList';
@@ -92,6 +91,15 @@ const Opportunities = () => {
         }
     };
 
+    // useEffect(() => {
+    //     console.log('Opportunities: Component Mounted');
+    //     return () => console.log('Opportunities: Component Unmounted');
+    // }, []);
+
+    const opportunitiesForFilters = React.useMemo(() => {
+        return includeGoals ? opportunities : opportunities.filter(opp => !opp.is_goal);
+    }, [opportunities, includeGoals]);
+
     if (loading) {
         return (
             <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -123,7 +131,7 @@ const Opportunities = () => {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             {/* Header fixo */}
             <div style={{ flexShrink: 0, zIndex: 10 }}>
                 <div className="container">
@@ -186,12 +194,12 @@ const Opportunities = () => {
                         </div>
 
                         <OpportunityFilters
-                            opportunities={includeGoals ? opportunities : opportunities.filter(opp => !opp.is_goal)}
+                            opportunities={opportunitiesForFilters}
                             onFilterChange={setFilteredOpportunities}
                             includeGoals={includeGoals}
                             onIncludeGoalsChange={(value) => {
                                 setIncludeGoals(value);
-                                // Re-apply filter
+                                // Re-apply filter - using the stable filtered logic is cleaner but for now stick to previous pattern
                                 const base = value ? opportunities : opportunities.filter(opp => !opp.is_goal);
                                 setFilteredOpportunities(base);
                             }}

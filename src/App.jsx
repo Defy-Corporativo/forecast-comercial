@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
 import { AuthProvider } from './contexts/AuthContext';
 import { StageProvider } from './contexts/StageContext';
 import Login from './components/auth/Login';
@@ -11,10 +12,14 @@ import Dashboard from './components/dashboard/Dashboard';
 import Clients from './components/clients/Clients';
 import DebugLogViewer from './components/debug/DebugLogViewer';
 
-function App() {
+
+
+// RouteLogger removed
+
+const App = () => {
   return (
-    <AuthProvider>
-      <StageProvider>
+    <StageProvider>
+      <AuthProvider>
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -34,8 +39,8 @@ function App() {
           </Routes>
         </Router>
         <DebugLogViewer />
-      </StageProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </StageProvider>
   );
 }
 

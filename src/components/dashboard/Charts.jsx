@@ -1,10 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie,
     AreaChart, Area, Legend, LineChart, Line
 } from 'recharts';
 import { X, Trash2 } from 'lucide-react';
 import styles from './Dashboard.module.css';
+
+const SafeResponsiveContainer = ({ children, ...props }) => {
+    return (
+        <div style={{ width: props.width || '100%', height: props.height || '100%', minHeight: 1 }}>
+            <ResponsiveContainer {...props}>
+                {children}
+            </ResponsiveContainer>
+        </div>
+    );
+};
 
 const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#64748B', '#0EA5E9', '#8B5CF6', '#EC4899'];
 
@@ -144,7 +154,7 @@ export const StageDistributionChart = ({ data, stages = [] }) => {
         <div className={styles.chartContainer}>
             <h3 className={styles.chartTitle}>Oportunidades por Estágio</h3>
             <div style={{ width: '100%', minHeight: 320, height: 320 }}>
-                <ResponsiveContainer width="100%" height="100%">
+                <SafeResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <defs>
                             {dataWithColors.map((entry, index) => (
@@ -188,7 +198,7 @@ export const StageDistributionChart = ({ data, stages = [] }) => {
                             )}
                         />
                     </PieChart>
-                </ResponsiveContainer>
+                </SafeResponsiveContainer>
             </div>
         </div>
     );
@@ -399,7 +409,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
                 </div>
             ) : (
                 <div style={{ width: '100%', height: 380 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <AreaChart
                             data={chartData}
                             margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
@@ -462,7 +472,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
                                 />
                             )}
                         </AreaChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 </div>
             )}
         </div>
@@ -778,7 +788,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
             // Gráfico distribuído no tempo
             if (chartType === 'barVertical') {
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {keys.map((key, index) => (
@@ -817,11 +827,11 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 />
                             ))}
                         </BarChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 );
             } else if (chartType === 'barHorizontal') {
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {keys.map((key, index) => (
@@ -863,11 +873,11 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 />
                             ))}
                         </BarChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 );
             } else if (chartType === 'line') {
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" />
                             <XAxis
@@ -900,12 +910,12 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 />
                             ))}
                         </LineChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 );
             } else {
                 // Area chart
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {keys.map((key, index) => (
@@ -945,14 +955,14 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 />
                             ))}
                         </AreaChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 );
             }
         } else {
             // Gráfico não distribuído no tempo
             if (chartType === 'pie') {
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <defs>
                                 {data.map((entry, index) => (
@@ -994,11 +1004,11 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 formatter={(value) => <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{value}</span>}
                             />
                         </PieChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 );
             } else if (chartType === 'barHorizontal') {
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {data.map((entry, index) => (
@@ -1031,11 +1041,11 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 ))}
                             </Bar>
                         </BarChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 );
             } else if (chartType === 'barVertical') {
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {data.map((entry, index) => (
@@ -1065,12 +1075,12 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 ))}
                             </Bar>
                         </BarChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 );
             } else {
                 // Line or Area
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {data.map((entry, index) => (
@@ -1100,7 +1110,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                                 ))}
                             </Bar>
                         </BarChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 );
             }
         }
@@ -1236,7 +1246,7 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                 </div>
             ) : (
                 <div style={{ width: '100%', height: 350 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
                             <defs>
                                 <linearGradient id="metaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -1289,7 +1299,7 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                                 activeDot={{ r: 5 }}
                             />
                         </LineChart>
-                    </ResponsiveContainer>
+                    </SafeResponsiveContainer>
                 </div>
             )}
         </div>
