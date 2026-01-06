@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, Trash2, ChevronDown, ChevronRight, Calendar, DollarSign, CheckCircle, Target, Tag } from 'lucide-react';
+import { Edit2, Trash2, ChevronDown, ChevronRight, Calendar, DollarSign, CheckCircle, Target, Tag, Lightbulb } from 'lucide-react';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
 import styles from './Opportunities.module.css';
@@ -101,6 +101,22 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                             Meta
                         </span>
                     )}
+                    {opp.is_potential && (
+                        <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            background: 'linear-gradient(135deg, #8b5cf620, #8b5cf610)',
+                            color: '#7c3aed',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 500
+                        }}>
+                            <Lightbulb size={12} />
+                            Potencial
+                        </span>
+                    )}
                     {opp.title || '-'}
                     {(opp.tagList || []).length > 0 && (
                         <span style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
@@ -134,7 +150,7 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         },
         client_name: {
             label: 'Cliente',
-            render: (opp) => opp.is_goal ? '-' : (opp.client?.name || opp.client_name || '-')
+            render: (opp) => (opp.is_goal || opp.is_potential) ? '-' : (opp.client?.name || opp.client_name || '-')
         },
         estimated_value: {
             label: 'Valor Total',
@@ -270,7 +286,7 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                                             {formatCurrency(forecast.estimated_value)}
                                         </td>
                                         <td style={{ padding: '8px', textAlign: 'center' }}>
-                                            {opportunity.is_goal ? (
+                                            {(opportunity.is_goal || opportunity.is_potential) ? (
                                                 <span style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>-</span>
                                             ) : forecast.invoiced ? (
                                                 <span style={{

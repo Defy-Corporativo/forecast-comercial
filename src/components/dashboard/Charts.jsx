@@ -219,6 +219,9 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
     // Estado para exibir ou não a meta
     const [showMeta, setShowMeta] = useState(true);
 
+    // Estado para exibir ou não o potencial
+    const [showPotencial, setShowPotencial] = useState(true);
+
     // Atualiza seleção quando estágios mudam
     React.useEffect(() => {
         setSelectedStages(prev => {
@@ -258,7 +261,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
         // Inicializa dados por mês
         const dataByMonth = {};
         monthRange.forEach(month => {
-            const monthData = { name: month.label, meta: 0 };
+            const monthData = { name: month.label, meta: 0, potencial: 0 };
             availableStages.forEach(stage => {
                 monthData[stage.name] = 0;
             });
@@ -288,6 +291,9 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
                 if (opp.is_goal) {
                     // Para metas, sempre adiciona ao campo meta
                     dataByMonth[monthKey].meta += value;
+                } else if (opp.is_potential) {
+                    // Para potenciais, sempre adiciona ao campo potencial
+                    dataByMonth[monthKey].potencial += value;
                 } else {
                     // Para oportunidades normais, verifica se o estágio existe
                     const stageName = opp.stage;
@@ -302,7 +308,7 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
     }, [opportunities, startDate, endDate, availableStages]);
 
     const hasData = chartData.some(d => {
-        return availableStages.some(stage => d[stage.name] > 0) || d.meta > 0;
+        return availableStages.some(stage => d[stage.name] > 0) || d.meta > 0 || d.potencial > 0;
     });
 
     // Ordena estágios por valor total (maior para menor) para renderização
@@ -401,6 +407,19 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
                     />
                     <span className={styles.stageChipLabel}>Meta</span>
                 </label>
+                <label className={`${styles.stageChip} ${showPotencial ? styles.stageChipActive : ''}`}>
+                    <input
+                        type="checkbox"
+                        checked={showPotencial}
+                        onChange={() => setShowPotencial(prev => !prev)}
+                        className={styles.stageChipInput}
+                    />
+                    <span
+                        className={styles.stageChipColor}
+                        style={{ background: '#8b5cf6' }}
+                    />
+                    <span className={styles.stageChipLabel}>Potencial</span>
+                </label>
             </div>
 
             {!hasData ? (
@@ -466,6 +485,20 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
                                     stroke="#f59e0b"
                                     strokeWidth={2}
                                     strokeDasharray="5 5"
+                                    dot={false}
+                                    activeDot={{ r: 6 }}
+                                    isAnimationActive={false}
+                                />
+                            )}
+                            {/* Potencial Line - Dashed Purple */}
+                            {showPotencial && (
+                                <Line
+                                    type="monotone"
+                                    dataKey="potencial"
+                                    name="Potencial"
+                                    stroke="#8b5cf6"
+                                    strokeWidth={2}
+                                    strokeDasharray="3 3"
                                     dot={false}
                                     activeDot={{ r: 6 }}
                                     isAnimationActive={false}

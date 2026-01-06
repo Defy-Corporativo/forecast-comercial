@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, X, Target } from 'lucide-react';
+import { Search, Filter, X, Target, Lightbulb } from 'lucide-react';
 import styles from './Opportunities.module.css';
 
-const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost', 'Meta'];
+const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost', 'Meta', 'Potencial'];
 
 const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onIncludeGoalsChange }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
-        stage: '',
+        stages: [], // Empty array = all stages (no filter)
         minValue: '',
         maxValue: '',
         responsible: '',
@@ -18,7 +18,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
 
     useEffect(() => {
         // Aplicar filtros quando as oportunidades mudarem (apenas se não houver filtros ativos)
-        if (!searchTerm && !filters.stage && !filters.minValue && !filters.maxValue &&
+        if (!searchTerm && filters.stages.length === 0 && !filters.minValue && !filters.maxValue &&
             !filters.responsible && !filters.dateFrom && !filters.dateTo) {
             if (opportunities) {
                 onFilterChange([...opportunities]);
@@ -56,9 +56,9 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
             );
         }
 
-        // Filtro por estágio
-        if (filterData.stage) {
-            filtered = filtered.filter(opp => opp.stage === filterData.stage);
+        // Filtro por estágios (multi-select)
+        if (filterData.stages && filterData.stages.length > 0) {
+            filtered = filtered.filter(opp => filterData.stages.includes(opp.stage));
         }
 
         // Filtro por valor mínimo
@@ -100,7 +100,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
     const clearFilters = () => {
         setSearchTerm('');
         setFilters({
-            stage: '',
+            stages: [],
             minValue: '',
             maxValue: '',
             responsible: '',
@@ -112,8 +112,23 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
         }
     };
 
-    const hasActiveFilters = searchTerm || filters.stage || filters.minValue || filters.maxValue ||
+    const hasActiveFilters = searchTerm || filters.stages.length > 0 || filters.minValue || filters.maxValue ||
         filters.responsible || filters.dateFrom || filters.dateTo;
+
+    const toggleStage = (stage) => {
+        const newStages = filters.stages.includes(stage)
+            ? filters.stages.filter(s => s !== stage)
+            : [...filters.stages, stage];
+        handleFilterChange('stages', newStages);
+    };
+
+    const selectAllStages = () => {
+        handleFilterChange('stages', []);
+    };
+
+    const selectNoStages = () => {
+        handleFilterChange('stages', ['_none_']);
+    };
 
     return (
         <div className={styles.filtersContainer}>
@@ -139,14 +154,23 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                 <button
                     className={`${styles.filterToggleBtn} ${includeGoals ? styles.active : ''}`}
                     onClick={() => onIncludeGoalsChange && onIncludeGoalsChange(!includeGoals)}
-                    title={includeGoals ? 'Ocultar Metas' : 'Mostrar Metas'}
+                    title={includeGoals ? 'Ocultar Metas e Potenciais' : 'Mostrar Metas e Potenciais'}
                     style={{
-                        background: includeGoals ? 'linear-gradient(135deg, #f59e0b15, #f59e0b08)' : undefined,
-                        borderColor: includeGoals ? '#f59e0b40' : undefined
+                        background: includeGoals ? 'linear-gradient(135deg, #f59e0b15, #8b5cf615)' : undefined,
+                        borderColor: includeGoals ? '#a855f760' : undefined,
+                        opacity: includeGoals ? 1 : 0.7,
+                        gap: '6px'
                     }}
                 >
-                    <Target size={18} style={{ color: includeGoals ? '#f59e0b' : undefined }} />
-                    Metas
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Target size={14} style={{ color: includeGoals ? '#f59e0b' : 'var(--text-secondary)' }} />
+                        <span style={{ fontSize: '0.85rem', color: includeGoals ? '#f59e0b' : 'var(--text-secondary)' }}>Meta</span>
+                    </span>
+                    <span style={{ color: 'var(--text-tertiary)' }}>/</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Lightbulb size={14} style={{ color: includeGoals ? '#8b5cf6' : 'var(--text-secondary)' }} />
+                        <span style={{ fontSize: '0.85rem', color: includeGoals ? '#8b5cf6' : 'var(--text-secondary)' }}>Potencial</span>
+                    </span>
                 </button>
                 <button
                     className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''}`}
@@ -160,46 +184,92 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
 
             {showFilters && (
                 <div className={styles.filtersPanel}>
-                    <div className={styles.filtersGrid}>
-                        <div className="input-group">
-                            <label className="label">Estágio</label>
-                            <select
-                                className="input"
-                                value={filters.stage}
-                                onChange={(e) => handleFilterChange('stage', e.target.value)}
-                            >
-                                <option value="">Todos os estágios</option>
-                                {STAGES.map(stage => (
-                                    <option key={stage} value={stage}>{stage}</option>
-                                ))}
-                            </select>
+                    {/* Estágio - Full width */}
+                    <div style={{ marginBottom: '16px' }}>
+                        <label className="label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span>Estágio</span>
+                            <span style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                    type="button"
+                                    onClick={selectAllStages}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--color-primary)',
+                                        cursor: 'pointer',
+                                        fontSize: '0.75rem',
+                                        padding: 0
+                                    }}
+                                >
+                                    Todos
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={selectNoStages}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--text-secondary)',
+                                        cursor: 'pointer',
+                                        fontSize: '0.75rem',
+                                        padding: 0
+                                    }}
+                                >
+                                    Nenhum
+                                </button>
+                            </span>
+                        </label>
+                        <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '6px',
+                            padding: '8px',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--border-radius-sm)',
+                            background: 'var(--bg-secondary)'
+                        }}>
+                            {STAGES.map(stage => {
+                                const isSelected = filters.stages.length === 0 || filters.stages.includes(stage);
+                                const isNoneMode = filters.stages.includes('_none_');
+                                return (
+                                    <label
+                                        key={stage}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            background: isNoneMode ? 'transparent' : (isSelected ? 'var(--color-primary)' : 'white'),
+                                            color: isNoneMode ? 'var(--text-tertiary)' : (isSelected ? 'white' : 'var(--text-primary)'),
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            border: `1px solid ${isSelected && !isNoneMode ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                                            opacity: isNoneMode ? 0.5 : 1,
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected && !isNoneMode}
+                                            onChange={() => toggleStage(stage)}
+                                            style={{ display: 'none' }}
+                                        />
+                                        {stage}
+                                    </label>
+                                );
+                            })}
                         </div>
+                    </div>
 
-                        <div className="input-group">
-                            <label className="label">Valor Mínimo (R$)</label>
-                            <input
-                                type="number"
-                                className="input"
-                                value={filters.minValue}
-                                onChange={(e) => handleFilterChange('minValue', e.target.value)}
-                                placeholder="0.00"
-                                step="0.01"
-                            />
-                        </div>
-
-                        <div className="input-group">
-                            <label className="label">Valor Máximo (R$)</label>
-                            <input
-                                type="number"
-                                className="input"
-                                value={filters.maxValue}
-                                onChange={(e) => handleFilterChange('maxValue', e.target.value)}
-                                placeholder="0.00"
-                                step="0.01"
-                            />
-                        </div>
-
-                        <div className="input-group">
+                    {/* Grid responsivo para os outros campos */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: '16px'
+                    }}>
+                        {/* Responsável */}
+                        <div className="input-group" style={{ marginBottom: 0 }}>
                             <label className="label">Responsável</label>
                             <input
                                 type="text"
@@ -210,24 +280,60 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                             />
                         </div>
 
-                        <div className="input-group">
-                            <label className="label">Data Previsão (De)</label>
-                            <input
-                                type="date"
-                                className="input"
-                                value={filters.dateFrom}
-                                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                            />
+                        {/* Grupo de Valores */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '12px',
+                            gridColumn: 'span 1'
+                        }}>
+                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                <label className="label">Valor Mín. (R$)</label>
+                                <input
+                                    type="number"
+                                    className="input"
+                                    value={filters.minValue}
+                                    onChange={(e) => handleFilterChange('minValue', e.target.value)}
+                                    placeholder="0,00"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                <label className="label">Valor Máx. (R$)</label>
+                                <input
+                                    type="number"
+                                    className="input"
+                                    value={filters.maxValue}
+                                    onChange={(e) => handleFilterChange('maxValue', e.target.value)}
+                                    placeholder="0,00"
+                                    step="0.01"
+                                />
+                            </div>
                         </div>
 
-                        <div className="input-group">
-                            <label className="label">Data Previsão (Até)</label>
-                            <input
-                                type="date"
-                                className="input"
-                                value={filters.dateTo}
-                                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                            />
+                        {/* Grupo de Datas */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '12px',
+                            gridColumn: 'span 1'
+                        }}>
+                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                <label className="label">Data De</label>
+                                <input
+                                    type="date"
+                                    className="input"
+                                    value={filters.dateFrom}
+                                    onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                                />
+                            </div>
+                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                <label className="label">Data Até</label>
+                                <input
+                                    type="date"
+                                    className="input"
+                                    value={filters.dateTo}
+                                    onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Plus, Search, Trash2, Calendar, DollarSign, Copy, Target, Tag, Trash } from 'lucide-react';
+import { X, Plus, Search, Trash2, Calendar, DollarSign, Copy, Target, Tag, Trash, Lightbulb } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
@@ -47,7 +47,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         responsible: '',
         notes: '',
         custom_data: {},
-        is_goal: false
+        is_goal: false,
+        is_potential: false
     });
 
     // Forecasts state (multiple forecasts per opportunity)
@@ -120,7 +121,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 responsible: opportunity.responsible || '',
                 notes: opportunity.notes || '',
                 custom_data: opportunity.custom_data || {},
-                is_goal: opportunity.is_goal || false
+                is_goal: opportunity.is_goal || false,
+                is_potential: opportunity.is_potential || false
             });
             setSearchTerm(opportunity.client_name || '');
             // Load existing forecasts with period fields
@@ -184,8 +186,10 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
 
     useEffect(() => {
         if (searchTerm) {
+            const search = searchTerm.toLowerCase();
             const filtered = clients.filter(c =>
-                c.name.toLowerCase().includes(searchTerm.toLowerCase())
+                c.name.toLowerCase().includes(search) ||
+                (c.document && c.document.toLowerCase().includes(search))
             );
             setFilteredClients(filtered);
         } else {
@@ -252,17 +256,35 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         !selectedTags.includes(tag.name)
     );
 
-    const handleGoalToggle = (isGoal) => {
+    const handleTypeChange = (type) => {
+        // type can be 'real', 'meta', or 'potencial'
+        const isGoal = type === 'meta';
+        const isPotential = type === 'potencial';
+
         setFormData(prev => ({
             ...prev,
             is_goal: isGoal,
-            // Reset client/stage/responsible when switching to goal mode
-            ...(isGoal ? { client_id: '', client_name: '', stage: 'Meta', responsible: '' } : {})
+            is_potential: isPotential,
+            // Reset client/stage/responsible when switching to goal or potential mode
+            ...((isGoal || isPotential) ? {
+                client_id: '',
+                client_name: '',
+                stage: isGoal ? 'Meta' : 'Potencial',
+                responsible: ''
+            } : {})
         }));
-        if (isGoal) {
+        if (isGoal || isPotential) {
             setSearchTerm('');
         }
     };
+
+    // Helper to get current type
+    const getCurrentType = () => {
+        if (formData.is_goal) return 'meta';
+        if (formData.is_potential) return 'potencial';
+        return 'real';
+    };
+
 
     const handleDeleteTag = async (tagId, tagName, e) => {
         e.stopPropagation();
@@ -422,8 +444,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Only require client for non-goal opportunities
-        if (!formData.is_goal && (!formData.client_id || !formData.client_name)) {
+        // Only require client for real opportunities (not goal or potential)
+        if (!formData.is_goal && !formData.is_potential && (!formData.client_id || !formData.client_name)) {
             alert('Por favor, selecione um cliente da lista.');
             return;
         }
@@ -445,11 +467,11 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         try {
             const opportunityData = {
                 ...formData,
-                // For goals, set special values
-                client_id: formData.is_goal ? null : formData.client_id,
-                client_name: formData.is_goal ? 'META' : formData.client_name,
-                stage: formData.is_goal ? 'Meta' : formData.stage,
-                responsible: formData.is_goal ? null : formData.responsible,
+                // For goals and potentials, set special values
+                client_id: (formData.is_goal || formData.is_potential) ? null : formData.client_id,
+                client_name: formData.is_goal ? 'META' : (formData.is_potential ? 'POTENCIAL' : formData.client_name),
+                stage: formData.is_goal ? 'Meta' : (formData.is_potential ? 'Potencial' : formData.stage),
+                responsible: (formData.is_goal || formData.is_potential) ? null : formData.responsible,
                 forecasts: forecasts.map(f => ({
                     period_start: f.period_start,
                     period_end: f.period_end,
@@ -497,335 +519,374 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                             <div style={{ display: 'flex', gap: '0' }}>
                                 <button
                                     type="button"
-                                    onClick={() => handleGoalToggle(false)}
+                                    onClick={() => handleTypeChange('real')}
                                     style={{
                                         flex: 1,
                                         padding: '12px 16px',
                                         border: '1px solid var(--border-color)',
                                         borderRight: 'none',
                                         borderRadius: '8px 0 0 8px',
-                                        background: !formData.is_goal ? 'linear-gradient(135deg, #3b82f615, #3b82f608)' : 'white',
-                                        borderColor: !formData.is_goal ? '#3b82f640' : 'var(--border-color)',
+                                        background: getCurrentType() === 'real' ? 'linear-gradient(135deg, #3b82f615, #3b82f608)' : 'white',
+                                        borderColor: getCurrentType() === 'real' ? '#3b82f640' : 'var(--border-color)',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         gap: '8px',
-                                        fontWeight: !formData.is_goal ? 600 : 400,
-                                        color: !formData.is_goal ? '#3b82f6' : 'var(--text-secondary)',
+                                        fontWeight: getCurrentType() === 'real' ? 600 : 400,
+                                        color: getCurrentType() === 'real' ? '#3b82f6' : 'var(--text-secondary)',
                                         transition: 'all 0.2s ease'
                                     }}
                                 >
                                     <DollarSign size={18} />
-                                    Oportunidade Real
+                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+                                        <span style={{ fontSize: '0.9rem' }}>Oportunidade Real</span>
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Receita Real)</span>
+                                    </span>
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => handleGoalToggle(true)}
+                                    onClick={() => handleTypeChange('meta')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px 16px',
+                                        border: '1px solid var(--border-color)',
+                                        borderRight: 'none',
+                                        background: getCurrentType() === 'meta' ? 'linear-gradient(135deg, #f59e0b15, #f59e0b08)' : 'white',
+                                        borderColor: getCurrentType() === 'meta' ? '#f59e0b40' : 'var(--border-color)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        fontWeight: getCurrentType() === 'meta' ? 600 : 400,
+                                        color: getCurrentType() === 'meta' ? '#f59e0b' : 'var(--text-secondary)',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    <Target size={18} />
+                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+                                        <span style={{ fontSize: '0.9rem' }}>Oportunidade Meta</span>
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Receita Planejada)</span>
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleTypeChange('potencial')}
                                     style={{
                                         flex: 1,
                                         padding: '12px 16px',
                                         border: '1px solid var(--border-color)',
                                         borderRadius: '0 8px 8px 0',
-                                        background: formData.is_goal ? 'linear-gradient(135deg, #f59e0b15, #f59e0b08)' : 'white',
-                                        borderColor: formData.is_goal ? '#f59e0b40' : 'var(--border-color)',
+                                        background: getCurrentType() === 'potencial' ? 'linear-gradient(135deg, #8b5cf615, #8b5cf608)' : 'white',
+                                        borderColor: getCurrentType() === 'potencial' ? '#8b5cf640' : 'var(--border-color)',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         gap: '8px',
-                                        fontWeight: formData.is_goal ? 600 : 400,
-                                        color: formData.is_goal ? '#f59e0b' : 'var(--text-secondary)',
+                                        fontWeight: getCurrentType() === 'potencial' ? 600 : 400,
+                                        color: getCurrentType() === 'potencial' ? '#8b5cf6' : 'var(--text-secondary)',
                                         transition: 'all 0.2s ease'
                                     }}
                                 >
-                                    <Target size={18} />
-                                    Oportunidade Meta
+                                    <Lightbulb size={18} />
+                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+                                        <span style={{ fontSize: '0.9rem' }}>Oportunidade Potencial</span>
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Receita em Construção)</span>
+                                    </span>
                                 </button>
                             </div>
                         </div>
 
                         {/* Fixed Fields */}
                         <div className="input-group" style={{ marginBottom: '1rem' }}>
-                            <label className="label">Título da {formData.is_goal ? 'Meta' : 'Oportunidade'} *</label>
+                            <label className="label">Título da {formData.is_goal ? 'Meta' : (formData.is_potential ? 'Potencial' : 'Oportunidade')} *</label>
                             <input
                                 name="title"
                                 type="text"
                                 className="input"
-                                placeholder={formData.is_goal ? 'Ex: Meta Q1 2026, Meta Anual 2026...' : 'Ex: Projeto de Consultoria, Contrato de Manutenção...'}
+                                placeholder={formData.is_goal ? 'Ex: Meta Q1 2026, Meta Anual 2026...' : (formData.is_potential ? 'Ex: Receita Potencial Q2 2026...' : 'Ex: Projeto de Consultoria, Contrato de Manutenção...')}
                                 value={formData.title}
                                 onChange={handleChange}
                                 required
                             />
                         </div>
 
-                        {/* Tags Field */}
-                        <div className="input-group" style={{ marginBottom: '1rem' }}>
-                            <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <Tag size={14} />
-                                Tags
-                            </label>
-                            <div ref={tagRef} style={{ position: 'relative' }}>
-                                <div style={{
-                                    display: 'flex',
-                                    flexWrap: 'wrap',
-                                    gap: '6px',
-                                    padding: '8px',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: '8px',
-                                    minHeight: '42px',
-                                    background: 'white'
-                                }}>
-                                    {selectedTags.map(tag => (
-                                        <span
-                                            key={tag}
-                                            style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                padding: '4px 8px',
-                                                background: 'var(--color-primary)',
-                                                color: 'white',
-                                                borderRadius: '4px',
-                                                fontSize: '0.85rem'
-                                            }}
+                        {/* Client, Stage (only for real opportunities) - Row 1 */}
+                        {!formData.is_goal && !formData.is_potential && (
+                            <div style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
+                                <div className="input-group" style={{ flex: 2, marginBottom: 0 }}>
+                                    <label className="label">Cliente / Empresa *</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div ref={searchRef} style={{ flex: 1, position: 'relative' }}>
+                                            <div style={{ position: 'relative' }}>
+                                                <Search size={18} style={{
+                                                    position: 'absolute',
+                                                    left: '12px',
+                                                    top: '50%',
+                                                    transform: 'translateY(-50%)',
+                                                    color: '#666',
+                                                    pointerEvents: 'none'
+                                                }} />
+                                                <input
+                                                    type="text"
+                                                    className="input"
+                                                    placeholder="Buscar por nome ou CNPJ..."
+                                                    value={searchTerm}
+                                                    onChange={(e) => {
+                                                        setSearchTerm(e.target.value);
+                                                        setShowDropdown(true);
+                                                        if (formData.client_id) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                client_id: '',
+                                                                client_name: ''
+                                                            }));
+                                                        }
+                                                    }}
+                                                    onFocus={() => setShowDropdown(true)}
+                                                    required
+                                                    style={{ paddingLeft: '40px' }}
+                                                />
+                                            </div>
+                                            {showDropdown && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '100%',
+                                                    left: 0,
+                                                    right: 0,
+                                                    background: 'white',
+                                                    border: '1px solid var(--border-color)',
+                                                    borderRadius: '8px',
+                                                    marginTop: '4px',
+                                                    maxHeight: '300px',
+                                                    overflowY: 'auto',
+                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                                    zIndex: 1000
+                                                }}>
+                                                    {filteredClients.length === 0 ? (
+                                                        <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                                                            Nenhum cliente encontrado
+                                                        </div>
+                                                    ) : (
+                                                        filteredClients.map(client => (
+                                                            <div
+                                                                key={client.id}
+                                                                onClick={() => handleClientSelect(client)}
+                                                                style={{
+                                                                    padding: '0.75rem 1rem',
+                                                                    cursor: 'pointer',
+                                                                    borderBottom: '1px solid var(--border-color)',
+                                                                    transition: 'background 0.2s'
+                                                                }}
+                                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                            >
+                                                                <div style={{ fontWeight: 500 }}>
+                                                                    {client.name}
+                                                                </div>
+                                                                {client.document && (
+                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                                                                        {client.document}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={() => setShowClientModal(true)}
+                                            title="Adicionar novo cliente"
                                         >
-                                            {tag}
-                                            <button
-                                                type="button"
-                                                onClick={() => removeTag(tag)}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    color: 'white',
-                                                    cursor: 'pointer',
-                                                    padding: '0 2px',
-                                                    display: 'flex'
-                                                }}
-                                            >
-                                                <X size={12} />
-                                            </button>
-                                        </span>
-                                    ))}
-                                    <input
-                                        type="text"
-                                        value={tagInput}
-                                        onChange={(e) => {
-                                            setTagInput(e.target.value);
-                                            setShowTagDropdown(true);
-                                        }}
-                                        onFocus={() => setShowTagDropdown(true)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && tagInput.trim()) {
-                                                e.preventDefault();
-                                                addTag(tagInput);
-                                            }
-                                        }}
-                                        placeholder={selectedTags.length === 0 ? 'Digite para adicionar tags...' : ''}
-                                        style={{
-                                            border: 'none',
-                                            outline: 'none',
-                                            flex: 1,
-                                            minWidth: '120px',
-                                            padding: '4px'
-                                        }}
-                                    />
+                                            <Plus size={16} />
+                                        </button>
+                                    </div>
                                 </div>
-                                {showTagDropdown && tagInput && (
+
+                                <div className="input-group" style={{ flex: 1, marginBottom: 0, maxWidth: '200px' }}>
+                                    <label className="label">Estágio *</label>
+                                    <select
+                                        name="stage"
+                                        className="input"
+                                        value={formData.stage}
+                                        onChange={handleChange}
+                                        required
+                                    >
+                                        {stages.map(stage => (
+                                            <option
+                                                key={stage.id || stage.name}
+                                                value={stage.name}
+                                                title={stage.description || ''}
+                                            >
+                                                {stage.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Tags + Responsible - Row 2 */}
+                        <div style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
+                            <div className="input-group" style={{ flex: 2, marginBottom: 0 }}>
+                                <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Tag size={14} />
+                                    Tags
+                                </label>
+                                <div ref={tagRef} style={{ position: 'relative' }}>
                                     <div style={{
-                                        position: 'absolute',
-                                        top: '100%',
-                                        left: 0,
-                                        right: 0,
-                                        background: 'white',
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
+                                        gap: '6px',
+                                        padding: '8px',
                                         border: '1px solid var(--border-color)',
                                         borderRadius: '8px',
-                                        marginTop: '4px',
-                                        maxHeight: '200px',
-                                        overflowY: 'auto',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                        zIndex: 1000
+                                        minHeight: '42px',
+                                        background: 'white'
                                     }}>
-                                        {filteredAvailableTags.length > 0 && (
-                                            <>
-                                                {filteredAvailableTags.map(tag => (
-                                                    <div
-                                                        key={tag.id}
-                                                        onClick={() => addTag(tag.name)}
-                                                        style={{
-                                                            padding: '8px 12px',
-                                                            cursor: 'pointer',
-                                                            borderBottom: '1px solid var(--border-color)'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                                    >
-                                                        {tag.name}
-                                                        <button
-                                                            onClick={(e) => handleDeleteTag(tag.id, tag.name, e)}
-                                                            style={{
-                                                                background: 'none',
-                                                                border: 'none',
-                                                                cursor: 'pointer',
-                                                                padding: '4px',
-                                                                color: 'var(--text-tertiary)',
-                                                                marginLeft: 'auto',
-                                                                display: 'flex',
-                                                                alignItems: 'center'
-                                                            }}
-                                                            title="Excluir tag"
-                                                            onMouseEnter={(e) => e.target.style.color = 'var(--color-danger)'}
-                                                            onMouseLeave={(e) => e.target.style.color = 'var(--text-tertiary)'}
-                                                        >
-                                                            <Trash size={12} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                                <div style={{ borderTop: '1px solid var(--border-color)', margin: '4px 0' }}></div>
-                                            </>
-                                        )}
-                                        <div
-                                            onClick={() => addTag(tagInput)}
-                                            style={{
-                                                padding: '8px 12px',
-                                                cursor: 'pointer',
-                                                color: 'var(--color-primary)',
-                                                fontWeight: 600
-                                            }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                        >
-                                            + Criar tag "{tagInput}"
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Client, Stage, Responsible (only for non-goals) */}
-                        {!formData.is_goal && (
-                            <>
-                                <div className={styles.formGrid}>
-                                    <div className="input-group">
-                                        <label className="label">Cliente / Empresa *</label>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <div ref={searchRef} style={{ flex: 1, position: 'relative', minWidth: '350px' }}>
-                                                <div style={{ position: 'relative' }}>
-                                                    <Search size={18} style={{
-                                                        position: 'absolute',
-                                                        left: '12px',
-                                                        top: '50%',
-                                                        transform: 'translateY(-50%)',
-                                                        color: '#666',
-                                                        pointerEvents: 'none'
-                                                    }} />
-                                                    <input
-                                                        type="text"
-                                                        className="input"
-                                                        placeholder="Buscar cliente..."
-                                                        value={searchTerm}
-                                                        onChange={(e) => {
-                                                            setSearchTerm(e.target.value);
-                                                            setShowDropdown(true);
-                                                            if (formData.client_id) {
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    client_id: '',
-                                                                    client_name: ''
-                                                                }));
-                                                            }
-                                                        }}
-                                                        onFocus={() => setShowDropdown(true)}
-                                                        required
-                                                        style={{ paddingLeft: '40px' }}
-                                                    />
-                                                </div>
-                                                {showDropdown && (
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        top: '100%',
-                                                        left: 0,
-                                                        right: 0,
-                                                        background: 'white',
-                                                        border: '1px solid var(--border-color)',
-                                                        borderRadius: '8px',
-                                                        marginTop: '4px',
-                                                        maxHeight: '300px',
-                                                        overflowY: 'auto',
-                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                                        zIndex: 1000
-                                                    }}>
-                                                        {filteredClients.length === 0 ? (
-                                                            <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
-                                                                Nenhum cliente encontrado
-                                                            </div>
-                                                        ) : (
-                                                            filteredClients.map(client => (
-                                                                <div
-                                                                    key={client.id}
-                                                                    onClick={() => handleClientSelect(client)}
-                                                                    style={{
-                                                                        padding: '0.75rem 1rem',
-                                                                        cursor: 'pointer',
-                                                                        borderBottom: '1px solid var(--border-color)',
-                                                                        transition: 'background 0.2s'
-                                                                    }}
-                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                                                >
-                                                                    <div style={{ fontWeight: 500 }}>
-                                                                        {client.name}
-                                                                    </div>
-                                                                </div>
-                                                            ))
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <button
-                                                type="button"
-                                                className="btn btn-secondary"
-                                                onClick={() => setShowClientModal(true)}
-                                                title="Adicionar novo cliente"
+                                        {selectedTags.map(tag => (
+                                            <span
+                                                key={tag}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    padding: '4px 8px',
+                                                    background: 'var(--color-primary)',
+                                                    color: 'white',
+                                                    borderRadius: '4px',
+                                                    fontSize: '0.85rem'
+                                                }}
                                             >
-                                                <Plus size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="input-group">
-                                        <label className="label">Estágio *</label>
-                                        <select
-                                            name="stage"
-                                            className="input"
-                                            value={formData.stage}
-                                            onChange={handleChange}
-                                            required
-                                        >
-                                            {stages.map(stage => (
-                                                <option
-                                                    key={stage.id || stage.name}
-                                                    value={stage.name}
-                                                    title={stage.description || ''}
+                                                {tag}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeTag(tag)}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        color: 'white',
+                                                        cursor: 'pointer',
+                                                        padding: '0 2px',
+                                                        display: 'flex'
+                                                    }}
                                                 >
-                                                    {stage.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="input-group">
-                                        <label className="label">Responsável</label>
+                                                    <X size={12} />
+                                                </button>
+                                            </span>
+                                        ))}
                                         <input
-                                            name="responsible"
-                                            className="input"
-                                            value={formData.responsible}
-                                            onChange={handleChange}
+                                            type="text"
+                                            value={tagInput}
+                                            onChange={(e) => {
+                                                setTagInput(e.target.value);
+                                                setShowTagDropdown(true);
+                                            }}
+                                            onFocus={() => setShowTagDropdown(true)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && tagInput.trim()) {
+                                                    e.preventDefault();
+                                                    addTag(tagInput);
+                                                }
+                                            }}
+                                            placeholder={selectedTags.length === 0 ? 'Digite para adicionar tags...' : ''}
+                                            style={{
+                                                border: 'none',
+                                                outline: 'none',
+                                                flex: 1,
+                                                minWidth: '120px',
+                                                padding: '4px'
+                                            }}
                                         />
                                     </div>
+                                    {showTagDropdown && tagInput && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            background: 'white',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: '8px',
+                                            marginTop: '4px',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                            zIndex: 1000
+                                        }}>
+                                            {filteredAvailableTags.length > 0 && (
+                                                <>
+                                                    {filteredAvailableTags.map(tag => (
+                                                        <div
+                                                            key={tag.id}
+                                                            onClick={() => addTag(tag.name)}
+                                                            style={{
+                                                                padding: '8px 12px',
+                                                                cursor: 'pointer',
+                                                                borderBottom: '1px solid var(--border-color)'
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                        >
+                                                            {tag.name}
+                                                            <button
+                                                                onClick={(e) => handleDeleteTag(tag.id, tag.name, e)}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    cursor: 'pointer',
+                                                                    padding: '4px',
+                                                                    color: 'var(--text-tertiary)',
+                                                                    marginLeft: 'auto',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center'
+                                                                }}
+                                                                title="Excluir tag"
+                                                                onMouseEnter={(e) => e.target.style.color = 'var(--color-danger)'}
+                                                                onMouseLeave={(e) => e.target.style.color = 'var(--text-tertiary)'}
+                                                            >
+                                                                <Trash size={12} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    <div style={{ borderTop: '1px solid var(--border-color)', margin: '4px 0' }}></div>
+                                                </>
+                                            )}
+                                            <div
+                                                onClick={() => addTag(tagInput)}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    cursor: 'pointer',
+                                                    color: 'var(--color-primary)',
+                                                    fontWeight: 600
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                            >
+                                                + Criar tag "{tagInput}"
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            </>
-                        )}
+                            </div>
+
+                            {!formData.is_goal && !formData.is_potential && (
+                                <div className="input-group" style={{ flex: 1, marginBottom: 0, maxWidth: '200px' }}>
+                                    <label className="label">Responsável</label>
+                                    <input
+                                        name="responsible"
+                                        className="input"
+                                        value={formData.responsible}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            )}
+                        </div>
 
                         <div className="input-group">
                             <label className="label">Observações</label>
@@ -989,7 +1050,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                             )}
 
                             {/* Forecasts List */}
-                            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                                 {forecasts.length === 0 ? (
                                     <div style={{
                                         textAlign: 'center',
@@ -1086,42 +1147,137 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                     </div>
 
                                                     {(!forecast.inputMode || forecast.inputMode === 'date') ? (
-                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                            <input
-                                                                type="date"
-                                                                className="input"
-                                                                style={{ padding: '6px 8px', fontSize: '0.9rem' }}
-                                                                value={forecast.period_start}
-                                                                onChange={(e) => updateForecast(index, 'period_start', e.target.value)}
-                                                                required
-                                                            />
-                                                            <span style={{ color: 'var(--text-secondary)' }}>até</span>
-                                                            <input
-                                                                type="date"
-                                                                className="input"
-                                                                style={{ padding: '6px 8px', fontSize: '0.9rem' }}
-                                                                value={forecast.period_end}
-                                                                onChange={(e) => updateForecast(index, 'period_end', e.target.value)}
-                                                                required
-                                                            />
+                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <input
+                                                                    type="date"
+                                                                    className="input"
+                                                                    style={{ padding: '6px 8px', fontSize: '0.9rem' }}
+                                                                    value={forecast.period_start}
+                                                                    onChange={(e) => updateForecast(index, 'period_start', e.target.value)}
+                                                                    required
+                                                                />
+                                                                <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>até</span>
+                                                            </div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <input
+                                                                    type="date"
+                                                                    className="input"
+                                                                    style={{ padding: '6px 8px', fontSize: '0.9rem', minWidth: '140px' }}
+                                                                    value={forecast.period_end}
+                                                                    onChange={(e) => updateForecast(index, 'period_end', e.target.value)}
+                                                                    required
+                                                                />
+                                                                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>ou</span>
+                                                                <select
+                                                                    className="input"
+                                                                    style={{
+                                                                        padding: '6px 8px',
+                                                                        fontSize: '0.8rem',
+                                                                        minWidth: '150px',
+                                                                        background: 'linear-gradient(135deg, #f0f7ff 0%, white 100%)',
+                                                                        borderColor: '#3b82f640',
+                                                                        color: '#3b82f6',
+                                                                        fontWeight: 500
+                                                                    }}
+                                                                    value=""
+                                                                    onChange={(e) => {
+                                                                        if (!forecast.period_start) {
+                                                                            alert('Preencha a data de início primeiro.');
+                                                                            return;
+                                                                        }
+                                                                        const startDate = new Date(forecast.period_start + 'T00:00:00');
+                                                                        let endDate;
+                                                                        switch (e.target.value) {
+                                                                            case 'end_month':
+                                                                                endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+                                                                                break;
+                                                                            case 'end_bimester':
+                                                                                const bimesterEnd = Math.ceil((startDate.getMonth() + 1) / 2) * 2;
+                                                                                endDate = new Date(startDate.getFullYear(), bimesterEnd, 0);
+                                                                                break;
+                                                                            case 'end_quarter':
+                                                                                const quarterEnd = Math.ceil((startDate.getMonth() + 1) / 3) * 3;
+                                                                                endDate = new Date(startDate.getFullYear(), quarterEnd, 0);
+                                                                                break;
+                                                                            case 'end_semester':
+                                                                                const semesterEnd = startDate.getMonth() < 6 ? 6 : 12;
+                                                                                endDate = new Date(startDate.getFullYear(), semesterEnd, 0);
+                                                                                break;
+                                                                            case 'end_year':
+                                                                                endDate = new Date(startDate.getFullYear(), 11, 31);
+                                                                                break;
+                                                                            default:
+                                                                                return;
+                                                                        }
+                                                                        updateForecast(index, 'period_end', endDate.toISOString().split('T')[0]);
+                                                                    }}
+                                                                >
+                                                                    <option value="">Preencher rápido...</option>
+                                                                    <option value="end_month">Final do mês</option>
+                                                                    <option value="end_bimester">Final do bimestre</option>
+                                                                    <option value="end_quarter">Final do trimestre</option>
+                                                                    <option value="end_semester">Final do semestre</option>
+                                                                    <option value="end_year">Final do ano</option>
+                                                                </select>
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <div style={{ display: 'flex', gap: '8px' }}>
                                                             <select
+                                                                id={`year-${index}`}
+                                                                className="input"
+                                                                style={{ padding: '6px 8px', fontSize: '0.9rem', width: '90px' }}
+                                                                value={forecast.year || new Date().getFullYear()}
+                                                                onChange={(e) => {
+                                                                    const newYear = parseInt(e.target.value);
+                                                                    const newForecasts = [...forecasts];
+                                                                    newForecasts[index].year = newYear;
+
+                                                                    // Update dates if quarter is already selected
+                                                                    if (forecast.quarter) {
+                                                                        const quarterRanges = {
+                                                                            'Q1': { start: `${newYear}-01-01`, end: `${newYear}-03-31` },
+                                                                            'Q2': { start: `${newYear}-04-01`, end: `${newYear}-06-30` },
+                                                                            'Q3': { start: `${newYear}-07-01`, end: `${newYear}-09-30` },
+                                                                            'Q4': { start: `${newYear}-10-01`, end: `${newYear}-12-31` }
+                                                                        };
+                                                                        const range = quarterRanges[forecast.quarter];
+                                                                        if (range) {
+                                                                            newForecasts[index].period_start = range.start;
+                                                                            newForecasts[index].period_end = range.end;
+                                                                        }
+                                                                    }
+                                                                    setForecasts(newForecasts);
+                                                                }}
+                                                            >
+                                                                {[...Array(5)].map((_, i) => {
+                                                                    const year = new Date().getFullYear() + i;
+                                                                    return <option key={year} value={year}>{year}</option>;
+                                                                })}
+                                                            </select>
+                                                            <select
                                                                 className="input"
                                                                 style={{ padding: '6px 8px', fontSize: '0.9rem' }}
-                                                                value={
-                                                                    // Try to infer current Q from dates if not explicit
-                                                                    forecast.quarter || ''
-                                                                }
+                                                                value={forecast.quarter || ''}
                                                                 onChange={(e) => {
-                                                                    const yearSelect = document.getElementById(`year-${index}`);
-                                                                    const year = yearSelect?.value || new Date().getFullYear();
-                                                                    updateForecast(index, 'quarter', { year: parseInt(year), quarter: e.target.value });
-                                                                    // Store the explicit Q selection in state so it persists in UI
+                                                                    const selectedQuarter = e.target.value;
+                                                                    if (!selectedQuarter) return;
+
+                                                                    const year = forecast.year || new Date().getFullYear();
+                                                                    const quarterRanges = {
+                                                                        'Q1': { start: `${year}-01-01`, end: `${year}-03-31` },
+                                                                        'Q2': { start: `${year}-04-01`, end: `${year}-06-30` },
+                                                                        'Q3': { start: `${year}-07-01`, end: `${year}-09-30` },
+                                                                        'Q4': { start: `${year}-10-01`, end: `${year}-12-31` }
+                                                                    };
+                                                                    const range = quarterRanges[selectedQuarter];
+
                                                                     const newForecasts = [...forecasts];
-                                                                    newForecasts[index].quarter = e.target.value;
-                                                                    newForecasts[index].year = parseInt(year);
+                                                                    newForecasts[index].quarter = selectedQuarter;
+                                                                    newForecasts[index].year = year;
+                                                                    newForecasts[index].period_start = range.start;
+                                                                    newForecasts[index].period_end = range.end;
                                                                     setForecasts(newForecasts);
                                                                 }}
                                                             >
@@ -1130,27 +1286,6 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                                 <option value="Q2">Q2 (Abr-Jun)</option>
                                                                 <option value="Q3">Q3 (Jul-Set)</option>
                                                                 <option value="Q4">Q4 (Out-Dez)</option>
-                                                            </select>
-                                                            <select
-                                                                id={`year-${index}`}
-                                                                className="input"
-                                                                style={{ padding: '6px 8px', fontSize: '0.9rem', width: '80px' }}
-                                                                value={forecast.year || new Date().getFullYear()}
-                                                                onChange={(e) => {
-                                                                    const newForecasts = [...forecasts];
-                                                                    newForecasts[index].year = parseInt(e.target.value);
-                                                                    setForecasts(newForecasts);
-
-                                                                    // Update dates if quarter is already selected
-                                                                    if (forecast.quarter) {
-                                                                        updateForecast(index, 'quarter', { year: parseInt(e.target.value), quarter: forecast.quarter });
-                                                                    }
-                                                                }}
-                                                            >
-                                                                {[...Array(5)].map((_, i) => {
-                                                                    const year = new Date().getFullYear() + i;
-                                                                    return <option key={year} value={year}>{year}</option>;
-                                                                })}
                                                             </select>
                                                         </div>
                                                     )}
@@ -1172,13 +1307,13 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                     </div>
 
                                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px' }}>
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: formData.is_goal ? 'not-allowed' : 'pointer', fontSize: '0.9rem', opacity: formData.is_goal ? 0.5 : 1 }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: (formData.is_goal || formData.is_potential) ? 'not-allowed' : 'pointer', fontSize: '0.9rem', opacity: (formData.is_goal || formData.is_potential) ? 0.5 : 1 }}>
                                                             <input
                                                                 type="checkbox"
-                                                                checked={formData.is_goal ? false : forecast.invoiced}
-                                                                onChange={(e) => !formData.is_goal && updateForecast(index, 'invoiced', e.target.checked)}
-                                                                style={{ width: '16px', height: '16px', cursor: formData.is_goal ? 'not-allowed' : 'pointer' }}
-                                                                disabled={formData.is_goal}
+                                                                checked={(formData.is_goal || formData.is_potential) ? false : forecast.invoiced}
+                                                                onChange={(e) => !(formData.is_goal || formData.is_potential) && updateForecast(index, 'invoiced', e.target.checked)}
+                                                                style={{ width: '16px', height: '16px', cursor: (formData.is_goal || formData.is_potential) ? 'not-allowed' : 'pointer' }}
+                                                                disabled={formData.is_goal || formData.is_potential}
                                                             />
                                                             Faturado
                                                         </label>

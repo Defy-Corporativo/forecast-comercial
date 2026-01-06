@@ -77,6 +77,7 @@ CREATE TABLE opportunities (
   notes text,
   custom_data jsonb DEFAULT '{}'::jsonb,
   is_goal boolean DEFAULT false,
+  is_potential boolean DEFAULT false,
   created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -168,3 +169,4 @@ CREATE TABLE opportunity_tag_assignments (
 CREATE INDEX idx_opportunity_tag_assignments_opportunity ON opportunity_tag_assignments(opportunity_id);
 CREATE INDEX idx_opportunity_tag_assignments_tag ON opportunity_tag_assignments(tag_id);
 CREATE INDEX idx_opportunities_is_goal ON opportunities(is_goal);
+CREATE INDEX idx_opportunities_is_potential ON opportunities(is_potential);

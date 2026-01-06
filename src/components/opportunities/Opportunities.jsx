@@ -38,8 +38,8 @@ const Opportunities = () => {
                 data = await opportunityService.getOpportunities(user.id);
             }
             setOpportunities(data || []);
-            // Apply goal filter
-            const filtered = includeGoals ? data : (data || []).filter(opp => !opp.is_goal);
+            // Apply goal/potential filter
+            const filtered = includeGoals ? data : (data || []).filter(opp => !opp.is_goal && !opp.is_potential);
             setFilteredOpportunities(filtered);
         } catch (error) {
             console.error('Error loading opportunities:', error);
@@ -97,7 +97,7 @@ const Opportunities = () => {
     // }, []);
 
     const opportunitiesForFilters = React.useMemo(() => {
-        return includeGoals ? opportunities : opportunities.filter(opp => !opp.is_goal);
+        return includeGoals ? opportunities : opportunities.filter(opp => !opp.is_goal && !opp.is_potential);
     }, [opportunities, includeGoals]);
 
     if (loading) {
@@ -200,7 +200,7 @@ const Opportunities = () => {
                             onIncludeGoalsChange={(value) => {
                                 setIncludeGoals(value);
                                 // Re-apply filter - using the stable filtered logic is cleaner but for now stick to previous pattern
-                                const base = value ? opportunities : opportunities.filter(opp => !opp.is_goal);
+                                const base = value ? opportunities : opportunities.filter(opp => !opp.is_goal && !opp.is_potential);
                                 setFilteredOpportunities(base);
                             }}
                         />
