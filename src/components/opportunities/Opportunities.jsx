@@ -237,6 +237,7 @@ const Opportunities = () => {
                     onClose={() => {
                         setShowViewModal(false);
                         setViewingOpportunity(null);
+                        loadOpportunities(); // Refresh list to reflect any changes made
                     }}
                     onEdit={handleEdit}
                     onDelete={handleDelete}

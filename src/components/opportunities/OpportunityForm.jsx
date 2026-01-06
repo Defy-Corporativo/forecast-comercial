@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Plus, Search, Trash2, Calendar, DollarSign, Copy, Target, Tag, Trash } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
@@ -8,6 +8,9 @@ import { clientService } from '../../services/clientService';
 import { tagService } from '../../services/tagService';
 import ClientForm from '../clients/ClientForm';
 import styles from './Opportunities.module.css';
+
+// Storage key for draft persistence
+const FORM_STORAGE_KEY = 'opportunityFormDraft';
 
 const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
     const { user } = useAuth();
@@ -68,11 +71,47 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         growth_value: ''
     });
 
+    // Clear storage helper
+    const clearFormStorage = useCallback(() => {
+        sessionStorage.removeItem(FORM_STORAGE_KEY);
+    }, []);
+
+    // Wrapped onClose that clears storage
+    const handleClose = useCallback(() => {
+        clearFormStorage();
+        onClose();
+    }, [clearFormStorage, onClose]);
+
+    // Save form state to sessionStorage (only for new opportunities)
+    const saveFormToStorage = useCallback(() => {
+        if (!opportunity) {
+            const dataToSave = {
+                formData,
+                forecasts,
+                selectedTags,
+                recurrenceConfig,
+                showRecurrence,
+                searchTerm
+            };
+            sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(dataToSave));
+        }
+    }, [formData, forecasts, selectedTags, recurrenceConfig, showRecurrence, searchTerm, opportunity]);
+
+    // Auto-save form state on changes
+    useEffect(() => {
+        // Debounce saves to avoid excessive writes
+        const timeoutId = setTimeout(() => {
+            saveFormToStorage();
+        }, 300);
+        return () => clearTimeout(timeoutId);
+    }, [saveFormToStorage]);
+
     useEffect(() => {
         loadCustomFields();
         loadClients();
         loadTags();
         if (opportunity) {
+            // Editing existing opportunity - load from prop
             setFormData({
                 title: opportunity.title || '',
                 client_id: opportunity.client_id || '',
@@ -96,8 +135,25 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
             })));
             // Load existing tags
             setSelectedTags((opportunity.tagList || []).map(t => t.name));
+        } else {
+            // New opportunity - try to restore from sessionStorage
+            try {
+                const savedDraft = sessionStorage.getItem(FORM_STORAGE_KEY);
+                if (savedDraft) {
+                    const parsed = JSON.parse(savedDraft);
+                    if (parsed.formData) setFormData(parsed.formData);
+                    if (parsed.forecasts) setForecasts(parsed.forecasts);
+                    if (parsed.selectedTags) setSelectedTags(parsed.selectedTags);
+                    if (parsed.recurrenceConfig) setRecurrenceConfig(parsed.recurrenceConfig);
+                    if (parsed.showRecurrence !== undefined) setShowRecurrence(parsed.showRecurrence);
+                    if (parsed.searchTerm) setSearchTerm(parsed.searchTerm);
+                }
+            } catch (e) {
+                console.warn('Failed to restore form draft:', e);
+                clearFormStorage();
+            }
         }
-    }, [opportunity]);
+    }, [opportunity, clearFormStorage]);
 
     const loadCustomFields = async () => {
         try {
@@ -410,6 +466,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 await opportunityService.createOpportunity(user.id, opportunityData);
             }
 
+            // Clear draft on successful save
+            clearFormStorage();
             onSave();
             onClose();
         } catch (error) {
@@ -428,7 +486,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
             <div className={styles.modal}>
                 <div className={styles.modalHeader}>
                     <h3>{opportunity ? 'Editar Oportunidade' : 'Nova Oportunidade'}</h3>
-                    <button className={styles.closeBtn} onClick={onClose}><X size={24} /></button>
+                    <button className={styles.closeBtn} onClick={handleClose}><X size={24} /></button>
                 </div>
 
                 <form onSubmit={handleSubmit} className={styles.modalForm}>
@@ -1254,7 +1312,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                     </div>
 
                     <div className={styles.modalFooter}>
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+                        <button type="button" className="btn btn-secondary" onClick={handleClose}>Cancelar</button>
                         <button type="submit" className="btn btn-primary" disabled={loading}>
                             {loading ? 'Salvando...' : 'Salvar Oportunidade'}
                         </button>

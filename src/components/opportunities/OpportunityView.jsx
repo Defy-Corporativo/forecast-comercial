@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit2, Trash2, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle, DollarSign, Layers } from 'lucide-react';
+import { X, Edit2, Trash2, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle, DollarSign, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
@@ -173,7 +173,15 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
 
     const formatDate = (dateString) => {
         if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('pt-BR');
+        // Parse the date string directly to avoid timezone issues
+        // Expected format: YYYY-MM-DD
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+            const [year, month, day] = parts;
+            return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+        }
+        // Fallback for other formats
+        return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
     };
 
     const formatDateTime = (dateString) => {
@@ -208,6 +216,59 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
     // Ordenar estágios e determinar posição atual
     const sortedStages = [...stages].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
     const currentStageIndex = sortedStages.findIndex(s => s.name === currentOpportunity.stage);
+    const currentStage = sortedStages[currentStageIndex];
+
+    // Get allowed previous and next stages based on configuration
+    const getAllowedPreviousStages = () => {
+        // Find stages that can transition TO the current stage
+        return sortedStages.filter(stage =>
+            stage.allowed_next_stages?.includes(currentOpportunity.stage)
+        );
+    };
+
+    const getAllowedNextStages = () => {
+        // Get stages that current stage can transition to
+        if (!currentStage?.allowed_next_stages) return [];
+        return sortedStages.filter(stage =>
+            currentStage.allowed_next_stages.includes(stage.name)
+        );
+    };
+
+    const allowedPrevious = getAllowedPreviousStages();
+    const allowedNext = getAllowedNextStages();
+
+    // Handle stage change
+    const handleStageChange = async (newStageName) => {
+        try {
+            await opportunityService.updateOpportunity(currentOpportunity.id, { stage: newStageName });
+            // Update local state immediately - no need to reload parent
+            setCurrentOpportunity(prev => ({ ...prev, stage: newStageName }));
+        } catch (error) {
+            console.error('Erro ao alterar estágio:', error);
+            alert('Erro ao alterar estágio. Tente novamente.');
+        }
+    };
+
+    // Handle toggle invoiced status
+    const handleToggleInvoiced = async (forecast) => {
+        if (currentOpportunity.is_goal) return; // Don't allow for goals
+
+        try {
+            const newInvoicedStatus = !forecast.invoiced;
+            await opportunityService.updateForecastInvoiced(forecast.id, newInvoicedStatus);
+
+            // Update local state immediately - no need to reload parent
+            setCurrentOpportunity(prev => ({
+                ...prev,
+                forecasts: prev.forecasts.map(f =>
+                    f.id === forecast.id ? { ...f, invoiced: newInvoicedStatus } : f
+                )
+            }));
+        } catch (error) {
+            console.error('Erro ao atualizar status:', error);
+            alert('Erro ao atualizar status. Tente novamente.');
+        }
+    };
 
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
@@ -230,100 +291,100 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                 </div>
 
                 <div className={styles.modalBody}>
-                    {/* Roadmap de Estágios - Dinâmico (Esconder se for Meta) */}
-                    {!currentOpportunity.is_goal && (
+                    {/* Roadmap de Estágios - Clean design */}
+                    {!currentOpportunity.is_goal && currentStage && (
                         <div style={{ marginBottom: '20px' }}>
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '12px 20px',
-                                background: 'var(--bg-main)',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                padding: '12px 16px',
+                                background: 'white',
                                 borderRadius: '8px',
                                 border: '1px solid var(--border-color-light)',
-                                overflowX: 'auto'
+                                flexWrap: 'wrap'
                             }}>
-                                {sortedStages.map((stage, index) => {
-                                    const isPassed = index <= currentStageIndex;
-                                    const isCurrent = index === currentStageIndex;
-                                    const isLast = index === sortedStages.length - 1;
+                                {/* Previous stages */}
+                                {allowedPrevious.map(stage => (
+                                    <button
+                                        key={stage.id || stage.name}
+                                        onClick={() => handleStageChange(stage.name)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '8px 14px',
+                                            background: 'transparent',
+                                            border: '1px solid var(--border-color-light)',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.85rem',
+                                            color: 'var(--text-secondary)',
+                                            fontWeight: 500,
+                                            transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = 'var(--bg-main)';
+                                            e.currentTarget.style.borderColor = 'var(--border-color)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.borderColor = 'var(--border-color-light)';
+                                        }}
+                                        title={`Voltar para ${stage.name}`}
+                                    >
+                                        <ChevronLeft size={14} />
+                                        {stage.name}
+                                    </button>
+                                ))}
 
-                                    return (
-                                        <React.Fragment key={stage.id || stage.name}>
-                                            <div
-                                                style={{
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    alignItems: 'center',
-                                                    minWidth: '70px',
-                                                    cursor: 'default',
-                                                    opacity: isPassed ? 1 : 0.5,
-                                                    position: 'relative'
-                                                }}
-                                                title={isCurrent ? 'Estágio Atual' : (isPassed ? 'Estágio Concluído' : 'Estágio Futuro')}
-                                            >
+                                {/* Current stage - clean with blue border */}
+                                <div style={{
+                                    padding: '8px 18px',
+                                    background: '#f0f7ff',
+                                    border: '2px solid #3b82f6',
+                                    borderRadius: '6px',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600,
+                                    color: '#1e40af'
+                                }}>
+                                    {currentStage.name}
+                                </div>
 
-                                                {/* Círculo do estágio */}
-                                                <div style={{
-                                                    width: isCurrent ? '28px' : '22px',
-                                                    height: isCurrent ? '28px' : '22px',
-                                                    borderRadius: '50%',
-                                                    background: isPassed
-                                                        ? (stage.color || 'var(--color-primary)')
-                                                        : 'var(--bg-secondary)',
-                                                    border: `2px solid ${isPassed
-                                                        ? (stage.color || 'var(--color-primary)')
-                                                        : 'var(--border-color)'}`,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    transition: 'all 0.3s ease',
-                                                    boxShadow: isCurrent
-                                                        ? `0 0 0 4px ${stage.color || 'var(--color-primary)'}30`
-                                                        : 'none'
-                                                }}>
-                                                    {isPassed && (
-                                                        <div style={{
-                                                            width: '8px',
-                                                            height: '8px',
-                                                            borderRadius: '50%',
-                                                            background: 'white'
-                                                        }} />
-                                                    )}
-                                                </div>
-                                                {/* Nome do estágio */}
-                                                <span style={{
-                                                    marginTop: '4px',
-                                                    fontSize: '10px',
-                                                    fontWeight: isCurrent ? 600 : 400,
-                                                    color: isCurrent
-                                                        ? 'var(--text-primary)'
-                                                        : 'var(--text-tertiary)',
-                                                    textAlign: 'center',
-                                                    maxWidth: '70px',
-                                                    lineHeight: 1.2
-                                                }}>
-                                                    {stage.name}
-                                                </span>
-                                            </div>
-
-                                            {/* Linha de conexão */}
-                                            {!isLast && (
-                                                <div style={{
-                                                    flex: 1,
-                                                    height: '2px',
-                                                    background: index < currentStageIndex
-                                                        ? `linear-gradient(90deg, ${sortedStages[index].color || 'var(--color-primary)'}, ${sortedStages[index + 1].color || 'var(--color-primary)'})`
-                                                        : 'var(--border-color)',
-                                                    margin: '0 4px',
-                                                    marginBottom: '20px',
-                                                    borderRadius: '1px',
-                                                    minWidth: '16px'
-                                                }} />
-                                            )}
-                                        </React.Fragment>
-                                    );
-                                })}
+                                {/* Next stages */}
+                                {allowedNext.map(stage => (
+                                    <button
+                                        key={stage.id || stage.name}
+                                        onClick={() => handleStageChange(stage.name)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '8px 14px',
+                                            background: 'transparent',
+                                            border: '1px solid var(--border-color-light)',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.85rem',
+                                            color: 'var(--text-secondary)',
+                                            fontWeight: 500,
+                                            transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = 'var(--bg-main)';
+                                            e.currentTarget.style.borderColor = 'var(--border-color)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.borderColor = 'var(--border-color-light)';
+                                        }}
+                                        title={`Avançar para ${stage.name}`}
+                                    >
+                                        {stage.name}
+                                        <ChevronRight size={14} />
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     )}
@@ -416,6 +477,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                                     </td>
                                                     <td style={{ padding: '12px', textAlign: 'center' }}>
                                                         <span
+                                                            onClick={() => !currentOpportunity.is_goal && handleToggleInvoiced(forecast)}
                                                             style={{
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -427,8 +489,11 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                                                 fontWeight: 500,
                                                                 background: currentOpportunity.is_goal ? 'var(--bg-secondary)' : (forecast.invoiced ? 'var(--color-success)' : 'var(--bg-secondary)'),
                                                                 color: currentOpportunity.is_goal ? 'var(--text-tertiary)' : (forecast.invoiced ? 'white' : 'var(--text-secondary)'),
-                                                                opacity: currentOpportunity.is_goal ? 0.7 : 1
+                                                                opacity: currentOpportunity.is_goal ? 0.7 : 1,
+                                                                cursor: currentOpportunity.is_goal ? 'default' : 'pointer',
+                                                                transition: 'all 0.2s ease'
                                                             }}
+                                                            title={currentOpportunity.is_goal ? '' : (forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado')}
                                                         >
                                                             {currentOpportunity.is_goal ? (
                                                                 <span style={{ color: 'var(--text-tertiary)' }}>-</span>
@@ -780,18 +845,20 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                     </div>
                 </div>
 
-                <div className={styles.modalFooter}>
-                    <button type="button" className="btn btn-secondary" onClick={onClose}>
-                        Fechar
-                    </button>
-                    <button type="button" className="btn btn-secondary" onClick={handleEdit}>
-                        <Edit2 size={16} />
-                        Editar
-                    </button>
-                    <button type="button" className="btn btn-danger" onClick={handleDelete}>
+                <div className={styles.modalFooter} style={{ justifyContent: 'space-between' }}>
+                    <button type="button" className="btn btn-secondary" onClick={handleDelete}>
                         <Trash2 size={16} />
                         Excluir
                     </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button type="button" className="btn btn-secondary" onClick={handleEdit}>
+                            <Edit2 size={16} />
+                            Editar
+                        </button>
+                        <button type="button" className="btn btn-primary" onClick={onClose}>
+                            Fechar
+                        </button>
+                    </div>
                 </div>
 
                 {/* Modal de Confirmação */}

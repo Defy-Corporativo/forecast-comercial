@@ -498,8 +498,9 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
         timeDistributed: false,
         dateField: 'period_start',
         is_public: false,
-        stage_filter: 'all',
-        color: '#6366F1'
+        stage_filter: '',  // Empty by default, required for big_number
+        color: '#6366F1',
+        calculation_type: 'sum'  // 'sum' or 'count'
     });
 
     // Campos disponíveis para agrupar
@@ -512,10 +513,20 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
 
     const handleSave = () => {
         if (!chartConfig.title.trim()) {
-            alert('Digite um título para o gráfico');
+            alert('Digite um título para o indicador');
             return;
         }
-        onSave(chartConfig);
+        // Validação para Big Number: estágio obrigatório
+        if (chartConfig.chartType === 'big_number' && !chartConfig.stage_filter) {
+            alert('Selecione um estágio para o indicador');
+            return;
+        }
+        // Convert camelCase to snake_case for database compatibility
+        const configToSave = {
+            ...chartConfig,
+            chart_type: chartConfig.chartType  // Add snake_case version
+        };
+        onSave(configToSave);
     };
 
     return (
@@ -573,13 +584,25 @@ export const CustomChartModal = ({ opportunities = [], stages = [], customFields
                     {chartConfig.chartType === 'big_number' && (
                         <>
                             <div className="input-group">
-                                <label className="label">Filtrar por Estágio</label>
+                                <label className="label">Tipo de Cálculo *</label>
+                                <select
+                                    className="input"
+                                    value={chartConfig.calculation_type}
+                                    onChange={(e) => setChartConfig(prev => ({ ...prev, calculation_type: e.target.value }))}
+                                >
+                                    <option value="sum">Soma dos Valores (R$)</option>
+                                    <option value="count">Contagem de Oportunidades</option>
+                                </select>
+                            </div>
+
+                            <div className="input-group">
+                                <label className="label">Estágio *</label>
                                 <select
                                     className="input"
                                     value={chartConfig.stage_filter}
                                     onChange={(e) => setChartConfig(prev => ({ ...prev, stage_filter: e.target.value }))}
                                 >
-                                    <option value="all">Todos os estágios</option>
+                                    <option value="">Selecione um estágio</option>
                                     {stages.map(stage => (
                                         <option key={stage.id} value={stage.name}>{stage.name}</option>
                                     ))}

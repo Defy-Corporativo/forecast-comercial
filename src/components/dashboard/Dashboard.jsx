@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Briefcase, Target, TrendingUp, Plus } from 'lucide-react';
+import { DollarSign, Briefcase, Target, TrendingUp, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
@@ -158,7 +158,7 @@ const Dashboard = () => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
     };
 
-    const calculateBigNumberValue = (opportunities, chartConfig) => {
+    const calculateBigNumberValue = (opportunities, chartConfig, dateRange) => {
         let filtered = opportunities.filter(opp => !opp.is_goal); // Excluir metas por padrão
 
         // Filtrar por estágio se especificado
@@ -166,7 +166,42 @@ const Dashboard = () => {
             filtered = filtered.filter(opp => opp.stage === chartConfig.stage_filter);
         }
 
-        // Calcular valor total
+        // Filtrar por período - considerar forecasts dentro do range
+        if (dateRange && dateRange.startDate && dateRange.endDate) {
+            const start = new Date(dateRange.startDate);
+            const end = new Date(dateRange.endDate);
+
+            // Para contagem, filtrar oportunidades que têm pelo menos um forecast no período
+            if (chartConfig.calculation_type === 'count') {
+                filtered = filtered.filter(opp => {
+                    if (!opp.forecasts || opp.forecasts.length === 0) return false;
+                    return opp.forecasts.some(f => {
+                        const forecastDate = new Date(f.period_end || f.period_start);
+                        return forecastDate >= start && forecastDate <= end;
+                    });
+                });
+                return filtered.length;
+            }
+
+            // Para soma, somar apenas valores de forecasts dentro do período
+            let total = 0;
+            filtered.forEach(opp => {
+                if (opp.forecasts && opp.forecasts.length > 0) {
+                    opp.forecasts.forEach(f => {
+                        const forecastDate = new Date(f.period_end || f.period_start);
+                        if (forecastDate >= start && forecastDate <= end) {
+                            total += Number(f.estimated_value || 0);
+                        }
+                    });
+                }
+            });
+            return total;
+        }
+
+        // Sem filtro de data - comportamento original
+        if (chartConfig.calculation_type === 'count') {
+            return filtered.length;
+        }
         return filtered.reduce((sum, opp) => sum + Number(opp.estimated_value || 0), 0);
     };
 
@@ -298,118 +333,159 @@ const Dashboard = () => {
                     icon={DollarSign}
                     color="#059669"
                 />
-
-                {/* Big Numbers Customizados */}
-                {customCharts
-                    .filter(chart => chart.chart_type === 'big_number')
-                    .map(chart => {
-                        const value = calculateBigNumberValue(opportunities, chart);
-                        return (
-                            <div key={chart.id} style={{ position: 'relative' }}>
-                                <MetricsCard
-                                    title={chart.title}
-                                    value={formatCurrency(value)}
-                                    icon={DollarSign}
-                                    color={chart.color || "#6366F1"}
-                                />
-                                <button
-                                    onClick={() => handleDeleteCustomChart(chart.id)}
-                                    style={{
-                                        position: 'absolute',
-                                        top: '8px',
-                                        right: '8px',
-                                        background: 'white',
-                                        border: '1px solid var(--border-color-light)',
-                                        borderRadius: '4px',
-                                        padding: '4px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        opacity: 0,
-                                        transition: 'opacity 0.2s',
-                                        color: 'var(--text-tertiary)'
-                                    }}
-                                    className="custom-metric-delete-btn"
-                                    title="Excluir indicador"
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        );
-                    })}
             </div>
 
-            {/* Filtro de período */}
+            {/* Filtro de período - Redesigned */}
             <div style={{
                 display: 'flex',
-                gap: '12px',
                 alignItems: 'center',
                 background: 'white',
-                padding: '16px 20px',
-                borderRadius: '12px',
+                padding: '12px 16px',
+                borderRadius: '10px',
                 border: '1px solid var(--border-color-light)',
-                boxShadow: 'var(--shadow-sm)',
+                boxShadow: 'var(--shadow-xs)',
                 marginBottom: '24px',
-                width: '100%',
+                gap: '24px',
                 flexWrap: 'wrap'
             }}>
-                <span style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--text-primary)' }}>Período:</span>
+                {/* Período predefinido */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                    }}>Período</span>
+                    <select
+                        onChange={(e) => setPredefinedPeriod(e.target.value)}
+                        defaultValue=""
+                        style={{
+                            border: '1px solid var(--border-color-light)',
+                            borderRadius: '8px',
+                            padding: '10px 14px',
+                            fontSize: '0.9rem',
+                            background: 'var(--bg-main)',
+                            cursor: 'pointer',
+                            minWidth: '180px',
+                            color: 'var(--text-primary)',
+                            fontWeight: 500,
+                            outline: 'none',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <option value="">Selecione um período</option>
+                        <option value="thisMonth">Este mês</option>
+                        <option value="lastMonth">Mês passado</option>
+                        <option value="last3Months">Últimos 3 meses</option>
+                        <option value="last6Months">Últimos 6 meses</option>
+                        <option value="next3Months">Próximos 3 meses</option>
+                        <option value="next6Months">Próximos 6 meses</option>
+                        <option value="thisYear">Este ano</option>
+                        <option value="lastYear">Ano passado</option>
+                    </select>
+                </div>
 
-                {/* Seletor de períodos padrão */}
-                <select
-                    onChange={(e) => setPredefinedPeriod(e.target.value)}
-                    defaultValue=""
-                    style={{
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '6px',
-                        padding: '8px 12px',
-                        fontSize: '0.9rem',
-                        background: 'white',
-                        cursor: 'pointer',
-                        minWidth: '160px'
-                    }}
-                >
-                    <option value="">Selecione um período</option>
-                    <option value="thisMonth">Este mês</option>
-                    <option value="lastMonth">Mês passado</option>
-                    <option value="last3Months">Últimos 3 meses</option>
-                    <option value="last6Months">Últimos 6 meses</option>
-                    <option value="next3Months">Próximos 3 meses</option>
-                    <option value="next6Months">Próximos 6 meses</option>
-                    <option value="thisYear">Este ano</option>
-                    <option value="lastYear">Ano passado</option>
-                </select>
+                {/* Separador visual */}
+                <div style={{
+                    width: '1px',
+                    height: '28px',
+                    background: 'var(--border-color-light)'
+                }} />
 
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 500, marginLeft: '8px' }}>ou personalize:</span>
-
-                <input
-                    type="date"
-                    value={dateRange.startDate}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                    style={{
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '6px',
-                        padding: '8px 12px',
-                        fontSize: '0.9rem'
-                    }}
-                />
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>até</span>
-                <input
-                    type="date"
-                    value={dateRange.endDate}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                    style={{
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '6px',
-                        padding: '8px 12px',
-                        fontSize: '0.9rem'
-                    }}
-                />
+                {/* Período personalizado */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                    }}>De</span>
+                    <input
+                        type="date"
+                        value={dateRange.startDate}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                        style={{
+                            border: '1px solid var(--border-color-light)',
+                            borderRadius: '8px',
+                            padding: '10px 14px',
+                            fontSize: '0.9rem',
+                            background: 'var(--bg-main)',
+                            color: 'var(--text-primary)',
+                            fontWeight: 500,
+                            outline: 'none'
+                        }}
+                    />
+                    <span style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                    }}>Até</span>
+                    <input
+                        type="date"
+                        value={dateRange.endDate}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                        style={{
+                            border: '1px solid var(--border-color-light)',
+                            borderRadius: '8px',
+                            padding: '10px 14px',
+                            fontSize: '0.9rem',
+                            background: 'var(--bg-main)',
+                            color: 'var(--text-primary)',
+                            fontWeight: 500,
+                            outline: 'none'
+                        }}
+                    />
+                </div>
             </div>
+
+            {/* Big Numbers Customizados - Abaixo do filtro de período */}
+            {customCharts.filter(chart => chart.chart_type === 'big_number').length > 0 && (
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                    gap: '16px',
+                    marginBottom: '24px'
+                }}>
+                    {customCharts
+                        .filter(chart => chart.chart_type === 'big_number')
+                        .map(chart => {
+                            const value = calculateBigNumberValue(opportunities, chart, dateRange);
+                            const isCount = chart.calculation_type === 'count';
+                            return (
+                                <div
+                                    key={chart.id}
+                                    style={{ position: 'relative' }}
+                                    className="custom-bignumber-card"
+                                >
+                                    <MetricsCard
+                                        title={chart.title}
+                                        value={isCount ? value : formatCurrency(value)}
+                                        icon={isCount ? Briefcase : DollarSign}
+                                        color={chart.color || "#6366F1"}
+                                    />
+                                    <button
+                                        onClick={() => handleDeleteCustomChart(chart.id)}
+                                        className={styles.deleteChartBtn}
+                                        style={{
+                                            position: 'absolute',
+                                            top: '8px',
+                                            right: '8px',
+                                            opacity: 0,
+                                            transition: 'opacity 0.2s'
+                                        }}
+                                        title="Excluir indicador"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                </div>
+            )}
 
             {/* Gráfico de Projeção de Forecast */}
             <ForecastProjectionChart

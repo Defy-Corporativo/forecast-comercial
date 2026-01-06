@@ -101,6 +101,11 @@ div:hover > .custom-metric-delete-btn {
     color: var(--color-danger) !important;
 }
 
+/* Big Number cards hover - show delete button */
+:global(.custom-bignumber-card):hover .deleteChartBtn {
+    opacity: 1 !important;
+}
+
 .chartsGrid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
