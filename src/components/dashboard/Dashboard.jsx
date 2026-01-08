@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { DollarSign, Briefcase, Target, TrendingUp, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { DollarSign, Briefcase, Target, Plus, Trash2, Lightbulb } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
@@ -23,18 +23,16 @@ const Dashboard = () => {
         totalValue: 0,
         invoicedValue: 0,
         goalsValue: 0,
-        totalForecastValue: 0
+        potentialValue: 0
     });
     // Estado para gráficos customizados
     const [customCharts, setCustomCharts] = useState([]);
     const [showChartModal, setShowChartModal] = useState(false);
 
-    // Global Date Filter
+    // Global Date Filter - Default: "Este ano" com +3 meses antes e +3 meses depois
     const today = new Date();
-    // Start: 1st day of 3rd month ago
-    const defaultStartDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-    // End: Last day of current year
-    const defaultEndDate = new Date(today.getFullYear(), 11, 31);
+    const defaultStartDate = new Date(today.getFullYear() - 1, 9, 1);  // Oct 1 of previous year (3 months before Jan)
+    const defaultEndDate = new Date(today.getFullYear() + 1, 2, 31); // Mar 31 of next year (3 months after Dec)
 
     const [dateRange, setDateRange] = useState({
         startDate: defaultStartDate.toISOString().split('T')[0],
@@ -118,40 +116,90 @@ const Dashboard = () => {
         }
     };
 
-    const calculateMetrics = (opportunities) => {
-        // Filtrar apenas oportunidades reais (não metas)
-        const realOpportunities = opportunities.filter(opp => !opp.is_goal);
-        const totalOpportunities = realOpportunities.length;
-        const totalValue = realOpportunities.reduce((sum, opp) => sum + Number(opp.estimated_value || 0), 0);
+    // Calculate metrics based on opportunities and date range
+    const filteredMetrics = useMemo(() => {
+        const start = new Date(dateRange.startDate);
+        const end = new Date(dateRange.endDate);
 
-        // Valor Faturado - somar todos os forecasts marcados como invoiced = true
+        // Helper to check if forecast is within date range (using period_end)
+        const isInRange = (forecast) => {
+            const dateToUse = forecast.period_end || forecast.period_start;
+            if (!dateToUse) return false;
+            const forecastDate = new Date(dateToUse);
+            return forecastDate >= start && forecastDate <= end;
+        };
+
+        // Real opportunities (not goal, not potential)
+        const realOpportunities = opportunities.filter(opp => !opp.is_goal && !opp.is_potential);
+
+        // Count real opportunities with at least one forecast in range
+        const totalOpportunities = realOpportunities.filter(opp => {
+            if (!opp.forecasts || opp.forecasts.length === 0) return false;
+            return opp.forecasts.some(isInRange);
+        }).length;
+
+        // Sum of real opportunities' forecasts in range
+        let totalValue = 0;
+        realOpportunities.forEach(opp => {
+            if (opp.forecasts && opp.forecasts.length > 0) {
+                opp.forecasts.forEach(f => {
+                    if (isInRange(f)) {
+                        totalValue += Number(f.estimated_value || 0);
+                    }
+                });
+            }
+        });
+
+        // Invoiced value - forecasts marked as invoiced in range
         let invoicedValue = 0;
         opportunities.forEach(opp => {
             if (opp.forecasts && opp.forecasts.length > 0) {
-                const invoicedForecasts = opp.forecasts.filter(f => f.invoiced === true);
-                invoicedValue += invoicedForecasts.reduce((sum, f) => sum + Number(f.estimated_value || 0), 0);
+                opp.forecasts.forEach(f => {
+                    if (f.invoiced && isInRange(f)) {
+                        invoicedValue += Number(f.estimated_value || 0);
+                    }
+                });
             }
         });
 
-        // Valor total das Metas (is_goal = true)
+        // Goals value - sum of meta opportunities' forecasts in range
         const goals = opportunities.filter(opp => opp.is_goal);
-        const goalsValue = goals.reduce((sum, opp) => sum + Number(opp.estimated_value || 0), 0);
-
-        // Previsão Total de Faturamento - somar todos os forecasts (faturados e não faturados)
-        let totalForecastValue = 0;
-        opportunities.forEach(opp => {
+        let goalsValue = 0;
+        goals.forEach(opp => {
             if (opp.forecasts && opp.forecasts.length > 0) {
-                totalForecastValue += opp.forecasts.reduce((sum, f) => sum + Number(f.estimated_value || 0), 0);
+                opp.forecasts.forEach(f => {
+                    if (isInRange(f)) {
+                        goalsValue += Number(f.estimated_value || 0);
+                    }
+                });
             }
         });
 
-        setMetrics({
+        // Potential value - sum of potential opportunities' forecasts in range
+        const potentials = opportunities.filter(opp => opp.is_potential);
+        let potentialValue = 0;
+        potentials.forEach(opp => {
+            if (opp.forecasts && opp.forecasts.length > 0) {
+                opp.forecasts.forEach(f => {
+                    if (isInRange(f)) {
+                        potentialValue += Number(f.estimated_value || 0);
+                    }
+                });
+            }
+        });
+
+        return {
             totalOpportunities,
             totalValue,
             invoicedValue,
             goalsValue,
-            totalForecastValue
-        });
+            potentialValue
+        };
+    }, [opportunities, dateRange]);
+
+    // Keep calculateMetrics for initial load (legacy, but now uses useMemo)
+    const calculateMetrics = (opps) => {
+        // Metrics are now computed via useMemo, this is kept for compatibility
     };
 
     const formatCurrency = (value) => {
@@ -302,39 +350,6 @@ const Dashboard = () => {
                 </div>
             )}
 
-            <div className={styles.metricsGrid}>
-                <MetricsCard
-                    title="Valor Oportunidades"
-                    value={formatCurrency(metrics.totalValue)}
-                    icon={DollarSign}
-                    color="#2563EB"
-                />
-                <MetricsCard
-                    title="Quantidade Oportunidades"
-                    value={metrics.totalOpportunities}
-                    icon={Briefcase}
-                    color="#64748B"
-                />
-                <MetricsCard
-                    title="Previsão Total"
-                    value={formatCurrency(metrics.totalForecastValue)}
-                    icon={TrendingUp}
-                    color="#8B5CF6"
-                />
-                <MetricsCard
-                    title="Metas"
-                    value={formatCurrency(metrics.goalsValue)}
-                    icon={Target}
-                    color="#F59E0B"
-                />
-                <MetricsCard
-                    title="Valor Faturado"
-                    value={formatCurrency(metrics.invoicedValue)}
-                    icon={DollarSign}
-                    color="#059669"
-                />
-            </div>
-
             {/* Filtro de período - Redesigned */}
             <div style={{
                 display: 'flex',
@@ -359,7 +374,7 @@ const Dashboard = () => {
                     }}>Período</span>
                     <select
                         onChange={(e) => setPredefinedPeriod(e.target.value)}
-                        defaultValue=""
+                        defaultValue="thisYear"
                         style={{
                             border: '1px solid var(--border-color-light)',
                             borderRadius: '8px',
@@ -374,7 +389,6 @@ const Dashboard = () => {
                             transition: 'all 0.2s'
                         }}
                     >
-                        <option value="">Selecione um período</option>
                         <option value="thisMonth">Este mês</option>
                         <option value="lastMonth">Mês passado</option>
                         <option value="last3Months">Últimos 3 meses</option>
@@ -442,6 +456,41 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            <div className={styles.metricsGrid}>
+                <MetricsCard
+                    title="Valor Oportunidades"
+                    value={formatCurrency(filteredMetrics.totalValue)}
+                    icon={DollarSign}
+                    color="#2563EB"
+                />
+                <MetricsCard
+                    title="Quantidade Oportunidades"
+                    value={filteredMetrics.totalOpportunities}
+                    icon={Briefcase}
+                    color="#64748B"
+                />
+                <MetricsCard
+                    title="Metas"
+                    value={formatCurrency(filteredMetrics.goalsValue)}
+                    icon={Target}
+                    color="#F59E0B"
+                />
+                <MetricsCard
+                    title="Valor Faturado"
+                    value={formatCurrency(filteredMetrics.invoicedValue)}
+                    icon={DollarSign}
+                    color="#059669"
+                />
+                <MetricsCard
+                    title="Potencial"
+                    value={formatCurrency(filteredMetrics.potentialValue)}
+                    icon={Lightbulb}
+                    color="#8B5CF6"
+                />
+            </div>
+
+
+
             {/* Big Numbers Customizados - Abaixo do filtro de período */}
             {customCharts.filter(chart => chart.chart_type === 'big_number').length > 0 && (
                 <div style={{
@@ -487,17 +536,17 @@ const Dashboard = () => {
                 </div>
             )}
 
-            {/* Gráfico de Projeção de Forecast */}
-            <ForecastProjectionChart
+            {/* Gráfico de Comparação Metas vs Forecast vs Faturado - ACIMA do Projeção */}
+            <GoalsComparisonChart
                 opportunities={opportunities}
-                stages={stages}
                 startDate={dateRange.startDate}
                 endDate={dateRange.endDate}
             />
 
-            {/* Gráfico de Comparação Metas vs Cadastrado vs Faturado */}
-            <GoalsComparisonChart
+            {/* Gráfico de Projeção de Forecast */}
+            <ForecastProjectionChart
                 opportunities={opportunities}
+                stages={stages}
                 startDate={dateRange.startDate}
                 endDate={dateRange.endDate}
             />

@@ -78,6 +78,7 @@ CREATE TABLE opportunities (
   custom_data jsonb DEFAULT '{}'::jsonb,
   is_goal boolean DEFAULT false,
   is_potential boolean DEFAULT false,
+  billing_probability text DEFAULT 'baixa' CHECK (billing_probability IN ('alta', 'media', 'baixa')),
   created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -170,3 +171,30 @@ CREATE INDEX idx_opportunity_tag_assignments_opportunity ON opportunity_tag_assi
 CREATE INDEX idx_opportunity_tag_assignments_tag ON opportunity_tag_assignments(tag_id);
 CREATE INDEX idx_opportunities_is_goal ON opportunities(is_goal);
 CREATE INDEX idx_opportunities_is_potential ON opportunities(is_potential);
+
+-- Tabela de ações para oportunidades
+CREATE TABLE opportunity_actions (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  opportunity_id uuid REFERENCES opportunities(id) ON DELETE CASCADE NOT NULL,
+  description text NOT NULL,
+  responsible text NOT NULL,
+  status text NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'concluida')),
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX idx_opportunity_actions_opportunity_id ON opportunity_actions(opportunity_id);
+CREATE INDEX idx_opportunity_actions_responsible ON opportunity_actions(responsible);
+CREATE INDEX idx_opportunity_actions_status ON opportunity_actions(status);
+
+-- Tabela de responsáveis (cadastro centralizado)
+CREATE TABLE responsibles (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name text NOT NULL UNIQUE,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX idx_responsibles_name ON responsibles(name);
+CREATE INDEX idx_responsibles_is_active ON responsibles(is_active);

@@ -3,6 +3,7 @@ import CompanySettings from './CompanySettings';
 import CustomFields from './CustomFields';
 import StageSettings from './StageSettings';
 import ViewSettings from './ViewSettings';
+import ResponsiblesSettings from './ResponsiblesSettings';
 import styles from './Settings.module.css';
 import ExportData from './ExportData';
 
@@ -21,6 +22,12 @@ const Settings = () => {
                     onClick={() => setActiveTab('company')}
                 >
                     Empresa
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'responsibles' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('responsibles')}
+                >
+                    Responsáveis
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === 'fields' ? styles.active : ''}`}
@@ -50,6 +57,7 @@ const Settings = () => {
 
             <div className={styles.tabContent}>
                 {activeTab === 'company' && <CompanySettings />}
+                {activeTab === 'responsibles' && <ResponsiblesSettings />}
                 {activeTab === 'fields' && <CustomFields />}
                 {activeTab === 'stages' && <StageSettings />}
                 {activeTab === 'view' && <ViewSettings />}
@@ -60,3 +68,4 @@ const Settings = () => {
 };
 
 export default Settings;
+

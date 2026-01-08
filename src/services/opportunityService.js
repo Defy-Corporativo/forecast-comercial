@@ -105,6 +105,26 @@ export const opportunityService = {
                         id,
                         name
                     )
+                ),
+                notes:opportunity_notes (
+                    id,
+                    content,
+                    created_by,
+                    created_at
+                ),
+                actions:opportunity_actions (
+                    id,
+                    description,
+                    responsible,
+                    status,
+                    created_at
+                ),
+                history:opportunity_history (
+                    id,
+                    field_changed,
+                    old_value,
+                    new_value,
+                    changed_at
                 )
             `)
             .order('created_at', { ascending: false });
@@ -131,6 +151,9 @@ export const opportunityService = {
         (data || []).forEach(opp => {
             const forecasts = opp.forecasts || [];
             const tagList = (opp.tags || []).map(t => t.tag).filter(Boolean);
+            const notesList = opp.notes || [];
+            const actionsList = opp.actions || [];
+            const historyList = opp.history || [];
 
             if (forecasts.length === 0) {
                 // Opportunity with no forecasts, still show it
@@ -144,7 +167,10 @@ export const opportunityService = {
                     forecast_notes: null,
                     forecast_count: 0,
                     total_value: 0,
-                    tagList
+                    tagList,
+                    notesList,
+                    actionsList,
+                    historyList
                 });
             } else {
                 forecasts.forEach(forecast => {
@@ -158,7 +184,10 @@ export const opportunityService = {
                         forecast_notes: forecast.notes,
                         forecast_count: forecasts.length,
                         total_value: forecasts.reduce((sum, f) => sum + parseFloat(f.estimated_value || 0), 0),
-                        tagList
+                        tagList,
+                        notesList,
+                        actionsList,
+                        historyList
                     });
                 });
             }

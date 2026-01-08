@@ -9,6 +9,7 @@ import MainLayout from './components/layout/MainLayout';
 import Settings from './components/settings/Settings';
 import Opportunities from './components/opportunities/Opportunities';
 import Dashboard from './components/dashboard/Dashboard';
+import Actions from './components/actions/Actions';
 import Clients from './components/clients/Clients';
 import DebugLogViewer from './components/debug/DebugLogViewer';
 
@@ -33,6 +34,7 @@ const App = () => {
             >
               <Route index element={<Dashboard />} />
               <Route path="opportunities" element={<Opportunities />} />
+              <Route path="actions" element={<Actions />} />
               <Route path="clients" element={<Clients />} />
               <Route path="settings" element={<Settings />} />
             </Route>

@@ -216,6 +216,14 @@
     }
 }
 
+.modalForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .modalHeader {
     padding: 24px 28px;
     border-bottom: 1px solid var(--border-color-light);
@@ -256,7 +264,10 @@
     padding: 28px;
     overflow-y: auto;
     flex: 1;
+    display: flex;
+    flex-direction: column;
     min-height: 0;
+    /* Critical for scrolling within flex container */
 }
 
 /* Scrollbar styling for modal body */

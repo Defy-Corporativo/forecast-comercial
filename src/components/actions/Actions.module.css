@@ -1,0 +1,330 @@
+.statsRow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.statCard {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color-light);
+}
+
+.statIcon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.statInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.statValue {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.statLabel {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.filtersBar {
+    display: flex;
+    gap: 16px;
+    padding: 16px 20px;
+    background: white;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color-light);
+}
+
+.filterGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filterLabel {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.viewToggle {
+    display: flex;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.toggleBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.toggleBtn:hover {
+    background: var(--bg-hover);
+}
+
+.toggleBtn.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+.content {
+    min-height: 400px;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.groupsList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.group {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color-light);
+}
+
+.groupHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.groupHeader:hover {
+    background: var(--bg-hover);
+}
+
+.groupHeaderLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.groupIcon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.groupTitle {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.groupSubtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-left: 8px;
+}
+
+.groupHeaderRight {
+    display: flex;
+    gap: 8px;
+}
+
+.badgeWarning {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--color-warning-light);
+    color: var(--color-warning);
+}
+
+.badgeSuccess {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.groupContent {
+    border-top: 1px solid var(--border-color-light);
+}
+
+.actionItem {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+.actionItem:last-child {
+    border-bottom: none;
+}
+
+.actionItem.completed {
+    background: rgba(16, 185, 129, 0.03);
+}
+
+.actionRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.actionBadges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.statusPending {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: var(--color-warning);
+    color: white;
+}
+
+.statusCompleted {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: var(--color-success);
+    color: white;
+}
+
+.age {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.ageOverdue {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+}
+
+.opportunityBadge,
+.responsibleBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+}
+
+.actionDescription {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.actionItem.completed .actionDescription {
+    color: var(--text-secondary);
+    text-decoration: line-through;
+}
+
+@media (max-width: 768px) {
+    .statsRow {
+        grid-template-columns: 1fr;
+    }
+    
+    .filtersBar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filterGroup {
+        width: 100%;
+    }
+    
+    .viewToggle {
+        width: 100%;
+    }
+    
+    .toggleBtn {
+        flex: 1;
+        justify-content: center;
+    }
+}

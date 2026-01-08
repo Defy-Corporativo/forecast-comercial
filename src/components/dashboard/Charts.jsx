@@ -1189,6 +1189,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
 
 // Goals Comparison Chart - Meta vs Projetado vs Faturado
 export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate }) => {
+    const [billingProbabilityFilter, setBillingProbabilityFilter] = useState('all');
 
     const chartData = useMemo(() => {
         if (!opportunities || opportunities.length === 0) return [];
@@ -1208,8 +1209,14 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
             };
         });
 
+        // Filter opportunities by billing probability
+        const filteredOpportunities = opportunities.filter(opp => {
+            if (billingProbabilityFilter === 'all') return true;
+            return opp.billing_probability === billingProbabilityFilter;
+        });
+
         // Process opportunities
-        opportunities.forEach(opp => {
+        filteredOpportunities.forEach(opp => {
             const forecasts = opp.forecasts || [];
 
             forecasts.forEach(forecast => {
@@ -1238,7 +1245,7 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
         });
 
         return monthRange.map(month => dataByMonth[month.key]);
-    }, [opportunities, startDate, endDate]);
+    }, [opportunities, startDate, endDate, billingProbabilityFilter]);
 
     const hasData = chartData.some(d => d.meta > 0 || d.projetado > 0 || d.faturado > 0);
 
@@ -1277,7 +1284,30 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
     return (
         <div className={styles.forecastChartContainer}>
             <div className={styles.forecastHeader}>
-                <h3 className={styles.chartTitle}>Meta vs Projetado vs Faturado</h3>
+                <h3 className={styles.chartTitle}>Meta vs Forecast vs Faturado</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                        Possibilidade:
+                    </label>
+                    <select
+                        value={billingProbabilityFilter}
+                        onChange={(e) => setBillingProbabilityFilter(e.target.value)}
+                        style={{
+                            border: '1px solid var(--border-color-light)',
+                            borderRadius: '6px',
+                            padding: '6px 10px',
+                            fontSize: '0.85rem',
+                            background: 'white',
+                            cursor: 'pointer',
+                            outline: 'none'
+                        }}
+                    >
+                        <option value="all">Todas</option>
+                        <option value="alta">Alta</option>
+                        <option value="media">Média</option>
+                        <option value="baixa">Baixa</option>
+                    </select>
+                </div>
             </div>
 
             {/* Legend */}
@@ -1288,7 +1318,7 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
                     <span style={{ width: '12px', height: '3px', background: '#3b82f6', borderRadius: '2px' }}></span>
-                    Projetado
+                    Forecast
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
                     <span style={{ width: '12px', height: '3px', background: '#10b981', borderRadius: '2px' }}></span>
@@ -1339,7 +1369,7 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                             <Line
                                 type="monotone"
                                 dataKey="projetado"
-                                name="Projetado"
+                                name="Forecast"
                                 stroke="#3b82f6"
                                 strokeWidth={2}
                                 dot={{ r: 3, fill: '#3b82f6' }}

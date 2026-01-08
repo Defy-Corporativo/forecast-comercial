@@ -16,6 +16,22 @@ $$;
 -- Drop tables in dependency order
 DO $$
 BEGIN
+  IF to_regclass('public.opportunity_actions') IS NOT NULL THEN
+    DROP TABLE public.opportunity_actions CASCADE;
+  END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.responsibles') IS NOT NULL THEN
+    DROP TABLE public.responsibles CASCADE;
+  END IF;
+END;
+$$;
+
+DO $$
+BEGIN
   IF to_regclass('public.opportunity_notes') IS NOT NULL THEN
     DROP TABLE public.opportunity_notes CASCADE;
   END IF;

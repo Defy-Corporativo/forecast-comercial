@@ -78,19 +78,33 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
             );
         }
 
-        // Filtro por período (de)
+        // Filtro por período (de) - using period_end from forecasts
         if (filterData.dateFrom) {
             filtered = filtered.filter(opp => {
-                if (!opp.period_start) return false;
-                return new Date(opp.period_start) >= new Date(filterData.dateFrom);
+                // Check forecasts for period_end within range
+                if (opp.forecasts && opp.forecasts.length > 0) {
+                    return opp.forecasts.some(f => {
+                        const dateToCheck = f.period_end || f.period_start;
+                        if (!dateToCheck) return false;
+                        return new Date(dateToCheck) >= new Date(filterData.dateFrom);
+                    });
+                }
+                return false;
             });
         }
 
-        // Filtro por período (até)
+        // Filtro por período (até) - using period_end from forecasts
         if (filterData.dateTo) {
             filtered = filtered.filter(opp => {
-                if (!opp.period_start) return false;
-                return new Date(opp.period_start) <= new Date(filterData.dateTo);
+                // Check forecasts for period_end within range
+                if (opp.forecasts && opp.forecasts.length > 0) {
+                    return opp.forecasts.some(f => {
+                        const dateToCheck = f.period_end || f.period_start;
+                        if (!dateToCheck) return false;
+                        return new Date(dateToCheck) <= new Date(filterData.dateTo);
+                    });
+                }
+                return false;
             });
         }
 
@@ -124,10 +138,6 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
 
     const selectAllStages = () => {
         handleFilterChange('stages', []);
-    };
-
-    const selectNoStages = () => {
-        handleFilterChange('stages', ['_none_']);
     };
 
     return (
@@ -203,20 +213,6 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                                 >
                                     Todos
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={selectNoStages}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: 'var(--text-secondary)',
-                                        cursor: 'pointer',
-                                        fontSize: '0.75rem',
-                                        padding: 0
-                                    }}
-                                >
-                                    Nenhum
-                                </button>
                             </span>
                         </label>
                         <div style={{
@@ -230,7 +226,6 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                         }}>
                             {STAGES.map(stage => {
                                 const isSelected = filters.stages.length === 0 || filters.stages.includes(stage);
-                                const isNoneMode = filters.stages.includes('_none_');
                                 return (
                                     <label
                                         key={stage}
@@ -240,18 +235,17 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                                             gap: '4px',
                                             padding: '4px 8px',
                                             borderRadius: '4px',
-                                            background: isNoneMode ? 'transparent' : (isSelected ? 'var(--color-primary)' : 'white'),
-                                            color: isNoneMode ? 'var(--text-tertiary)' : (isSelected ? 'white' : 'var(--text-primary)'),
+                                            background: isSelected ? 'var(--color-primary)' : 'white',
+                                            color: isSelected ? 'white' : 'var(--text-primary)',
                                             cursor: 'pointer',
                                             fontSize: '0.8rem',
-                                            border: `1px solid ${isSelected && !isNoneMode ? 'var(--color-primary)' : 'var(--border-color)'}`,
-                                            opacity: isNoneMode ? 0.5 : 1,
+                                            border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--border-color)'}`,
                                             transition: 'all 0.15s'
                                         }}
                                     >
                                         <input
                                             type="checkbox"
-                                            checked={isSelected && !isNoneMode}
+                                            checked={isSelected}
                                             onChange={() => toggleStage(stage)}
                                             style={{ display: 'none' }}
                                         />

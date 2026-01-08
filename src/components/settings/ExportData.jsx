@@ -42,27 +42,73 @@ const ExportData = () => {
             // Use flat mode to get one row per forecast (or 1 per opp if no forecasts)
             const data = await opportunityService.getOpportunitiesFlat(undefined, { includeGoals: true });
 
-            const rows = data.map((item) => ({
-                id_oportunidade: item.id,
-                numero: item.opportunity_number,
-                titulo: item.title || '',
-                cliente: item.client?.name || item.client_name || '',
-                valor_total_opp: parseFloat(item.total_value || item.estimated_value || 0).toFixed(2).replace('.', ','),
-                data_criacao: item.creation_date ? new Date(item.creation_date).toLocaleDateString('pt-BR') : '',
-                estagio: item.stage,
-                responsavel: item.responsible || '',
-                tipo: item.is_goal ? 'Meta' : 'Real',
-                tags: (item.tagList || []).map(t => t.name).join(', '),
-                obs_oportunidade: item.notes || '',
+            const rows = data.map((item) => {
+                // Format custom fields
+                const customData = item.custom_data || {};
+                const customFieldsStr = Object.entries(customData)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join(' | ');
 
-                // Forecast specific fields
-                id_previsao: item.forecast_id || '',
-                inicio_periodo: item.period_start ? new Date(item.period_start).toLocaleDateString('pt-BR') : '',
-                fim_periodo: item.period_end ? new Date(item.period_end).toLocaleDateString('pt-BR') : '',
-                valor_previsao: item.forecast_id ? parseFloat(item.estimated_value || 0).toFixed(2).replace('.', ',') : '',
-                faturado: item.forecast_id ? (item.invoiced ? 'Sim' : 'Não') : '',
-                obs_previsao: item.forecast_notes || ''
-            }));
+                // Format notes
+                const notesStr = (item.notesList || [])
+                    .map(note => {
+                        const date = note.created_at ? new Date(note.created_at).toLocaleDateString('pt-BR') : '';
+                        const author = note.created_by || '';
+                        return `[${date}${author ? ' - ' + author : ''}] ${note.content}`;
+                    })
+                    .join(' || ');
+
+                // Format actions
+                const actionsStr = (item.actionsList || [])
+                    .map(action => {
+                        const status = action.status === 'concluida' ? '✓' : '○';
+                        const date = action.created_at ? new Date(action.created_at).toLocaleDateString('pt-BR') : '';
+                        return `${status} ${action.description} (${action.responsible}) [${date}]`;
+                    })
+                    .join(' || ');
+
+                // Format history (últimas 5 mudanças mais recentes)
+                const historyStr = (item.historyList || [])
+                    .sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
+                    .slice(0, 5)
+                    .map(h => {
+                        const date = h.changed_at ? new Date(h.changed_at).toLocaleDateString('pt-BR') : '';
+                        return `[${date}] ${h.field_changed}: ${h.old_value || '(vazio)'} → ${h.new_value || '(vazio)'}`;
+                    })
+                    .join(' || ');
+
+                return {
+                    id_oportunidade: item.id,
+                    numero: item.opportunity_number,
+                    titulo: item.title || '',
+                    cliente: item.client?.name || item.client_name || '',
+                    documento_cliente: item.client?.document || '',
+                    contatos_cliente: (item.client?.contacts || [])
+                        .map(c => `${c.name}${c.email ? ' (' + c.email + ')' : ''}${c.phone ? ' - ' + c.phone : ''}`)
+                        .join(' | '),
+                    valor_total_opp: parseFloat(item.total_value || item.estimated_value || 0).toFixed(2).replace('.', ','),
+                    data_criacao: item.creation_date ? new Date(item.creation_date).toLocaleDateString('pt-BR') : '',
+                    estagio: item.stage,
+                    responsavel: item.responsible || '',
+                    tipo: item.is_goal ? 'Meta' : 'Real',
+                    potencial: item.is_potential ? 'Sim' : 'Não',
+                    probabilidade_faturamento: item.billing_probability || '',
+                    tags: (item.tagList || []).map(t => t.name).join(', '),
+                    obs_oportunidade: item.notes || '',
+                    campos_personalizados: customFieldsStr,
+                    notas: notesStr,
+                    acoes: actionsStr,
+                    historico_mudancas: historyStr,
+
+                    // Forecast specific fields
+                    id_previsao: item.forecast_id || '',
+                    inicio_periodo: item.period_start ? new Date(item.period_start).toLocaleDateString('pt-BR') : '',
+                    fim_periodo: item.period_end ? new Date(item.period_end).toLocaleDateString('pt-BR') : '',
+                    valor_previsao: item.forecast_id ? parseFloat(item.estimated_value || 0).toFixed(2).replace('.', ',') : '',
+                    faturado: item.forecast_id ? (item.invoiced ? 'Sim' : 'Não') : '',
+                    obs_previsao: item.forecast_notes || ''
+                };
+            });
 
             downloadCsv(rows, `oportunidades_${new Date().toISOString().split('T')[0]}.csv`);
             setMessage({ type: 'success', text: 'Exportação de oportunidades concluída com sucesso!' });
@@ -79,14 +125,9 @@ const ExportData = () => {
         setMessage({ type: '', text: '' });
         try {
             const data = await clientService.getClients(undefined, true);
-            const rows = data.map((client) => ({
-                id: client.id,
-                nome: client.name,
-                documento: client.document || '',
-                endereco: client.address || '',
-                obs: client.notes || '',
-                excluido: client.is_deleted ? 'Sim' : 'Não',
-                contatos: (client.contacts || [])
+            const rows = data.map((client) => {
+                // Format contacts with all details
+                const contactsStr = (client.contacts || [])
                     .map((c) => {
                         const parts = [
                             c.name,
@@ -97,9 +138,20 @@ const ExportData = () => {
                         ].filter(Boolean);
                         return parts.join(' - ');
                     })
-                    .join(' || '),
-                data_criacao: client.created_at ? new Date(client.created_at).toLocaleDateString('pt-BR') : ''
-            }));
+                    .join(' || ');
+
+                return {
+                    id: client.id,
+                    nome: client.name,
+                    documento: client.document || '',
+                    endereco: client.address || '',
+                    obs: client.notes || '',
+                    excluido: client.is_deleted ? 'Sim' : 'Não',
+                    contatos: contactsStr,
+                    data_criacao: client.created_at ? new Date(client.created_at).toLocaleDateString('pt-BR') + ' ' + new Date(client.created_at).toLocaleTimeString('pt-BR') : '',
+                    data_atualizacao: client.updated_at ? new Date(client.updated_at).toLocaleDateString('pt-BR') + ' ' + new Date(client.updated_at).toLocaleTimeString('pt-BR') : ''
+                };
+            });
 
             downloadCsv(rows, `clientes_${new Date().toISOString().split('T')[0]}.csv`);
             setMessage({ type: 'success', text: 'Exportação de clientes concluída com sucesso!' });
@@ -117,7 +169,11 @@ const ExportData = () => {
                 <div>
                     <h3 className={styles.sectionTitle}>Exportação de Dados</h3>
                     <p className={styles.sectionDescription}>
-                        Exporte oportunidades e clientes (com contatos) em CSV separado por ";".
+                        Exporte todos os dados relacionados em CSV separado por ";".
+                        <br/>
+                        <strong>Oportunidades:</strong> inclui previsões, notas, ações, histórico, tags, campos personalizados e dados do cliente.
+                        <br/>
+                        <strong>Clientes:</strong> inclui contatos, datas de criação/atualização e todos os dados cadastrais.
                     </p>
                 </div>
             </div>

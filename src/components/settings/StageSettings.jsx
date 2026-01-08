@@ -18,6 +18,8 @@ const StageSettings = () => {
         description: '',
         order_index: stages.length,
         color: '#64748B',
+        allowed_next_stages: [],
+        predecessors: []
     });
     const [localStages, setLocalStages] = useState([]);
     const [saving, setSaving] = useState(false);
@@ -44,6 +46,9 @@ const StageSettings = () => {
                 order_index: stage.order_index ?? 0,
                 color: stage.color || '#64748B',
                 allowed_next_stages: stage.allowed_next_stages || [],
+                predecessors: stages
+                    .filter(s => s.allowed_next_stages?.includes(stage.name))
+                    .map(s => s.name)
             });
         } else {
             setEditingStage(null);
@@ -52,7 +57,9 @@ const StageSettings = () => {
                 description: '',
                 order_index: stages.length,
                 color: '#64748B',
+                color: '#64748B',
                 allowed_next_stages: [],
+                predecessors: []
             });
         }
         setShowModal(true);
@@ -65,17 +72,58 @@ const StageSettings = () => {
         setMessage({ type: '', text: '' });
 
         try {
+            // Prepare data for saving (exclude predecessors which is UI-only)
+            // eslint-disable-next-line no-unused-vars
+            const { predecessors, ...dataToSave } = formData;
+
             // Check if editing a default stage (has string ID starting with "default-")
             if (editingStage && isDefaultStage(editingStage)) {
                 // Create a new database record instead of trying to update the default one
-                await settingsService.createStageDefinition(user.id, formData);
+                await settingsService.createStageDefinition(user.id, dataToSave);
             } else if (editingStage) {
                 // Normal update for database stages
-                await settingsService.updateStageDefinition(editingStage.id, formData);
+                await settingsService.updateStageDefinition(editingStage.id, dataToSave);
             } else {
                 // Creating a new stage
-                await settingsService.createStageDefinition(user.id, formData);
+                await settingsService.createStageDefinition(user.id, dataToSave);
             }
+
+            // --- Update Predecessors Logic ---
+            const currentStageName = formData.name;
+            const selectedPredecessors = formData.predecessors || [];
+
+            // We need to iterate over ALL other stages to update their allowed_next_stages
+            // to either INCLUDE or EXCLUDE currentStageName based on whether they are in selectedPredecessors.
+            const updatesPromises = localStages
+                .filter(s => s.id !== editingStage?.id) // Skip current stage (if it existed)
+                .map(async (otherStage) => {
+                    const isSelectedAsPredecessor = selectedPredecessors.includes(otherStage.name);
+                    const currentNextStages = otherStage.allowed_next_stages || [];
+                    const includesCurrent = currentNextStages.includes(currentStageName);
+
+                    if (isSelectedAsPredecessor && !includesCurrent) {
+                        // Add current stage to this predecessor's next stages
+                        const updatedNext = [...currentNextStages, currentStageName];
+                        // If editing logic renames stage, we might need to handle old name removal, 
+                        // but for now let's assume we just add the new one.
+                        // (Renaming complexity is separate, let's stick to linking).
+                        await settingsService.updateStageDefinition(otherStage.id, {
+                            ...otherStage,
+                            allowed_next_stages: updatedNext
+                        });
+                    } else if (!isSelectedAsPredecessor && includesCurrent) {
+                        // Remove current stage from this non-predecessor's next stages
+                        const updatedNext = currentNextStages.filter(n => n !== currentStageName);
+                        await settingsService.updateStageDefinition(otherStage.id, {
+                            ...otherStage,
+                            allowed_next_stages: updatedNext
+                        });
+                    }
+                });
+
+            await Promise.all(updatesPromises);
+            // ---------------------------------
+
             await refreshStages();
             setShowModal(false);
             setMessage({ type: 'success', text: 'Estágio salvo com sucesso!' });
@@ -216,40 +264,75 @@ const StageSettings = () => {
                     border: '1px solid var(--border-color)',
                     overflowX: 'auto'
                 }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {sortedStages.map((stage, index) => {
                             const nextStages = stage.allowed_next_stages || [];
+                            const predecessors = sortedStages.filter(s => s.allowed_next_stages?.includes(stage.name));
                             const hasTransitions = nextStages.length > 0;
+                            const hasPredecessors = predecessors.length > 0;
 
                             return (
                                 <div key={stage.id || index} style={{
-                                    display: 'flex',
+                                    display: 'grid',
+                                    gridTemplateColumns: 'minmax(200px, 1fr) auto minmax(200px, 1fr)',
                                     alignItems: 'center',
-                                    gap: '8px',
-                                    padding: '8px 12px',
+                                    gap: '16px',
+                                    padding: '12px 16px',
                                     background: 'white',
                                     borderRadius: '8px',
                                     border: '1px solid var(--border-color-light)',
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
                                 }}>
-                                    {/* Estágio de origem */}
-                                    <div style={{
-                                        padding: '6px 12px',
-                                        borderRadius: '6px',
-                                        background: stage.color || '#64748B',
-                                        color: 'white',
-                                        fontWeight: 500,
-                                        fontSize: '12px',
-                                        whiteSpace: 'nowrap'
-                                    }}>
-                                        {stage.name}
+                                    {/* Predecessores (Esquerda) */}
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+                                        {hasPredecessors ? (
+                                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                                {predecessors.map((prevStage, pIdx) => (
+                                                    <span
+                                                        key={pIdx}
+                                                        style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            background: prevStage.color ? `${prevStage.color}15` : '#f1f5f9',
+                                                            color: prevStage.color || 'var(--text-secondary)',
+                                                            fontSize: '11px',
+                                                            fontWeight: 500,
+                                                            border: `1px solid ${prevStage.color || 'var(--border-color)'}`,
+                                                            whiteSpace: 'nowrap'
+                                                        }}
+                                                    >
+                                                        {prevStage.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                                (início)
+                                            </span>
+                                        )}
+                                        <ArrowRight size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
                                     </div>
 
-                                    {hasTransitions && (
-                                        <>
-                                            <ArrowRight size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                    {/* Estágio Atual (Centro) */}
+                                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                        <div style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            background: stage.color || '#64748B',
+                                            color: 'white',
+                                            fontWeight: 600,
+                                            fontSize: '13px',
+                                            whiteSpace: 'nowrap',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                        }}>
+                                            {stage.name}
+                                        </div>
+                                    </div>
 
-                                            {/* Estágios de destino */}
+                                    {/* Sucessores (Direita) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <ArrowRight size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                        {hasTransitions ? (
                                             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                                 {nextStages.map((nextStageName, nIdx) => {
                                                     const nextStageData = localStages.find(s => s.name === nextStageName);
@@ -259,7 +342,7 @@ const StageSettings = () => {
                                                             style={{
                                                                 padding: '4px 8px',
                                                                 borderRadius: '4px',
-                                                                background: nextStageData?.color ? `${nextStageData.color}20` : '#f1f5f9',
+                                                                background: nextStageData?.color ? `${nextStageData.color}15` : '#f1f5f9',
                                                                 color: nextStageData?.color || 'var(--text-secondary)',
                                                                 fontSize: '11px',
                                                                 fontWeight: 500,
@@ -272,19 +355,12 @@ const StageSettings = () => {
                                                     );
                                                 })}
                                             </div>
-                                        </>
-                                    )}
-
-                                    {!hasTransitions && (
-                                        <span style={{
-                                            fontSize: '11px',
-                                            color: 'var(--text-tertiary)',
-                                            fontStyle: 'italic',
-                                            marginLeft: '4px'
-                                        }}>
-                                            (fim)
-                                        </span>
-                                    )}
+                                        ) : (
+                                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                                (fim)
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}
@@ -307,7 +383,7 @@ const StageSettings = () => {
                             <h3>{editingStage ? 'Editar Estágio' : 'Novo Estágio'}</h3>
                             <button className={styles.closeBtn} onClick={() => setShowModal(false)}>&times;</button>
                         </div>
-                        <form onSubmit={handleSave}>
+                        <form onSubmit={handleSave} className={styles.modalForm}>
                             <div className={styles.modalBody}>
                                 <div className="input-group">
                                     <label className="label">Nome do Estágio</label>
@@ -368,8 +444,70 @@ const StageSettings = () => {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Estágios Anteriores Permitidos (Predecessores) */}
                                 <div className="input-group">
-                                    <label className="label">Próximos Estágios Permitidos</label>
+                                    <label className="label">Estágios Anteriores Permitidos (Predecessores)</label>
+                                    <div style={{
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
+                                        gap: '8px',
+                                        padding: '12px',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '6px',
+                                        background: 'var(--bg-main)'
+                                    }}>
+                                        {localStages
+                                            .filter(s => s.id !== editingStage?.id && s.name !== formData.name)
+                                            .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+                                            .map(stage => {
+                                                const isSelected = formData.predecessors?.includes(stage.name);
+                                                return (
+                                                    <button
+                                                        key={stage.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFormData(prev => {
+                                                                const current = prev.predecessors || [];
+                                                                if (current.includes(stage.name)) {
+                                                                    return { ...prev, predecessors: current.filter(n => n !== stage.name) };
+                                                                } else {
+                                                                    return { ...prev, predecessors: [...current, stage.name] };
+                                                                }
+                                                            });
+                                                        }}
+                                                        style={{
+                                                            padding: '6px 12px',
+                                                            borderRadius: '16px',
+                                                            border: `1px solid ${isSelected ? (stage.color || 'var(--color-primary)') : 'var(--border-color)'}`,
+                                                            background: isSelected ? (stage.color || 'var(--color-primary)') : 'white',
+                                                            color: isSelected ? 'white' : 'var(--text-primary)',
+                                                            fontSize: '12px',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px'
+                                                        }}
+                                                    >
+                                                        {stage.name}
+                                                        {isSelected && <ArrowRight size={12} />}
+                                                    </button>
+                                                );
+                                            })}
+                                        {localStages.length <= 1 && (
+                                            <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                                                Nenhum outro estágio disponível.
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                        Selecione quais estágios podem evoluir PARA este estágio.
+                                    </p>
+                                </div>
+
+                                <div className="input-group">
+                                    <label className="label">Próximos Estágios Permitidos (Sucessores)</label>
                                     <div style={{
                                         display: 'flex',
                                         flexWrap: 'wrap',

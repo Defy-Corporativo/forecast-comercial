@@ -6,6 +6,7 @@ import { opportunityService } from '../../services/opportunityService';
 import { settingsService } from '../../services/settingsService';
 import { clientService } from '../../services/clientService';
 import { tagService } from '../../services/tagService';
+import { responsiblesService } from '../../services/responsiblesService';
 import ClientForm from '../clients/ClientForm';
 import styles from './Opportunities.module.css';
 
@@ -23,6 +24,9 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [filteredClients, setFilteredClients] = useState([]);
     const searchRef = useRef(null);
+
+    // State for responsibles dropdown
+    const [responsibles, setResponsibles] = useState([]);
 
     // Currency formatting functions
     const formatCurrency = (value) => {
@@ -48,7 +52,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         notes: '',
         custom_data: {},
         is_goal: false,
-        is_potential: false
+        is_potential: false,
+        billing_probability: 'baixa'
     });
 
     // Forecasts state (multiple forecasts per opportunity)
@@ -111,6 +116,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         loadCustomFields();
         loadClients();
         loadTags();
+        loadResponsibles();
         if (opportunity) {
             // Editing existing opportunity - load from prop
             setFormData({
@@ -122,7 +128,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 notes: opportunity.notes || '',
                 custom_data: opportunity.custom_data || {},
                 is_goal: opportunity.is_goal || false,
-                is_potential: opportunity.is_potential || false
+                is_potential: opportunity.is_potential || false,
+                billing_probability: opportunity.billing_probability || 'baixa'
             });
             setSearchTerm(opportunity.client_name || '');
             // Load existing forecasts with period fields
@@ -181,6 +188,15 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
             setAvailableTags(tags || []);
         } catch (error) {
             console.error('Error loading tags:', error);
+        }
+    };
+
+    const loadResponsibles = async () => {
+        try {
+            const data = await responsiblesService.getResponsibles();
+            setResponsibles(data || []);
+        } catch (error) {
+            console.error('Error loading responsibles:', error);
         }
     };
 
@@ -472,6 +488,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 client_name: formData.is_goal ? 'META' : (formData.is_potential ? 'POTENCIAL' : formData.client_name),
                 stage: formData.is_goal ? 'Meta' : (formData.is_potential ? 'Potencial' : formData.stage),
                 responsible: (formData.is_goal || formData.is_potential) ? null : formData.responsible,
+                billing_probability: (formData.is_goal || formData.is_potential) ? null : formData.billing_probability,
                 forecasts: forecasts.map(f => ({
                     period_start: f.period_start,
                     period_end: f.period_end,
@@ -613,7 +630,6 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                             />
                         </div>
 
-                        {/* Client, Stage (only for real opportunities) - Row 1 */}
                         {!formData.is_goal && !formData.is_potential && (
                             <div style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
                                 <div className="input-group" style={{ flex: 2, marginBottom: 0 }}>
@@ -708,7 +724,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                     </div>
                                 </div>
 
-                                <div className="input-group" style={{ flex: 1, marginBottom: 0, maxWidth: '200px' }}>
+                                <div className="input-group" style={{ flex: 1, marginBottom: 0, minWidth: '160px' }}>
                                     <label className="label">Estágio *</label>
                                     <select
                                         name="stage"
@@ -728,10 +744,23 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                         ))}
                                     </select>
                                 </div>
+
+                                <div className="input-group" style={{ flex: 1, marginBottom: 0, minWidth: '160px' }}>
+                                    <label className="label">Possib. Faturamento *</label>
+                                    <select
+                                        name="billing_probability"
+                                        className="input"
+                                        value={formData.billing_probability}
+                                        onChange={handleChange}
+                                        required
+                                    >
+                                        <option value="baixa">Baixa</option>
+                                        <option value="media">Média</option>
+                                        <option value="alta">Alta</option>
+                                    </select>
+                                </div>
                             </div>
                         )}
-
-                        {/* Tags + Responsible - Row 2 */}
                         <div style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
                             <div className="input-group" style={{ flex: 2, marginBottom: 0 }}>
                                 <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -875,15 +904,21 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                 </div>
                             </div>
 
+                            {/* Campo Responsável - à direita das Tags */}
                             {!formData.is_goal && !formData.is_potential && (
-                                <div className="input-group" style={{ flex: 1, marginBottom: 0, maxWidth: '200px' }}>
+                                <div className="input-group" style={{ flex: 1, marginBottom: 0, minWidth: '180px' }}>
                                     <label className="label">Responsável</label>
-                                    <input
+                                    <select
                                         name="responsible"
                                         className="input"
                                         value={formData.responsible}
                                         onChange={handleChange}
-                                    />
+                                    >
+                                        <option value="">Selecione...</option>
+                                        {responsibles.filter(r => r.is_active).map(r => (
+                                            <option key={r.id} value={r.name}>{r.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             )}
                         </div>

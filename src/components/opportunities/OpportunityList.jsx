@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Edit2, Trash2, ChevronDown, ChevronRight, Calendar, DollarSign, CheckCircle, Target, Tag, Lightbulb } from 'lucide-react';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
@@ -56,6 +56,16 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         return new Date(dateString).toLocaleDateString('pt-BR');
     };
 
+    // Format date as MMM/YY (e.g., Jan/26, Mar/26)
+    const formatDateShort = (dateString) => {
+        if (!dateString) return '-';
+        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const date = new Date(dateString + 'T00:00:00');
+        const month = months[date.getMonth()];
+        const year = date.getFullYear().toString().slice(-2);
+        return `${month}/${year}`;
+    };
+
     const getStageDescription = (stageName) => {
         const stage = stages.find(s => s.name === stageName);
         return stage?.description || '';
@@ -77,6 +87,30 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
             return next;
         });
     };
+
+    // Sort opportunities: Real first, then Potencial, then Meta; within each group by total_value DESC
+    const sortedOpportunities = useMemo(() => {
+        const getTypeOrder = (opp) => {
+            if (opp.is_goal) return 2;  // Meta last
+            if (opp.is_potential) return 1;  // Potencial second
+            return 0;  // Real first
+        };
+
+        return [...opportunities].sort((a, b) => {
+            const typeOrderA = getTypeOrder(a);
+            const typeOrderB = getTypeOrder(b);
+
+            // First sort by type
+            if (typeOrderA !== typeOrderB) {
+                return typeOrderA - typeOrderB;
+            }
+
+            // Then sort by total_value (or estimated_value) descending
+            const valueA = Number(a.total_value || a.estimated_value || 0);
+            const valueB = Number(b.total_value || b.estimated_value || 0);
+            return valueB - valueA;
+        });
+    }, [opportunities]);
 
     // Field definitions for grouped mode
     const groupedFieldDefinitions = {
@@ -195,6 +229,27 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
             }
         },
         responsible: { label: 'Responsável', render: (opp) => opp.responsible || '-' },
+        billing_probability: {
+            label: 'Prob. Faturamento',
+            render: (opp) => {
+                if (opp.is_goal || opp.is_potential) return '-';
+                const probMap = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
+                const colorMap = { alta: '#10b981', media: '#f59e0b', baixa: '#ef4444' };
+                const prob = opp.billing_probability || 'baixa';
+                return (
+                    <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        background: `${colorMap[prob]}15`,
+                        color: colorMap[prob]
+                    }}>
+                        {probMap[prob]}
+                    </span>
+                );
+            }
+        },
         creation_date: { label: 'Data Criação', render: (opp) => formatDate(opp.creation_date) },
         notes: { label: 'Observações', render: (opp) => opp.notes || '-' },
     };
@@ -276,11 +331,11 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                                 </tr>
                             </thead>
                             <tbody>
-                                {forecasts.sort((a, b) => new Date(a.period_start) - new Date(b.period_start)).map((forecast, idx) => (
+                                {forecasts.sort((a, b) => new Date(a.period_end || a.period_start) - new Date(b.period_end || b.period_start)).map((forecast, idx) => (
                                     <tr key={forecast.id || idx} style={{ borderTop: idx > 0 ? '1px solid var(--border-color)' : 'none' }}>
                                         <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             <Calendar size={14} style={{ color: 'var(--text-secondary)' }} />
-                                            {formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}
+                                            {formatDateShort(forecast.period_end)}
                                         </td>
                                         <td style={{ padding: '8px', textAlign: 'right', fontWeight: 500 }}>
                                             {formatCurrency(forecast.estimated_value)}
@@ -333,7 +388,7 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                     </tr>
                 </thead>
                 <tbody>
-                    {opportunities.map(opp => (
+                    {sortedOpportunities.map(opp => (
                         <React.Fragment key={groupMode === 'flat' ? `${opp.id}-${opp.forecast_id}` : opp.id}>
                             <tr
                                 onClick={() => onView(opp)}
@@ -382,7 +437,7 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                             {groupMode === 'grouped' && expandedRows.has(opp.id) && renderForecastsRow(opp)}
                         </React.Fragment>
                     ))}
-                    {opportunities.length === 0 && (
+                    {sortedOpportunities.length === 0 && (
                         <tr>
                             <td colSpan={activeColumns.length + (groupMode === 'grouped' ? 2 : 1)} style={{ textAlign: 'center', padding: '20px' }}>
                                 Nenhuma oportunidade encontrada.

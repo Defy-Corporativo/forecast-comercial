@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit2, Trash2, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle, DollarSign, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Edit2, Trash2, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle, DollarSign, Layers, ChevronLeft, ChevronRight, CheckSquare, Clock, AlertCircle, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
 import { opportunityNotesService } from '../../services/opportunityNotesService';
+import { opportunityActionsService } from '../../services/opportunityActionsService';
+import { responsiblesService } from '../../services/responsiblesService';
 import { opportunityService } from '../../services/opportunityService';
 import ConfirmModal from '../common/ConfirmModal';
 import styles from './Opportunities.module.css';
@@ -41,6 +43,31 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
         type: 'warning'
     });
 
+    // Estado para tabs (notas vs ações vs previsões)
+    const [activeTab, setActiveTab] = useState('forecasts');
+
+    // Estado para ações
+    const [actions, setActions] = useState([]);
+    const [loadingActions, setLoadingActions] = useState(true);
+    const [newActionDescription, setNewActionDescription] = useState('');
+    const [newActionResponsible, setNewActionResponsible] = useState('');
+    const [savingAction, setSavingAction] = useState(false);
+    const [responsibles, setResponsibles] = useState([]);
+    const [actionCounts, setActionCounts] = useState({ pending: 0, completed: 0 });
+
+    // Filtros de ações
+    const [showActionFilters, setShowActionFilters] = useState(false);
+    const [actionSearchText, setActionSearchText] = useState('');
+    const [actionResponsibleFilter, setActionResponsibleFilter] = useState('');
+    const [actionStatusFilter, setActionStatusFilter] = useState('');
+
+    // Modal para conclusão de ação
+    const [completeModal, setCompleteModal] = useState({
+        isOpen: false,
+        actionId: null,
+        noteText: ''
+    });
+
     // Sincronizar estado local quando a prop mudar (apenas na primeira renderização)
     useEffect(() => {
         setCurrentOpportunity(opportunity);
@@ -49,6 +76,11 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
     useEffect(() => {
         loadCustomFields();
         loadNotes();
+        // Only load actions for non-goal opportunities (real or potential)
+        if (!currentOpportunity.is_goal) {
+            loadActions();
+            loadResponsibles();
+        }
     }, [currentOpportunity.id]);
 
     const loadCustomFields = async () => {
@@ -75,6 +107,97 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
         } finally {
             setLoadingNotes(false);
         }
+    };
+
+    const loadActions = async () => {
+        try {
+            setLoadingActions(true);
+            const data = await opportunityActionsService.getActions(currentOpportunity.id);
+            setActions(data);
+            const counts = await opportunityActionsService.getActionCounts(currentOpportunity.id);
+            setActionCounts(counts);
+        } catch (error) {
+            console.error('Erro ao carregar ações:', error);
+        } finally {
+            setLoadingActions(false);
+        }
+    };
+
+    const loadResponsibles = async () => {
+        try {
+            const data = await responsiblesService.getResponsibles();
+            setResponsibles(data);
+        } catch (error) {
+            console.error('Erro ao carregar responsáveis:', error);
+        }
+    };
+
+    const handleAddAction = async () => {
+        if (!newActionDescription.trim() || !newActionResponsible) return;
+
+        try {
+            setSavingAction(true);
+            await opportunityActionsService.createAction(
+                currentOpportunity.id,
+                newActionDescription.trim(),
+                newActionResponsible
+            );
+            setNewActionDescription('');
+            setNewActionResponsible('');
+            await loadActions();
+        } catch (error) {
+            console.error('Erro ao adicionar ação:', error);
+            alert('Erro ao adicionar ação. Tente novamente.');
+        } finally {
+            setSavingAction(false);
+        }
+    };
+
+    const handleDeleteAction = async (actionId) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Excluir Ação',
+            message: 'Tem certeza que deseja excluir esta ação? Esta operação não pode ser desfeita.',
+            type: 'danger',
+            onConfirm: async () => {
+                try {
+                    await opportunityActionsService.deleteAction(actionId);
+                    await loadActions();
+                } catch (error) {
+                    console.error('Erro ao excluir ação:', error);
+                    alert('Erro ao excluir ação. Tente novamente.');
+                }
+            }
+        });
+    };
+
+    const handleOpenCompleteModal = (action) => {
+        setCompleteModal({
+            isOpen: true,
+            actionId: action.id,
+            noteText: ''
+        });
+    };
+
+    const handleCompleteAction = async () => {
+        try {
+            await opportunityActionsService.completeAction(
+                completeModal.actionId,
+                currentOpportunity.id,
+                completeModal.noteText,
+                user?.name || user?.email || 'Usuário'
+            );
+            setCompleteModal({ isOpen: false, actionId: null, noteText: '' });
+            await loadActions();
+            await loadNotes(); // Reload notes since a new note was created
+        } catch (error) {
+            console.error('Erro ao concluir ação:', error);
+            alert('Erro ao concluir ação. Tente novamente.');
+        }
+    };
+
+    const calculateActionAge = (createdAt) => {
+        return opportunityActionsService.calculateAge(createdAt);
     };
 
     // Recarregar notas quando filtros mudam
@@ -234,8 +357,11 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
         );
     };
 
-    const allowedPrevious = getAllowedPreviousStages();
     const allowedNext = getAllowedNextStages();
+    // Filter previous stages to exclude any that already appear in allowedNext
+    const allowedPrevious = getAllowedPreviousStages().filter(stage =>
+        !allowedNext.some(next => next.name === stage.name)
+    );
 
     // Handle stage change
     const handleStageChange = async (newStageName) => {
@@ -256,6 +382,21 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
         try {
             const newInvoicedStatus = !forecast.invoiced;
             await opportunityService.updateForecastInvoiced(forecast.id, newInvoicedStatus);
+
+            // Create automatic note
+            const valueFormatted = formatCurrency(forecast.estimated_value);
+            const dateFormatted = formatDate(forecast.period_start);
+            const statusText = newInvoicedStatus ? 'Faturado' : 'Pendente';
+            const noteContent = `Previsão de faturamento de ${valueFormatted} para ${dateFormatted} marcada como ${statusText}.`;
+
+            await opportunityNotesService.createNote(
+                currentOpportunity.id,
+                noteContent,
+                user?.name || user?.email || 'Sistema'
+            );
+
+            // Reload notes to show the new note
+            loadNotes();
 
             // Update local state immediately - no need to reload parent
             setCurrentOpportunity(prev => ({
@@ -281,7 +422,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                 <div className={styles.modalHeader} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                         <div>
-                            <h3 style={{ margin: 0 }}>Oportunidade {currentOpportunity.opportunity_number}</h3>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>{currentOpportunity.title || 'Sem título'}</h3>
                             <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                                 Criado em {formatDate(currentOpportunity.creation_date)}
                             </span>
@@ -389,10 +530,10 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                         </div>
                     )}
 
-                    {/* Título da Oportunidade */}
+                    {/* Código da Oportunidade (antigo título) */}
                     <div style={{ marginBottom: '24px' }}>
-                        <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text-primary)' }}>
-                            {currentOpportunity.title || '-'}
+                        <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            Oportunidade {currentOpportunity.opportunity_number}
                         </h2>
                     </div>
 
@@ -429,103 +570,28 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                             <label className="label">Responsável</label>
                             <div className={styles.viewField}>{currentOpportunity.responsible || '-'}</div>
                         </div>
-                    </div>
 
-                    {/* Seção de Previsões de Faturamento */}
-                    {currentOpportunity.forecasts && currentOpportunity.forecasts.length > 0 && (
-                        <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color-light)', paddingTop: '20px' }}>
-                            <h4 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Calendar size={18} />
-                                Previsões de Faturamento
-                            </h4>
-                            <div style={{
-                                border: '1px solid var(--border-color-light)',
-                                borderRadius: '8px',
-                                overflow: 'hidden'
-                            }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead>
-                                        <tr style={{ background: 'var(--bg-secondary)', fontSize: '0.85rem' }}>
-                                            <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500 }}>Período</th>
-                                            <th style={{ textAlign: 'right', padding: '12px', fontWeight: 500 }}>Valor</th>
-                                            <th style={{ textAlign: 'center', padding: '12px', fontWeight: 500 }}>Status</th>
-                                            <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500 }}>Observação</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentOpportunity.forecasts
-                                            .sort((a, b) => new Date(a.period_start) - new Date(b.period_start))
-                                            .map((forecast, idx) => (
-                                                <tr
-                                                    key={forecast.id || idx}
-                                                    style={{
-                                                        borderTop: '1px solid var(--border-color-light)',
-                                                        background: forecast.invoiced ? 'rgba(16, 185, 129, 0.05)' : 'white'
-                                                    }}
-                                                >
-                                                    <td style={{ padding: '12px' }}>
-                                                        {formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}
-                                                    </td>
-                                                    <td style={{
-                                                        padding: '12px',
-                                                        textAlign: 'right',
-                                                        fontWeight: 500,
-                                                        textDecoration: forecast.invoiced ? 'line-through' : 'none',
-                                                        color: forecast.invoiced ? 'var(--text-secondary)' : 'var(--text-primary)'
-                                                    }}>
-                                                        {formatCurrency(forecast.estimated_value)}
-                                                    </td>
-                                                    <td style={{ padding: '12px', textAlign: 'center' }}>
-                                                        <span
-                                                            onClick={() => !currentOpportunity.is_goal && handleToggleInvoiced(forecast)}
-                                                            style={{
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px',
-                                                                padding: '4px 10px',
-                                                                borderRadius: '12px',
-                                                                border: 'none',
-                                                                fontSize: '0.8rem',
-                                                                fontWeight: 500,
-                                                                background: currentOpportunity.is_goal ? 'var(--bg-secondary)' : (forecast.invoiced ? 'var(--color-success)' : 'var(--bg-secondary)'),
-                                                                color: currentOpportunity.is_goal ? 'var(--text-tertiary)' : (forecast.invoiced ? 'white' : 'var(--text-secondary)'),
-                                                                opacity: currentOpportunity.is_goal ? 0.7 : 1,
-                                                                cursor: currentOpportunity.is_goal ? 'default' : 'pointer',
-                                                                transition: 'all 0.2s ease'
-                                                            }}
-                                                            title={currentOpportunity.is_goal ? '' : (forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado')}
-                                                        >
-                                                            {currentOpportunity.is_goal ? (
-                                                                <span style={{ color: 'var(--text-tertiary)' }}>-</span>
-                                                            ) : forecast.invoiced ? (
-                                                                <><CheckCircle size={14} /> Faturado</>
-                                                            ) : (
-                                                                <><Circle size={14} /> Pendente</>
-                                                            )}
-                                                        </span>
-                                                    </td>
-                                                    <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                                        {forecast.notes || '-'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr style={{ borderTop: '2px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-                                            <td style={{ padding: '12px', fontWeight: 600 }}>Total</td>
-                                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>
-                                                {formatCurrency(currentOpportunity.forecasts.reduce((sum, f) => sum + parseFloat(f.estimated_value || 0), 0))}
-                                            </td>
-                                            <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                                {currentOpportunity.forecasts.filter(f => f.invoiced).length}/{currentOpportunity.forecasts.length} faturados
-                                            </td>
-                                            <td></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                        <div className="input-group">
+                            <label className="label">Possib. Faturamento</label>
+                            <div className={styles.viewField}>
+                                <span style={{
+                                    padding: '4px 12px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 500,
+                                    background: currentOpportunity.billing_probability === 'alta' ? 'var(--color-success-light)' :
+                                        currentOpportunity.billing_probability === 'media' ? 'var(--color-warning-light)' : 'var(--bg-secondary)',
+                                    color: currentOpportunity.billing_probability === 'alta' ? 'var(--color-success)' :
+                                        currentOpportunity.billing_probability === 'media' ? 'var(--color-warning)' : 'var(--text-secondary)'
+                                }}>
+                                    {currentOpportunity.billing_probability === 'alta' ? 'Alta' :
+                                        currentOpportunity.billing_probability === 'media' ? 'Média' : 'Baixa'}
+                                </span>
                             </div>
                         </div>
-                    )}
+                    </div>
+
+
 
                     {currentOpportunity.notes && (
                         <div className="input-group" style={{ marginTop: '16px' }}>
@@ -567,284 +633,776 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                         </>
                     )}
 
-                    {/* Seção de Notas */}
+                    {/* Seção de Notas e Ações - com tabs */}
                     <div style={{ marginTop: '32px', borderTop: '1px solid var(--border-color-light)', paddingTop: '24px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <MessageSquare size={20} />
-                                Notas ({notes.length})
-                            </h4>
+                        {/* Tabs Header */}
+                        <div style={{ display: 'flex', gap: '0', marginBottom: '16px', borderBottom: '2px solid var(--border-color-light)', paddingBottom: '0' }}>
+                            {/* Tab de Previsões */}
                             <button
-                                className="btn btn-secondary"
-                                onClick={() => setShowFilters(!showFilters)}
-                                style={{ fontSize: '13px', padding: '6px 12px' }}
+                                onClick={() => setActiveTab('forecasts')}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '12px 20px',
+                                    background: activeTab === 'forecasts' ? 'white' : 'var(--bg-main)',
+                                    color: activeTab === 'forecasts' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                                    border: 'none',
+                                    borderBottom: activeTab === 'forecasts' ? '3px solid var(--color-primary)' : '3px solid transparent',
+                                    marginBottom: '-2px',
+                                    cursor: 'pointer',
+                                    fontSize: '15px',
+                                    fontWeight: 600,
+                                    transition: 'all 0.2s'
+                                }}
                             >
-                                <Search size={14} />
-                                Filtros
+                                <Calendar size={18} />
+                                Previsões
+                                <span style={{
+                                    background: activeTab === 'forecasts' ? 'var(--color-primary)' : 'var(--bg-secondary)',
+                                    color: activeTab === 'forecasts' ? 'white' : 'var(--text-secondary)',
+                                    padding: '2px 10px',
+                                    borderRadius: '12px',
+                                    fontSize: '13px',
+                                    fontWeight: 600
+                                }}>
+                                    {currentOpportunity.forecasts?.length || 0}
+                                </span>
                             </button>
+
+                            {/* Tab de Ações - apenas para oportunidades não-meta */}
+                            {!currentOpportunity.is_goal && (
+                                <button
+                                    onClick={() => setActiveTab('actions')}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '12px 20px',
+                                        background: activeTab === 'actions' ? 'white' : 'var(--bg-main)',
+                                        color: activeTab === 'actions' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                                        border: 'none',
+                                        borderBottom: activeTab === 'actions' ? '3px solid var(--color-primary)' : '3px solid transparent',
+                                        marginBottom: '-2px',
+                                        cursor: 'pointer',
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <CheckSquare size={18} />
+                                    Ações
+                                    <span style={{
+                                        background: actionCounts.pending > 0 ? 'var(--color-warning)' : (activeTab === 'actions' ? 'var(--color-primary)' : 'var(--bg-secondary)'),
+                                        color: actionCounts.pending > 0 || activeTab === 'actions' ? 'white' : 'var(--text-secondary)',
+                                        padding: '2px 10px',
+                                        borderRadius: '12px',
+                                        fontSize: '13px',
+                                        fontWeight: 600
+                                    }}>
+                                        {actionCounts.pending} / {actionCounts.pending + actionCounts.completed}
+                                    </span>
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => setActiveTab('notes')}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '12px 20px',
+                                    background: activeTab === 'notes' ? 'white' : 'var(--bg-main)',
+                                    color: activeTab === 'notes' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                                    border: 'none',
+                                    borderBottom: activeTab === 'notes' ? '3px solid var(--color-primary)' : '3px solid transparent',
+                                    marginBottom: '-2px',
+                                    cursor: 'pointer',
+                                    fontSize: '15px',
+                                    fontWeight: 600,
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                <MessageSquare size={18} />
+                                Notas
+                                <span style={{
+                                    background: activeTab === 'notes' ? 'var(--color-primary)' : 'var(--bg-secondary)',
+                                    color: activeTab === 'notes' ? 'white' : 'var(--text-secondary)',
+                                    padding: '2px 10px',
+                                    borderRadius: '12px',
+                                    fontSize: '13px',
+                                    fontWeight: 600
+                                }}>
+                                    {notes.length}
+                                </span>
+                            </button>
+
+                            {/* Botão de filtros */}
+                            {(activeTab === 'notes' || activeTab === 'actions') && (
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => activeTab === 'notes' ? setShowFilters(!showFilters) : setShowActionFilters(!showActionFilters)}
+                                    style={{
+                                        fontSize: '13px',
+                                        padding: '8px 14px',
+                                        marginLeft: 'auto',
+                                        alignSelf: 'center'
+                                    }}
+                                >
+                                    <Search size={14} />
+                                    Filtros
+                                </button>
+                            )}
                         </div>
 
-                        {/* Filtros */}
-                        {showFilters && (
+                        {/* Conteúdo da Tab de Previsões */}
+                        {activeTab === 'forecasts' && (
                             <div style={{
-                                background: 'var(--bg-main)',
-                                padding: '16px',
+                                border: '1px solid var(--border-color-light)',
                                 borderRadius: '8px',
-                                marginBottom: '16px',
-                                border: '1px solid var(--border-color-light)'
+                                overflow: 'hidden'
                             }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                                    <div className="input-group" style={{ margin: 0 }}>
-                                        <label className="label" style={{ fontSize: '12px' }}>Buscar texto</label>
-                                        <div style={{ position: 'relative' }}>
-                                            <Search size={16} style={{
-                                                position: 'absolute',
-                                                left: '10px',
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                color: 'var(--text-tertiary)'
-                                            }} />
-                                            <input
-                                                type="text"
-                                                className="input"
-                                                placeholder="Pesquisar nas notas..."
-                                                value={searchText}
-                                                onChange={(e) => setSearchText(e.target.value)}
-                                                style={{ paddingLeft: '36px', fontSize: '13px' }}
-                                            />
-                                        </div>
+                                {currentOpportunity.forecasts && currentOpportunity.forecasts.length > 0 ? (
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr style={{ background: 'var(--bg-secondary)', fontSize: '0.85rem' }}>
+                                                <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500 }}>Período</th>
+                                                <th style={{ textAlign: 'right', padding: '12px', fontWeight: 500 }}>Valor</th>
+                                                <th style={{ textAlign: 'center', padding: '12px', fontWeight: 500 }}>Status</th>
+                                                <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500 }}>Observação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {currentOpportunity.forecasts
+                                                .sort((a, b) => new Date(a.period_start) - new Date(b.period_start))
+                                                .map((forecast, idx) => (
+                                                    <tr
+                                                        key={forecast.id || idx}
+                                                        style={{
+                                                            borderTop: '1px solid var(--border-color-light)',
+                                                            background: forecast.invoiced ? 'rgba(16, 185, 129, 0.05)' : 'white'
+                                                        }}
+                                                    >
+                                                        <td style={{ padding: '12px' }}>
+                                                            {formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}
+                                                        </td>
+                                                        <td style={{
+                                                            padding: '12px',
+                                                            textAlign: 'right',
+                                                            fontWeight: 500,
+                                                            textDecoration: forecast.invoiced ? 'line-through' : 'none',
+                                                            color: forecast.invoiced ? 'var(--text-secondary)' : 'var(--text-primary)'
+                                                        }}>
+                                                            {formatCurrency(forecast.estimated_value)}
+                                                        </td>
+                                                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                            <span
+                                                                onClick={() => !currentOpportunity.is_goal && handleToggleInvoiced(forecast)}
+                                                                style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                    padding: '4px 10px',
+                                                                    borderRadius: '12px',
+                                                                    border: 'none',
+                                                                    fontSize: '0.8rem',
+                                                                    fontWeight: 500,
+                                                                    background: currentOpportunity.is_goal ? 'var(--bg-secondary)' : (forecast.invoiced ? 'var(--color-success)' : 'var(--bg-secondary)'),
+                                                                    color: currentOpportunity.is_goal ? 'var(--text-tertiary)' : (forecast.invoiced ? 'white' : 'var(--text-secondary)'),
+                                                                    opacity: currentOpportunity.is_goal ? 0.7 : 1,
+                                                                    cursor: currentOpportunity.is_goal ? 'default' : 'pointer',
+                                                                    transition: 'all 0.2s ease'
+                                                                }}
+                                                                title={currentOpportunity.is_goal ? '' : (forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado')}
+                                                            >
+                                                                {currentOpportunity.is_goal ? (
+                                                                    <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+                                                                ) : forecast.invoiced ? (
+                                                                    <><CheckCircle size={14} /> Faturado</>
+                                                                ) : (
+                                                                    <><Circle size={14} /> Pendente</>
+                                                                )}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                                            {forecast.notes || '-'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style={{ borderTop: '2px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+                                                <td style={{ padding: '12px', fontWeight: 600 }}>Total</td>
+                                                <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>
+                                                    {formatCurrency(currentOpportunity.forecasts.reduce((sum, f) => sum + parseFloat(f.estimated_value || 0), 0))}
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                    {currentOpportunity.forecasts.filter(f => f.invoiced).length}/{currentOpportunity.forecasts.length} faturados
+                                                </td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                ) : (
+                                    <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                        <Calendar size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                                        <p style={{ margin: 0 }}>Nenhuma previsão de faturamento registrada.</p>
                                     </div>
-                                    <div className="input-group" style={{ margin: 0 }}>
-                                        <label className="label" style={{ fontSize: '12px' }}>Data inicial</label>
-                                        <input
-                                            type="date"
-                                            className="input"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
-                                            style={{ fontSize: '13px' }}
-                                        />
-                                    </div>
-                                    <div className="input-group" style={{ margin: 0 }}>
-                                        <label className="label" style={{ fontSize: '12px' }}>Data final</label>
-                                        <input
-                                            type="date"
-                                            className="input"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
-                                            style={{ fontSize: '13px' }}
-                                        />
-                                    </div>
-                                </div>
-                                {(searchText || startDate || endDate) && (
-                                    <button
-                                        onClick={clearFilters}
-                                        style={{
-                                            marginTop: '12px',
-                                            background: 'none',
-                                            border: 'none',
-                                            color: 'var(--color-primary)',
-                                            cursor: 'pointer',
-                                            fontSize: '13px'
-                                        }}
-                                    >
-                                        Limpar filtros
-                                    </button>
                                 )}
                             </div>
                         )}
 
-                        {/* Adicionar nova nota */}
-                        <div style={{ marginBottom: '20px' }}>
-                            <textarea
-                                className="input"
-                                placeholder="Adicionar uma nova nota..."
-                                value={newNote}
-                                onChange={(e) => setNewNote(e.target.value)}
-                                rows={3}
-                                style={{ resize: 'vertical', minHeight: '80px' }}
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={handleAddNote}
-                                    disabled={!newNote.trim() || savingNote}
-                                    style={{ fontSize: '13px', padding: '8px 16px' }}
-                                >
-                                    <Plus size={16} />
-                                    {savingNote ? 'Salvando...' : 'Adicionar Nota'}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Lista de notas */}
-                        <div style={{
-                            maxHeight: '300px',
-                            overflowY: 'auto',
-                            border: notes.length > 0 ? '1px solid var(--border-color-light)' : 'none',
-                            borderRadius: '8px'
-                        }}>
-                            {loadingNotes ? (
-                                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                    Carregando notas...
-                                </div>
-                            ) : notes.length === 0 ? (
-                                <div style={{
-                                    padding: '32px',
-                                    textAlign: 'center',
-                                    color: 'var(--text-secondary)',
-                                    background: 'var(--bg-main)',
-                                    borderRadius: '8px'
-                                }}>
-                                    <MessageSquare size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
-                                    <p style={{ margin: 0 }}>
-                                        {searchText || startDate || endDate
-                                            ? 'Nenhuma nota encontrada com os filtros aplicados.'
-                                            : 'Nenhuma nota registrada ainda.'}
-                                    </p>
-                                </div>
-                            ) : (
-                                notes.map((note, index) => (
-                                    <div
-                                        key={note.id}
-                                        style={{
-                                            padding: '16px',
-                                            borderBottom: index < notes.length - 1 ? '1px solid var(--border-color-light)' : 'none',
-                                            background: editingNoteId === note.id ? 'var(--bg-main)' : 'white'
-                                        }}
-                                    >
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'flex-start',
-                                            marginBottom: '8px'
-                                        }}>
-                                            <div style={{
-                                                fontSize: '12px',
-                                                color: 'var(--text-secondary)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '8px',
-                                                flexWrap: 'wrap'
-                                            }}>
-                                                <Calendar size={14} />
-                                                {formatDateTime(note.created_at)}
-                                                {note.created_by && (
-                                                    <span style={{
-                                                        background: 'var(--bg-hover)',
-                                                        padding: '2px 8px',
-                                                        borderRadius: '4px'
-                                                    }}>
-                                                        {note.created_by}
-                                                    </span>
-                                                )}
-                                                {note.updated_at && note.updated_at !== note.created_at && (
-                                                    <span style={{ fontStyle: 'italic', color: 'var(--text-tertiary)' }}>
-                                                        (editado)
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {editingNoteId !== note.id && (
-                                                <div style={{ display: 'flex', gap: '4px' }}>
-                                                    <button
-                                                        onClick={() => handleStartEditNote(note)}
-                                                        style={{
-                                                            background: 'none',
-                                                            border: 'none',
-                                                            color: 'var(--text-tertiary)',
-                                                            cursor: 'pointer',
-                                                            padding: '4px',
-                                                            borderRadius: '4px',
-                                                            display: 'flex',
-                                                            alignItems: 'center'
-                                                        }}
-                                                        onMouseEnter={(e) => {
-                                                            e.currentTarget.style.background = 'var(--color-primary-light)';
-                                                            e.currentTarget.style.color = 'var(--color-primary)';
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                                            e.currentTarget.style.background = 'none';
-                                                            e.currentTarget.style.color = 'var(--text-tertiary)';
-                                                        }}
-                                                        title="Editar nota"
-                                                    >
-                                                        <Edit2 size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteNote(note.id)}
-                                                        style={{
-                                                            background: 'none',
-                                                            border: 'none',
-                                                            color: 'var(--text-tertiary)',
-                                                            cursor: 'pointer',
-                                                            padding: '4px',
-                                                            borderRadius: '4px',
-                                                            display: 'flex',
-                                                            alignItems: 'center'
-                                                        }}
-                                                        onMouseEnter={(e) => {
-                                                            e.currentTarget.style.background = 'var(--color-danger-light)';
-                                                            e.currentTarget.style.color = 'var(--color-danger)';
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                                            e.currentTarget.style.background = 'none';
-                                                            e.currentTarget.style.color = 'var(--text-tertiary)';
-                                                        }}
-                                                        title="Excluir nota"
-                                                    >
-                                                        <Trash size={14} />
-                                                    </button>
+                        {/* Conteúdo da Tab de Notas */}
+                        {activeTab === 'notes' && (
+                            <>
+                                {/* Filtros */}
+                                {showFilters && (
+                                    <div style={{
+                                        background: 'var(--bg-main)',
+                                        padding: '16px',
+                                        borderRadius: '8px',
+                                        marginBottom: '16px',
+                                        border: '1px solid var(--border-color-light)'
+                                    }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                                            <div className="input-group" style={{ margin: 0 }}>
+                                                <label className="label" style={{ fontSize: '12px' }}>Buscar texto</label>
+                                                <div style={{ position: 'relative' }}>
+                                                    <Search size={16} style={{
+                                                        position: 'absolute',
+                                                        left: '10px',
+                                                        top: '50%',
+                                                        transform: 'translateY(-50%)',
+                                                        color: 'var(--text-tertiary)'
+                                                    }} />
+                                                    <input
+                                                        type="text"
+                                                        className="input"
+                                                        placeholder="Pesquisar nas notas..."
+                                                        value={searchText}
+                                                        onChange={(e) => setSearchText(e.target.value)}
+                                                        style={{ paddingLeft: '36px', fontSize: '13px' }}
+                                                    />
                                                 </div>
-                                            )}
-                                        </div>
-
-                                        {editingNoteId === note.id ? (
-                                            <div>
-                                                <textarea
+                                            </div>
+                                            <div className="input-group" style={{ margin: 0 }}>
+                                                <label className="label" style={{ fontSize: '12px' }}>Data inicial</label>
+                                                <input
+                                                    type="date"
                                                     className="input"
-                                                    value={editingNoteContent}
-                                                    onChange={(e) => setEditingNoteContent(e.target.value)}
-                                                    rows={3}
-                                                    style={{ resize: 'vertical', minHeight: '80px', marginBottom: '8px' }}
-                                                    autoFocus
+                                                    value={startDate}
+                                                    onChange={(e) => setStartDate(e.target.value)}
+                                                    style={{ fontSize: '13px' }}
                                                 />
-                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                                    <button
-                                                        onClick={handleCancelEditNote}
-                                                        className="btn btn-secondary"
-                                                        style={{ fontSize: '12px', padding: '6px 12px' }}
-                                                    >
-                                                        <XCircle size={14} />
-                                                        Cancelar
-                                                    </button>
-                                                    <button
-                                                        onClick={handleSaveEditNote}
-                                                        className="btn btn-primary"
-                                                        disabled={!editingNoteContent.trim()}
-                                                        style={{ fontSize: '12px', padding: '6px 12px' }}
-                                                    >
-                                                        <Save size={14} />
-                                                        Salvar
-                                                    </button>
-                                                </div>
                                             </div>
-                                        ) : (
-                                            <p style={{
-                                                margin: 0,
-                                                whiteSpace: 'pre-wrap',
-                                                lineHeight: 1.5,
-                                                color: 'var(--text-primary)'
-                                            }}>
-                                                {note.content}
-                                            </p>
+                                            <div className="input-group" style={{ margin: 0 }}>
+                                                <label className="label" style={{ fontSize: '12px' }}>Data final</label>
+                                                <input
+                                                    type="date"
+                                                    className="input"
+                                                    value={endDate}
+                                                    onChange={(e) => setEndDate(e.target.value)}
+                                                    style={{ fontSize: '13px' }}
+                                                />
+                                            </div>
+                                        </div>
+                                        {(searchText || startDate || endDate) && (
+                                            <button
+                                                onClick={clearFilters}
+                                                style={{
+                                                    marginTop: '12px',
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: 'var(--color-primary)',
+                                                    cursor: 'pointer',
+                                                    fontSize: '13px'
+                                                }}
+                                            >
+                                                Limpar filtros
+                                            </button>
                                         )}
                                     </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
+                                )}
 
+                                {/* Adicionar nova nota */}
+                                <div style={{ marginBottom: '20px' }}>
+                                    <textarea
+                                        className="input"
+                                        placeholder="Adicionar uma nova nota..."
+                                        value={newNote}
+                                        onChange={(e) => setNewNote(e.target.value)}
+                                        rows={3}
+                                        style={{ resize: 'vertical', minHeight: '80px' }}
+                                    />
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleAddNote}
+                                            disabled={!newNote.trim() || savingNote}
+                                            style={{ fontSize: '13px', padding: '8px 16px' }}
+                                        >
+                                            <Plus size={16} />
+                                            {savingNote ? 'Salvando...' : 'Adicionar Nota'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Lista de notas */}
+                                <div style={{
+                                    maxHeight: '300px',
+                                    overflowY: 'auto',
+                                    border: notes.length > 0 ? '1px solid var(--border-color-light)' : 'none',
+                                    borderRadius: '8px'
+                                }}>
+                                    {loadingNotes ? (
+                                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                            Carregando notas...
+                                        </div>
+                                    ) : notes.length === 0 ? (
+                                        <div style={{
+                                            padding: '32px',
+                                            textAlign: 'center',
+                                            color: 'var(--text-secondary)',
+                                            background: 'var(--bg-main)',
+                                            borderRadius: '8px'
+                                        }}>
+                                            <MessageSquare size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                                            <p style={{ margin: 0 }}>
+                                                {searchText || startDate || endDate
+                                                    ? 'Nenhuma nota encontrada com os filtros aplicados.'
+                                                    : 'Nenhuma nota registrada ainda.'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        notes.map((note, index) => (
+                                            <div
+                                                key={note.id}
+                                                style={{
+                                                    padding: '16px',
+                                                    borderBottom: index < notes.length - 1 ? '1px solid var(--border-color-light)' : 'none',
+                                                    background: editingNoteId === note.id ? 'var(--bg-main)' : 'white'
+                                                }}
+                                            >
+                                                <div style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'flex-start',
+                                                    marginBottom: '8px'
+                                                }}>
+                                                    <div style={{
+                                                        fontSize: '12px',
+                                                        color: 'var(--text-secondary)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px',
+                                                        flexWrap: 'wrap'
+                                                    }}>
+                                                        <Calendar size={14} />
+                                                        {formatDateTime(note.created_at)}
+                                                        {note.created_by && (
+                                                            <span style={{
+                                                                background: 'var(--bg-hover)',
+                                                                padding: '2px 8px',
+                                                                borderRadius: '4px'
+                                                            }}>
+                                                                {note.created_by}
+                                                            </span>
+                                                        )}
+                                                        {note.updated_at && note.updated_at !== note.created_at && (
+                                                            <span style={{ fontStyle: 'italic', color: 'var(--text-tertiary)' }}>
+                                                                (editado)
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {editingNoteId !== note.id && (
+                                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                                            <button
+                                                                onClick={() => handleStartEditNote(note)}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: 'var(--text-tertiary)',
+                                                                    cursor: 'pointer',
+                                                                    padding: '4px',
+                                                                    borderRadius: '4px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center'
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.background = 'var(--color-primary-light)';
+                                                                    e.currentTarget.style.color = 'var(--color-primary)';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.background = 'none';
+                                                                    e.currentTarget.style.color = 'var(--text-tertiary)';
+                                                                }}
+                                                                title="Editar nota"
+                                                            >
+                                                                <Edit2 size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteNote(note.id)}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: 'var(--text-tertiary)',
+                                                                    cursor: 'pointer',
+                                                                    padding: '4px',
+                                                                    borderRadius: '4px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center'
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.background = 'var(--color-danger-light)';
+                                                                    e.currentTarget.style.color = 'var(--color-danger)';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.background = 'none';
+                                                                    e.currentTarget.style.color = 'var(--text-tertiary)';
+                                                                }}
+                                                                title="Excluir nota"
+                                                            >
+                                                                <Trash size={14} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {editingNoteId === note.id ? (
+                                                    <div>
+                                                        <textarea
+                                                            className="input"
+                                                            value={editingNoteContent}
+                                                            onChange={(e) => setEditingNoteContent(e.target.value)}
+                                                            rows={3}
+                                                            style={{ resize: 'vertical', minHeight: '80px', marginBottom: '8px' }}
+                                                            autoFocus
+                                                        />
+                                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                            <button
+                                                                onClick={handleCancelEditNote}
+                                                                className="btn btn-secondary"
+                                                                style={{ fontSize: '12px', padding: '6px 12px' }}
+                                                            >
+                                                                <XCircle size={14} />
+                                                                Cancelar
+                                                            </button>
+                                                            <button
+                                                                onClick={handleSaveEditNote}
+                                                                className="btn btn-primary"
+                                                                disabled={!editingNoteContent.trim()}
+                                                                style={{ fontSize: '12px', padding: '6px 12px' }}
+                                                            >
+                                                                <Save size={14} />
+                                                                Salvar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p style={{
+                                                        margin: 0,
+                                                        whiteSpace: 'pre-wrap',
+                                                        lineHeight: 1.5,
+                                                        color: 'var(--text-primary)'
+                                                    }}>
+                                                        {note.content}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Conteúdo da Tab de Ações */}
+                        {activeTab === 'actions' && !currentOpportunity.is_goal && (
+                            <div>
+                                {/* Filtros de Ações */}
+                                {showActionFilters && (
+                                    <div style={{
+                                        background: 'var(--bg-main)',
+                                        padding: '16px',
+                                        borderRadius: '8px',
+                                        marginBottom: '16px',
+                                        border: '1px solid var(--border-color-light)'
+                                    }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                                            <div className="input-group" style={{ margin: 0 }}>
+                                                <label className="label" style={{ fontSize: '12px' }}>Buscar na descrição</label>
+                                                <div style={{ position: 'relative' }}>
+                                                    <Search size={16} style={{
+                                                        position: 'absolute',
+                                                        left: '10px',
+                                                        top: '50%',
+                                                        transform: 'translateY(-50%)',
+                                                        color: 'var(--text-tertiary)'
+                                                    }} />
+                                                    <input
+                                                        type="text"
+                                                        className="input"
+                                                        placeholder="Pesquisar nas ações..."
+                                                        value={actionSearchText}
+                                                        onChange={(e) => setActionSearchText(e.target.value)}
+                                                        style={{ paddingLeft: '36px', fontSize: '13px' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="input-group" style={{ margin: 0 }}>
+                                                <label className="label" style={{ fontSize: '12px' }}>Status</label>
+                                                <select
+                                                    className="input"
+                                                    value={actionStatusFilter}
+                                                    onChange={(e) => setActionStatusFilter(e.target.value)}
+                                                    style={{ fontSize: '13px' }}
+                                                >
+                                                    <option value="">Todos</option>
+                                                    <option value="pendente">Pendente</option>
+                                                    <option value="concluida">Concluída</option>
+                                                </select>
+                                            </div>
+                                            <div className="input-group" style={{ margin: 0 }}>
+                                                <label className="label" style={{ fontSize: '12px' }}>Responsável</label>
+                                                <select
+                                                    className="input"
+                                                    value={actionResponsibleFilter}
+                                                    onChange={(e) => setActionResponsibleFilter(e.target.value)}
+                                                    style={{ fontSize: '13px' }}
+                                                >
+                                                    <option value="">Todos</option>
+                                                    {responsibles.map(r => (
+                                                        <option key={r.id} value={r.name}>{r.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        {(actionSearchText || actionResponsibleFilter || actionStatusFilter) && (
+                                            <button
+                                                className="btn btn-secondary"
+                                                onClick={() => { setActionSearchText(''); setActionResponsibleFilter(''); setActionStatusFilter(''); }}
+                                                style={{ marginTop: '12px', fontSize: '12px', padding: '6px 12px' }}
+                                            >
+                                                <X size={12} />
+                                                Limpar filtros
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Form para adicionar nova ação */}
+                                <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color-light)' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', marginBottom: '12px' }}>
+                                        <div className="input-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '12px' }}>Descrição da Ação</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                placeholder="Descreva a ação a ser realizada..."
+                                                value={newActionDescription}
+                                                onChange={(e) => setNewActionDescription(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="input-group" style={{ margin: 0, minWidth: '200px' }}>
+                                            <label className="label" style={{ fontSize: '12px' }}>Responsável</label>
+                                            <select
+                                                className="input"
+                                                value={newActionResponsible}
+                                                onChange={(e) => setNewActionResponsible(e.target.value)}
+                                            >
+                                                <option value="">Selecione...</option>
+                                                {responsibles.map(r => (
+                                                    <option key={r.id} value={r.name}>{r.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleAddAction}
+                                            disabled={!newActionDescription.trim() || !newActionResponsible || savingAction}
+                                            style={{ fontSize: '13px', padding: '8px 16px' }}
+                                        >
+                                            <Plus size={16} />
+                                            {savingAction ? 'Adicionando...' : 'Adicionar Ação'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Lista de ações */}
+                                <div style={{
+                                    maxHeight: '350px',
+                                    overflowY: 'auto',
+                                    border: actions.length > 0 ? '1px solid var(--border-color-light)' : 'none',
+                                    borderRadius: '8px'
+                                }}>
+                                    {loadingActions ? (
+                                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                            Carregando ações...
+                                        </div>
+                                    ) : actions.length === 0 ? (
+                                        <div style={{
+                                            padding: '32px',
+                                            textAlign: 'center',
+                                            color: 'var(--text-secondary)',
+                                            background: 'var(--bg-main)',
+                                            borderRadius: '8px'
+                                        }}>
+                                            <CheckSquare size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                                            <p style={{ margin: 0 }}>Nenhuma ação registrada ainda.</p>
+                                        </div>
+                                    ) : (
+                                        actions
+                                            .filter(action => {
+                                                if (actionSearchText && !action.description.toLowerCase().includes(actionSearchText.toLowerCase())) return false;
+                                                if (actionResponsibleFilter && action.responsible !== actionResponsibleFilter) return false;
+                                                if (actionStatusFilter && action.status !== actionStatusFilter) return false;
+                                                return true;
+                                            })
+                                            .map((action, index, filteredActions) => {
+                                                const age = calculateActionAge(action.created_at);
+                                                const isOverdue = action.status === 'pendente' && age > 7;
+
+                                                return (
+                                                    <div
+                                                        key={action.id}
+                                                        style={{
+                                                            padding: '16px',
+                                                            borderBottom: index < filteredActions.length - 1 ? '1px solid var(--border-color-light)' : 'none',
+                                                            background: action.status === 'concluida' ? 'rgba(16, 185, 129, 0.05)' : 'white'
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                {/* Status badge */}
+                                                                <span style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                    padding: '4px 10px',
+                                                                    borderRadius: '12px',
+                                                                    fontSize: '0.8rem',
+                                                                    fontWeight: 500,
+                                                                    background: action.status === 'concluida' ? 'var(--color-success)' : 'var(--color-warning)',
+                                                                    color: 'white'
+                                                                }}>
+                                                                    {action.status === 'concluida' ? <CheckCircle size={14} /> : <Clock size={14} />}
+                                                                    {action.status === 'concluida' ? 'Concluída' : 'Pendente'}
+                                                                </span>
+
+                                                                {/* Idade da ação */}
+                                                                <span style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                    padding: '4px 10px',
+                                                                    borderRadius: '12px',
+                                                                    fontSize: '0.8rem',
+                                                                    background: isOverdue ? 'var(--color-danger-light)' : 'var(--bg-secondary)',
+                                                                    color: isOverdue ? 'var(--color-danger)' : 'var(--text-secondary)',
+                                                                    fontWeight: isOverdue ? 600 : 400
+                                                                }}>
+                                                                    {isOverdue && <AlertCircle size={14} />}
+                                                                    {age} {age === 1 ? 'dia' : 'dias'}
+                                                                </span>
+
+                                                                {/* Responsável */}
+                                                                <span style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                    padding: '4px 10px',
+                                                                    borderRadius: '12px',
+                                                                    fontSize: '0.8rem',
+                                                                    background: 'var(--bg-hover)',
+                                                                    color: 'var(--text-secondary)'
+                                                                }}>
+                                                                    <User size={14} />
+                                                                    {action.responsible}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Action buttons */}
+                                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                                {action.status === 'pendente' && (
+                                                                    <button
+                                                                        onClick={() => handleOpenCompleteModal(action)}
+                                                                        style={{
+                                                                            background: 'var(--color-success)',
+                                                                            border: '2px solid var(--color-success)',
+                                                                            color: 'white',
+                                                                            cursor: 'pointer',
+                                                                            padding: '8px 16px',
+                                                                            borderRadius: '6px',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '6px',
+                                                                            fontSize: '13px',
+                                                                            fontWeight: 600,
+                                                                            transition: 'all 0.2s',
+                                                                            boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)'
+                                                                        }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.currentTarget.style.background = 'var(--color-success-dark)';
+                                                                            e.currentTarget.style.transform = 'translateY(-1px)';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.currentTarget.style.background = 'var(--color-success)';
+                                                                            e.currentTarget.style.transform = 'translateY(0)';
+                                                                        }}
+                                                                        title="Concluir ação"
+                                                                    >
+                                                                        <CheckCircle size={16} />
+                                                                        Concluir
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => handleDeleteAction(action.id)}
+                                                                    style={{
+                                                                        background: 'none',
+                                                                        border: 'none',
+                                                                        color: 'var(--text-tertiary)',
+                                                                        cursor: 'pointer',
+                                                                        padding: '6px',
+                                                                        borderRadius: '4px',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center'
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                        e.currentTarget.style.background = 'var(--color-danger-light)';
+                                                                        e.currentTarget.style.color = 'var(--color-danger)';
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                        e.currentTarget.style.background = 'none';
+                                                                        e.currentTarget.style.color = 'var(--text-tertiary)';
+                                                                    }}
+                                                                    title="Excluir ação"
+                                                                >
+                                                                    <Trash size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Descrição */}
+                                                        <p style={{
+                                                            margin: 0,
+                                                            lineHeight: 1.5,
+                                                            color: action.status === 'concluida' ? 'var(--text-secondary)' : 'var(--text-primary)',
+                                                            textDecoration: action.status === 'concluida' ? 'line-through' : 'none'
+                                                        }}>
+                                                            {action.description}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                </div>
                 <div className={styles.modalFooter} style={{ justifyContent: 'space-between' }}>
                     <button type="button" className="btn btn-secondary" onClick={handleDelete}>
                         <Trash2 size={16} />
@@ -872,6 +1430,70 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                     confirmText="Confirmar"
                     cancelText="Cancelar"
                 />
+
+                {/* Modal de Conclusão de Ação */}
+                {completeModal.isOpen && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1100
+                        }}
+                        onClick={() => setCompleteModal({ isOpen: false, actionId: null, noteText: '' })}
+                    >
+                        <div
+                            style={{
+                                background: 'white',
+                                borderRadius: '12px',
+                                padding: '24px',
+                                maxWidth: '500px',
+                                width: '90%',
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <CheckCircle size={24} style={{ color: 'var(--color-success)' }} />
+                                Concluir Ação
+                            </h3>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '14px' }}>
+                                Uma nota será gerada automaticamente ao concluir esta ação.
+                                Você pode adicionar informações adicionais abaixo (opcional):
+                            </p>
+                            <textarea
+                                className="input"
+                                placeholder="Adicione observações sobre a conclusão da ação (opcional)..."
+                                value={completeModal.noteText}
+                                onChange={(e) => setCompleteModal({ ...completeModal, noteText: e.target.value })}
+                                rows={4}
+                                style={{ resize: 'vertical', minHeight: '100px', marginBottom: '16px' }}
+                            />
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setCompleteModal({ isOpen: false, actionId: null, noteText: '' })}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleCompleteAction}
+                                    style={{ background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                >
+                                    <CheckCircle size={16} />
+                                    Concluir Ação
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

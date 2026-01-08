@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Settings, Menu, ChevronLeft, Building2, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Briefcase, Settings, Menu, ChevronLeft, Building2, TrendingUp, CheckSquare } from 'lucide-react';
 import styles from './Layout.module.css';
 
 const Sidebar = ({ isCollapsed, onToggle }) => {
@@ -40,6 +40,18 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                 </div>
                 <nav className={styles.nav}>
                     <NavLink
+                        to="/"
+                        className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+                        end
+                        title="Painel"
+                        onClick={() => {
+                            window.innerWidth < 768 && onToggle();
+                        }}
+                    >
+                        <LayoutDashboard size={20} />
+                        {!isCollapsed && <span>Painel</span>}
+                    </NavLink>
+                    <NavLink
                         to="/opportunities"
                         className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
                         title="Oportunidades"
@@ -52,16 +64,15 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         {!isCollapsed && <span>Oportunidades</span>}
                     </NavLink>
                     <NavLink
-                        to="/"
+                        to="/actions"
                         className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
-                        end
-                        title="Painel"
+                        title="Ações"
                         onClick={() => {
                             window.innerWidth < 768 && onToggle();
                         }}
                     >
-                        <LayoutDashboard size={20} />
-                        {!isCollapsed && <span>Painel</span>}
+                        <CheckSquare size={20} />
+                        {!isCollapsed && <span>Ações</span>}
                     </NavLink>
                     <NavLink
                         to="/clients"
