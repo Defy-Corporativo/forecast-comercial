@@ -1,45 +1,6 @@
 import { supabase } from './supabaseClient';
 
 export const settingsService = {
-    // Company Settings
-    async getCompany() {
-        const { data, error } = await supabase
-            .from('companies')
-            .select('*')
-            .limit(1)
-            .maybeSingle();
-
-        if (error) throw error;
-        return data;
-    },
-
-    async updateCompany(_userId, companyData) {
-        const { data: existing } = await supabase
-            .from('companies')
-            .select('id')
-            .limit(1)
-            .maybeSingle();
-
-        if (existing) {
-            const { data, error } = await supabase
-                .from('companies')
-                .update({ ...companyData, updated_at: new Date() })
-                .eq('id', existing.id)
-                .select()
-                .single();
-            if (error) throw error;
-            return data;
-        } else {
-            const { data, error } = await supabase
-                .from('companies')
-                .insert([{ ...companyData }])
-                .select()
-                .single();
-            if (error) throw error;
-            return data;
-        }
-    },
-
     // Custom Fields
     async getCustomFields() {
         const { data, error } = await supabase

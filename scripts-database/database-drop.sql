@@ -112,14 +112,6 @@ $$;
 
 DO $$
 BEGIN
-  IF to_regclass('public.companies') IS NOT NULL THEN
-    DROP TABLE public.companies CASCADE;
-  END IF;
-END;
-$$;
-
-DO $$
-BEGIN
   IF to_regclass('public.user_preferences') IS NOT NULL THEN
     DROP TABLE public.user_preferences CASCADE;
   END IF;

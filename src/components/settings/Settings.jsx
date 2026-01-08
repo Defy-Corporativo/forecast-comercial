@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import CompanySettings from './CompanySettings';
 import CustomFields from './CustomFields';
 import StageSettings from './StageSettings';
 import ViewSettings from './ViewSettings';
@@ -9,7 +8,7 @@ import styles from './Settings.module.css';
 import ExportData from './ExportData';
 
 const Settings = () => {
-    const [activeTab, setActiveTab] = useState('company');
+    const [activeTab, setActiveTab] = useState('responsibles');
 
     return (
         <div className="container">
@@ -18,12 +17,6 @@ const Settings = () => {
             </div>
 
             <div className={styles.tabs}>
-                <button
-                    className={`${styles.tab} ${activeTab === 'company' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('company')}
-                >
-                    Empresa
-                </button>
                 <button
                     className={`${styles.tab} ${activeTab === 'responsibles' ? styles.active : ''}`}
                     onClick={() => setActiveTab('responsibles')}
@@ -63,7 +56,6 @@ const Settings = () => {
             </div>
 
             <div className={styles.tabContent}>
-                {activeTab === 'company' && <CompanySettings />}
                 {activeTab === 'responsibles' && <ResponsiblesSettings />}
                 {activeTab === 'tags' && <TagSettings />}
                 {activeTab === 'fields' && <CustomFields />}

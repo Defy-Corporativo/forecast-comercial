@@ -11,14 +11,6 @@ CREATE TABLE profiles (
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE TABLE companies (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name text NOT NULL,
-  logo_url text,
-  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
 CREATE TABLE clients (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   name text NOT NULL,

@@ -317,31 +317,6 @@
     }
 }
 
-.logoContainer {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.companyLogo {
-    height: 48px;
-    max-width: 180px;
-    object-fit: contain;
-    display: block;
-}
-
-.companyName {
-    font-size: 13px;
-    color: var(--text-tertiary);
-    font-weight: 500;
-    padding-left: 12px;
-    border-left: 1px solid var(--border-color-light);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
-}
-
 .pageTitle {
     font-size: 20px;
     font-weight: 600;
@@ -641,21 +616,6 @@
 
     .headerLeft {
         gap: 12px;
-    }
-
-    .logoContainer {
-        gap: 8px;
-    }
-
-    .companyLogo {
-        height: 36px;
-        max-width: 140px;
-    }
-
-    .companyName {
-        font-size: 11px;
-        max-width: 120px;
-        padding-left: 8px;
     }
 
     .pageTitle {

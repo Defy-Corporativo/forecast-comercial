@@ -82,7 +82,6 @@ A aplicação estará disponível em `http://localhost:3000`
 - Criação rápida de clientes diretamente do formulário de oportunidades
 
 ### ✅ Configurações
-- **Empresa**: Nome e logo da empresa
 - **Clientes**: Cadastro e gerenciamento de clientes
 - **Campos Customizados**: Criar campos personalizados (texto, número, data, select, checkbox)
 - **Estágios**: Configurar os estágios do pipeline com descrições
@@ -102,7 +101,7 @@ src/
 │   ├── dashboard/     # Dashboard, MetricsCard, Charts
 │   ├── layout/        # Sidebar, Header, MainLayout
 │   ├── opportunities/ # List, Kanban, Form
-│   └── settings/      # CompanySettings, CustomFields, StageSettings
+│   └── settings/      # CustomFields, StageSettings, ViewSettings
 ├── contexts/          # AuthContext, StageContext
 ├── services/          # supabaseClient, settingsService, opportunityService
 ├── styles/            # variables.css, global.css
