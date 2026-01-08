@@ -99,13 +99,38 @@ export const opportunityActionsService = {
     },
 
     // Delete an action
-    async deleteAction(actionId) {
+    async deleteAction(actionId, opportunityId = null, noteText = '', userName = '') {
+        // Get action details before deleting (if we need to create a note)
+        let action = null;
+        if (opportunityId && userName) {
+            const { data } = await supabase
+                .from('opportunity_actions')
+                .select('*')
+                .eq('id', actionId)
+                .single();
+            action = data;
+        }
+
+        // Delete the action
         const { error } = await supabase
             .from('opportunity_actions')
             .delete()
             .eq('id', actionId);
 
         if (error) throw error;
+
+        // Create automatic note if opportunityId and userName are provided
+        if (opportunityId && userName && action) {
+            const noteContent = noteText?.trim()
+                ? `[Ação Excluída] ${action.description}\n\nResponsável: ${action.responsible}\n\n${noteText}`
+                : `[Ação Excluída] ${action.description}\n\nResponsável: ${action.responsible}`;
+
+            await opportunityNotesService.createNote(
+                opportunityId,
+                noteContent,
+                userName
+            );
+        }
     },
 
     // Complete an action and create a note

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Search, Filter, User, Briefcase, Clock, CheckCircle, AlertCircle, ExternalLink, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { CheckSquare, Search, Filter, User, Briefcase, Clock, CheckCircle, AlertCircle, ExternalLink, ChevronDown, ChevronRight, X, Trash } from 'lucide-react';
 import { opportunityActionsService } from '../../services/opportunityActionsService';
 import { responsiblesService } from '../../services/responsiblesService';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './Actions.module.css';
 
 const Actions = () => {
+    const { user } = useAuth();
     const [actions, setActions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [responsibles, setResponsibles] = useState([]);
@@ -19,6 +21,21 @@ const Actions = () => {
 
     // Expanded groups
     const [expandedGroups, setExpandedGroups] = useState({});
+
+    // Modals
+    const [completeModal, setCompleteModal] = useState({
+        isOpen: false,
+        actionId: null,
+        opportunityId: null,
+        noteText: ''
+    });
+
+    const [deleteActionModal, setDeleteActionModal] = useState({
+        isOpen: false,
+        actionId: null,
+        opportunityId: null,
+        noteText: ''
+    });
 
     useEffect(() => {
         loadData();
@@ -103,6 +120,56 @@ const Actions = () => {
         setStatusFilter('');
         setResponsibleFilter('');
         setSearchText('');
+    };
+
+    const handleOpenCompleteModal = (action) => {
+        setCompleteModal({
+            isOpen: true,
+            actionId: action.id,
+            opportunityId: action.opportunity_id,
+            noteText: ''
+        });
+    };
+
+    const handleCompleteAction = async () => {
+        try {
+            await opportunityActionsService.completeAction(
+                completeModal.actionId,
+                completeModal.opportunityId,
+                completeModal.noteText,
+                user?.name || user?.email || 'Usuário'
+            );
+            setCompleteModal({ isOpen: false, actionId: null, opportunityId: null, noteText: '' });
+            await loadActions();
+        } catch (error) {
+            console.error('Erro ao concluir ação:', error);
+            alert('Erro ao concluir ação. Tente novamente.');
+        }
+    };
+
+    const handleOpenDeleteModal = (action) => {
+        setDeleteActionModal({
+            isOpen: true,
+            actionId: action.id,
+            opportunityId: action.opportunity_id,
+            noteText: ''
+        });
+    };
+
+    const handleDeleteAction = async () => {
+        try {
+            await opportunityActionsService.deleteAction(
+                deleteActionModal.actionId,
+                deleteActionModal.opportunityId,
+                deleteActionModal.noteText,
+                user?.name || user?.email || 'Usuário'
+            );
+            setDeleteActionModal({ isOpen: false, actionId: null, opportunityId: null, noteText: '' });
+            await loadActions();
+        } catch (error) {
+            console.error('Erro ao excluir ação:', error);
+            alert('Erro ao excluir ação. Tente novamente.');
+        }
     };
 
     const hasFilters = statusFilter || responsibleFilter || searchText;
@@ -318,6 +385,36 @@ const Actions = () => {
                                                                     </span>
                                                                 )}
                                                             </div>
+                                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                                {action.status === 'pendente' && (
+                                                                    <button
+                                                                        onClick={() => handleOpenCompleteModal(action)}
+                                                                        className="btn btn-secondary"
+                                                                        style={{
+                                                                            fontSize: '11px',
+                                                                            padding: '4px 10px',
+                                                                            gap: '4px'
+                                                                        }}
+                                                                        title="Concluir ação"
+                                                                    >
+                                                                        <CheckCircle size={12} />
+                                                                        Concluir
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => handleOpenDeleteModal(action)}
+                                                                    className="btn btn-secondary"
+                                                                    style={{
+                                                                        fontSize: '11px',
+                                                                        padding: '4px 10px',
+                                                                        gap: '4px'
+                                                                    }}
+                                                                    title="Excluir ação"
+                                                                >
+                                                                    <Trash size={12} />
+                                                                    Excluir
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         <p className={styles.actionDescription}>
                                                             {action.description}
@@ -333,6 +430,134 @@ const Actions = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Conclusão de Ação */}
+            {completeModal.isOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1100
+                    }}
+                    onClick={() => setCompleteModal({ isOpen: false, actionId: null, opportunityId: null, noteText: '' })}
+                >
+                    <div
+                        style={{
+                            background: 'white',
+                            borderRadius: '12px',
+                            padding: '24px',
+                            maxWidth: '500px',
+                            width: '90%',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <CheckCircle size={24} style={{ color: 'var(--color-success)' }} />
+                            Concluir Ação
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '14px' }}>
+                            Uma nota será gerada automaticamente ao concluir esta ação.
+                            Você pode adicionar informações adicionais abaixo (opcional):
+                        </p>
+                        <textarea
+                            className="input"
+                            placeholder="Adicione observações sobre a conclusão da ação (opcional)..."
+                            value={completeModal.noteText}
+                            onChange={(e) => setCompleteModal({ ...completeModal, noteText: e.target.value })}
+                            rows={4}
+                            style={{ resize: 'vertical', minHeight: '100px', marginBottom: '16px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setCompleteModal({ isOpen: false, actionId: null, opportunityId: null, noteText: '' })}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={handleCompleteAction}
+                                style={{ background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                            >
+                                <CheckCircle size={16} />
+                                Concluir Ação
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Exclusão de Ação */}
+            {deleteActionModal.isOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1100
+                    }}
+                    onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, opportunityId: null, noteText: '' })}
+                >
+                    <div
+                        style={{
+                            background: 'white',
+                            borderRadius: '12px',
+                            padding: '24px',
+                            maxWidth: '500px',
+                            width: '90%',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Trash size={24} style={{ color: 'var(--color-danger)' }} />
+                            Excluir Ação
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '14px' }}>
+                            Uma nota será gerada automaticamente ao excluir esta ação.
+                            Você pode adicionar informações adicionais abaixo (opcional):
+                        </p>
+                        <textarea
+                            className="input"
+                            placeholder="Adicione o motivo da exclusão (opcional)..."
+                            value={deleteActionModal.noteText}
+                            onChange={(e) => setDeleteActionModal({ ...deleteActionModal, noteText: e.target.value })}
+                            rows={4}
+                            style={{ resize: 'vertical', minHeight: '100px', marginBottom: '16px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, opportunityId: null, noteText: '' })}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={handleDeleteAction}
+                                style={{ background: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}
+                            >
+                                <Trash size={16} />
+                                Excluir Ação
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

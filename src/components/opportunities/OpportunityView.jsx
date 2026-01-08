@@ -68,6 +68,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
         noteText: ''
     });
 
+    // Modal para exclusão de ação
+    const [deleteActionModal, setDeleteActionModal] = useState({
+        isOpen: false,
+        actionId: null,
+        noteText: ''
+    });
+
     // Sincronizar estado local quando a prop mudar (apenas na primeira renderização)
     useEffect(() => {
         setCurrentOpportunity(opportunity);
@@ -153,22 +160,29 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
         }
     };
 
-    const handleDeleteAction = async (actionId) => {
-        setConfirmModal({
+    const handleDeleteAction = (action) => {
+        setDeleteActionModal({
             isOpen: true,
-            title: 'Excluir Ação',
-            message: 'Tem certeza que deseja excluir esta ação? Esta operação não pode ser desfeita.',
-            type: 'danger',
-            onConfirm: async () => {
-                try {
-                    await opportunityActionsService.deleteAction(actionId);
-                    await loadActions();
-                } catch (error) {
-                    console.error('Erro ao excluir ação:', error);
-                    alert('Erro ao excluir ação. Tente novamente.');
-                }
-            }
+            actionId: action.id,
+            noteText: ''
         });
+    };
+
+    const handleDeleteActionConfirm = async () => {
+        try {
+            await opportunityActionsService.deleteAction(
+                deleteActionModal.actionId,
+                currentOpportunity.id,
+                deleteActionModal.noteText,
+                user?.name || user?.email || 'Usuário'
+            );
+            setDeleteActionModal({ isOpen: false, actionId: null, noteText: '' });
+            await loadActions();
+            await loadNotes(); // Reload notes since a new note was created
+        } catch (error) {
+            console.error('Erro ao excluir ação:', error);
+            alert('Erro ao excluir ação. Tente novamente.');
+        }
     };
 
     const handleOpenCompleteModal = (action) => {
@@ -422,9 +436,9 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                 <div className={styles.modalHeader} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                         <div>
-                            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>{currentOpportunity.title || 'Sem título'}</h3>
+                            <h3 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '600' }}>{currentOpportunity.title || 'Sem título'}</h3>
                             <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                                Criado em {formatDate(currentOpportunity.creation_date)}
+                                {currentOpportunity.opportunity_number} - Criado em {formatDate(currentOpportunity.creation_date)}
                             </span>
                         </div>
                         <button className={styles.closeBtn} onClick={onClose}><X size={24} /></button>
@@ -1328,58 +1342,30 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                                                 {action.status === 'pendente' && (
                                                                     <button
                                                                         onClick={() => handleOpenCompleteModal(action)}
+                                                                        className="btn btn-secondary"
                                                                         style={{
-                                                                            background: 'var(--color-success)',
-                                                                            border: '2px solid var(--color-success)',
-                                                                            color: 'white',
-                                                                            cursor: 'pointer',
-                                                                            padding: '8px 16px',
-                                                                            borderRadius: '6px',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            gap: '6px',
-                                                                            fontSize: '13px',
-                                                                            fontWeight: 600,
-                                                                            transition: 'all 0.2s',
-                                                                            boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)'
-                                                                        }}
-                                                                        onMouseEnter={(e) => {
-                                                                            e.currentTarget.style.background = 'var(--color-success-dark)';
-                                                                            e.currentTarget.style.transform = 'translateY(-1px)';
-                                                                        }}
-                                                                        onMouseLeave={(e) => {
-                                                                            e.currentTarget.style.background = 'var(--color-success)';
-                                                                            e.currentTarget.style.transform = 'translateY(0)';
+                                                                            fontSize: '12px',
+                                                                            padding: '6px 12px',
+                                                                            gap: '4px'
                                                                         }}
                                                                         title="Concluir ação"
                                                                     >
-                                                                        <CheckCircle size={16} />
+                                                                        <CheckCircle size={14} />
                                                                         Concluir
                                                                     </button>
                                                                 )}
                                                                 <button
-                                                                    onClick={() => handleDeleteAction(action.id)}
+                                                                    onClick={() => handleDeleteAction(action)}
+                                                                    className="btn btn-secondary"
                                                                     style={{
-                                                                        background: 'none',
-                                                                        border: 'none',
-                                                                        color: 'var(--text-tertiary)',
-                                                                        cursor: 'pointer',
-                                                                        padding: '6px',
-                                                                        borderRadius: '4px',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center'
-                                                                    }}
-                                                                    onMouseEnter={(e) => {
-                                                                        e.currentTarget.style.background = 'var(--color-danger-light)';
-                                                                        e.currentTarget.style.color = 'var(--color-danger)';
-                                                                    }}
-                                                                    onMouseLeave={(e) => {
-                                                                        e.currentTarget.style.background = 'none';
-                                                                        e.currentTarget.style.color = 'var(--text-tertiary)';
+                                                                        fontSize: '12px',
+                                                                        padding: '6px 12px',
+                                                                        gap: '4px'
                                                                     }}
                                                                     title="Excluir ação"
                                                                 >
                                                                     <Trash size={14} />
+                                                                    Excluir
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -1489,6 +1475,70 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                 >
                                     <CheckCircle size={16} />
                                     Concluir Ação
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal de Exclusão de Ação */}
+                {deleteActionModal.isOpen && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1100
+                        }}
+                        onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, noteText: '' })}
+                    >
+                        <div
+                            style={{
+                                background: 'white',
+                                borderRadius: '12px',
+                                padding: '24px',
+                                maxWidth: '500px',
+                                width: '90%',
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Trash size={24} style={{ color: 'var(--color-danger)' }} />
+                                Excluir Ação
+                            </h3>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '14px' }}>
+                                Uma nota será gerada automaticamente ao excluir esta ação.
+                                Você pode adicionar informações adicionais abaixo (opcional):
+                            </p>
+                            <textarea
+                                className="input"
+                                placeholder="Adicione o motivo da exclusão (opcional)..."
+                                value={deleteActionModal.noteText}
+                                onChange={(e) => setDeleteActionModal({ ...deleteActionModal, noteText: e.target.value })}
+                                rows={4}
+                                style={{ resize: 'vertical', minHeight: '100px', marginBottom: '16px' }}
+                            />
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, noteText: '' })}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleDeleteActionConfirm}
+                                    style={{ background: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}
+                                >
+                                    <Trash size={16} />
+                                    Excluir Ação
                                 </button>
                             </div>
                         </div>
