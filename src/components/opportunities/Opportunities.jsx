@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, List, Grid3x3, Layers, LayoutList } from 'lucide-react';
+import { Button } from '@iadefysolutions/design-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { opportunityService } from '../../services/opportunityService';
 import OpportunityList from './OpportunityList';
@@ -186,10 +187,9 @@ const Opportunities = () => {
                                     </button>
                                 </div>
 
-                                <button className="btn btn-primary" onClick={handleCreate}>
-                                    <Plus size={16} />
+                                <Button icon={Plus} onClick={handleCreate}>
                                     Nova Oportunidade
-                                </button>
+                                </Button>
                             </div>
                         </div>
 

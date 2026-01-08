@@ -4,6 +4,7 @@ import CustomFields from './CustomFields';
 import StageSettings from './StageSettings';
 import ViewSettings from './ViewSettings';
 import ResponsiblesSettings from './ResponsiblesSettings';
+import TagSettings from './TagSettings';
 import styles from './Settings.module.css';
 import ExportData from './ExportData';
 
@@ -28,6 +29,12 @@ const Settings = () => {
                     onClick={() => setActiveTab('responsibles')}
                 >
                     Responsáveis
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'tags' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('tags')}
+                >
+                    Tags
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === 'fields' ? styles.active : ''}`}
@@ -58,6 +65,7 @@ const Settings = () => {
             <div className={styles.tabContent}>
                 {activeTab === 'company' && <CompanySettings />}
                 {activeTab === 'responsibles' && <ResponsiblesSettings />}
+                {activeTab === 'tags' && <TagSettings />}
                 {activeTab === 'fields' && <CustomFields />}
                 {activeTab === 'stages' && <StageSettings />}
                 {activeTab === 'view' && <ViewSettings />}
@@ -68,4 +76,3 @@ const Settings = () => {
 };
 
 export default Settings;
-

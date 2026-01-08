@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DollarSign, Briefcase, Target, Plus, Trash2, Lightbulb } from 'lucide-react';
+import { Button, Card } from '@iadefysolutions/design-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { opportunityService } from '../../services/opportunityService';
@@ -319,11 +320,11 @@ const Dashboard = () => {
     if (error) {
         return (
             <div className="container">
-                <div className="card" style={{ maxWidth: 520, margin: '40px auto' }}>
+                <Card style={{ maxWidth: 520, margin: '40px auto' }}>
                     <h3 style={{ marginTop: 0 }}>Dashboard</h3>
                     <p style={{ color: 'var(--color-danger)' }}>{error}</p>
-                    <button className="btn btn-primary" onClick={loadDashboardData}>Tentar novamente</button>
-                </div>
+                    <Button onClick={loadDashboardData}>Tentar novamente</Button>
+                </Card>
             </div>
         );
     }
@@ -332,22 +333,21 @@ const Dashboard = () => {
         <div className="container">
             <div className="page-header">
                 <h1 className="page-title">Painel</h1>
-                <button className="btn btn-primary" onClick={() => setShowChartModal(true)}>
-                    <Plus size={18} />
+                <Button icon={Plus} onClick={() => setShowChartModal(true)}>
                     Nova Visualização
-                </button>
+                </Button>
             </div>
 
             {!hasData && (
-                <div className="card" style={{ marginBottom: '24px' }}>
+                <Card style={{ marginBottom: '24px' }}>
                     <h3 style={{ marginTop: 0 }}>Sem dados ainda</h3>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
                         Cadastre uma oportunidade para ver os gráficos e métricas.
                     </p>
-                    <a className="btn btn-primary" href="/opportunities">
+                    <Button as="a" href="/opportunities">
                         Ir para Oportunidades
-                    </a>
-                </div>
+                    </Button>
+                </Card>
             )}
 
             {/* Filtro de período - Redesigned */}

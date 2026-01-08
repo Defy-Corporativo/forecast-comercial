@@ -172,16 +172,15 @@ const ClientForm = ({ client = null, onClose, onSave }) => {
                 contacts[0].is_primary = true;
             }
 
-            let clientId;
+            let savedClient;
 
             if (client) {
                 // Update existing client
                 await clientService.updateClient(client.id, formData);
-                clientId = client.id;
+                savedClient = { id: client.id, ...formData };
             } else {
                 // Create new client
-                const newClient = await clientService.createClient(user.id, formData);
-                clientId = newClient.id;
+                savedClient = await clientService.createClient(user.id, formData);
             }
 
             // Handle contacts
@@ -197,7 +196,7 @@ const ClientForm = ({ client = null, onClose, onSave }) => {
             // Create new contacts
             const validContacts = contacts.filter(c => c.name.trim() !== '');
             for (const contact of validContacts) {
-                await clientService.createContact(clientId, {
+                await clientService.createContact(savedClient.id, {
                     name: contact.name,
                     email: contact.email || null,
                     phone: contact.phone || null,
@@ -206,7 +205,8 @@ const ClientForm = ({ client = null, onClose, onSave }) => {
                 });
             }
 
-            onSave();
+            // Pass the saved client back to the parent component
+            onSave(savedClient);
         } catch (error) {
             console.error('Erro ao salvar cliente:', error);
             if (error.message?.includes('duplicate') || error.code === '23505') {

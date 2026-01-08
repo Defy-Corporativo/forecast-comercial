@@ -238,9 +238,20 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         setShowDropdown(false);
     };
 
-    const handleClientCreated = () => {
+    const handleClientCreated = (newClient) => {
         loadClients();
         setShowClientModal(false);
+
+        // Auto-select the newly created client
+        if (newClient && newClient.id && newClient.name) {
+            setFormData(prev => ({
+                ...prev,
+                client_id: newClient.id,
+                client_name: newClient.name
+            }));
+            setSearchTerm(newClient.name);
+            setShowDropdown(false);
+        }
     };
 
     const handleCustomFieldChange = (fieldName, value) => {
@@ -744,21 +755,6 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                         ))}
                                     </select>
                                 </div>
-
-                                <div className="input-group" style={{ flex: 1, marginBottom: 0, minWidth: '160px' }}>
-                                    <label className="label">Possib. Faturamento *</label>
-                                    <select
-                                        name="billing_probability"
-                                        className="input"
-                                        value={formData.billing_probability}
-                                        onChange={handleChange}
-                                        required
-                                    >
-                                        <option value="baixa">Baixa</option>
-                                        <option value="media">Média</option>
-                                        <option value="alta">Alta</option>
-                                    </select>
-                                </div>
                             </div>
                         )}
                         <div style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
@@ -918,6 +914,24 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                         {responsibles.filter(r => r.is_active).map(r => (
                                             <option key={r.id} value={r.name}>{r.name}</option>
                                         ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Campo Possibilidade de Faturamento - à direita do Responsável */}
+                            {!formData.is_goal && !formData.is_potential && (
+                                <div className="input-group" style={{ flex: 1, marginBottom: 0, minWidth: '180px' }}>
+                                    <label className="label">Possibilidade de Faturamento *</label>
+                                    <select
+                                        name="billing_probability"
+                                        className="input"
+                                        value={formData.billing_probability}
+                                        onChange={handleChange}
+                                        required
+                                    >
+                                        <option value="baixa">Baixa</option>
+                                        <option value="media">Média</option>
+                                        <option value="alta">Alta</option>
                                     </select>
                                 </div>
                             )}

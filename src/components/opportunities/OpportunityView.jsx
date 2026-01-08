@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit2, Trash2, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle, DollarSign, Layers, ChevronLeft, ChevronRight, CheckSquare, Clock, AlertCircle, User } from 'lucide-react';
+import { Checkbox } from '@iadefysolutions/design-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
@@ -586,7 +587,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                         </div>
 
                         <div className="input-group">
-                            <label className="label">Possib. Faturamento</label>
+                            <label className="label">Possibilidade de Faturamento</label>
                             <div className={styles.viewField}>
                                 <span style={{
                                     padding: '4px 12px',
@@ -810,33 +811,27 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                                             {formatCurrency(forecast.estimated_value)}
                                                         </td>
                                                         <td style={{ padding: '12px', textAlign: 'center' }}>
-                                                            <span
-                                                                onClick={() => !currentOpportunity.is_goal && handleToggleInvoiced(forecast)}
-                                                                style={{
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '4px',
-                                                                    padding: '4px 10px',
-                                                                    borderRadius: '12px',
-                                                                    border: 'none',
-                                                                    fontSize: '0.8rem',
-                                                                    fontWeight: 500,
-                                                                    background: currentOpportunity.is_goal ? 'var(--bg-secondary)' : (forecast.invoiced ? 'var(--color-success)' : 'var(--bg-secondary)'),
-                                                                    color: currentOpportunity.is_goal ? 'var(--text-tertiary)' : (forecast.invoiced ? 'white' : 'var(--text-secondary)'),
-                                                                    opacity: currentOpportunity.is_goal ? 0.7 : 1,
-                                                                    cursor: currentOpportunity.is_goal ? 'default' : 'pointer',
-                                                                    transition: 'all 0.2s ease'
-                                                                }}
-                                                                title={currentOpportunity.is_goal ? '' : (forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado')}
-                                                            >
-                                                                {currentOpportunity.is_goal ? (
-                                                                    <span style={{ color: 'var(--text-tertiary)' }}>-</span>
-                                                                ) : forecast.invoiced ? (
-                                                                    <><CheckCircle size={14} /> Faturado</>
-                                                                ) : (
-                                                                    <><Circle size={14} /> Pendente</>
-                                                                )}
-                                                            </span>
+                                                            {currentOpportunity.is_goal ? (
+                                                                <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+                                                            ) : (
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                                                    <span style={{
+                                                                        fontSize: '0.8rem',
+                                                                        color: forecast.invoiced ? 'var(--color-success)' : 'var(--text-secondary)',
+                                                                        fontWeight: 500,
+                                                                        minWidth: '60px',
+                                                                        textAlign: 'right'
+                                                                    }}>
+                                                                        {forecast.invoiced ? 'Faturado' : 'Pendente'}
+                                                                    </span>
+                                                                    <div title={forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado'}>
+                                                                        <Checkbox
+                                                                            checked={forecast.invoiced}
+                                                                            onChange={() => handleToggleInvoiced(forecast)}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                                                             {forecast.notes || '-'}
@@ -1030,54 +1025,32 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                                                     </div>
 
                                                     {editingNoteId !== note.id && (
-                                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                                        <div style={{ display: 'flex', gap: '6px' }}>
                                                             <button
                                                                 onClick={() => handleStartEditNote(note)}
+                                                                className="btn btn-secondary"
                                                                 style={{
-                                                                    background: 'none',
-                                                                    border: 'none',
-                                                                    color: 'var(--text-tertiary)',
-                                                                    cursor: 'pointer',
-                                                                    padding: '4px',
-                                                                    borderRadius: '4px',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center'
-                                                                }}
-                                                                onMouseEnter={(e) => {
-                                                                    e.currentTarget.style.background = 'var(--color-primary-light)';
-                                                                    e.currentTarget.style.color = 'var(--color-primary)';
-                                                                }}
-                                                                onMouseLeave={(e) => {
-                                                                    e.currentTarget.style.background = 'none';
-                                                                    e.currentTarget.style.color = 'var(--text-tertiary)';
+                                                                    fontSize: '12px',
+                                                                    padding: '6px 12px',
+                                                                    gap: '4px'
                                                                 }}
                                                                 title="Editar nota"
                                                             >
                                                                 <Edit2 size={14} />
+                                                                Editar
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteNote(note.id)}
+                                                                className="btn btn-secondary"
                                                                 style={{
-                                                                    background: 'none',
-                                                                    border: 'none',
-                                                                    color: 'var(--text-tertiary)',
-                                                                    cursor: 'pointer',
-                                                                    padding: '4px',
-                                                                    borderRadius: '4px',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center'
-                                                                }}
-                                                                onMouseEnter={(e) => {
-                                                                    e.currentTarget.style.background = 'var(--color-danger-light)';
-                                                                    e.currentTarget.style.color = 'var(--color-danger)';
-                                                                }}
-                                                                onMouseLeave={(e) => {
-                                                                    e.currentTarget.style.background = 'none';
-                                                                    e.currentTarget.style.color = 'var(--text-tertiary)';
+                                                                    fontSize: '12px',
+                                                                    padding: '6px 12px',
+                                                                    gap: '4px'
                                                                 }}
                                                                 title="Excluir nota"
                                                             >
                                                                 <Trash size={14} />
+                                                                Excluir
                                                             </button>
                                                         </div>
                                                     )}

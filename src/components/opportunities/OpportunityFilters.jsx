@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, X, Target, Lightbulb } from 'lucide-react';
+import { Search, Filter, X, Target, Lightbulb, Tag } from 'lucide-react';
+import { Button } from '@iadefysolutions/design-system';
 import styles from './Opportunities.module.css';
 
 const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost', 'Meta', 'Potencial'];
@@ -9,6 +10,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
         stages: [], // Empty array = all stages (no filter)
+        tags: [], // Empty array = all tags (no filter)
         minValue: '',
         maxValue: '',
         responsible: '',
@@ -16,9 +18,29 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
         dateTo: ''
     });
 
+    const [availableTags, setAvailableTags] = useState([]);
+
+    useEffect(() => {
+        if (opportunities) {
+            // Use tagList which is pre-processed by the service (array of {id, name} objects)
+            // Fallback to tags if tagList is not available
+            const extractTagNames = (opp) => {
+                if (opp.tagList && Array.isArray(opp.tagList)) {
+                    return opp.tagList.map(t => t?.name || t).filter(Boolean);
+                }
+                if (opp.tags && Array.isArray(opp.tags)) {
+                    return opp.tags.map(t => t?.tag?.name || t?.name || '').filter(Boolean);
+                }
+                return [];
+            };
+            const unique = [...new Set(opportunities.flatMap(extractTagNames))].sort();
+            setAvailableTags(unique);
+        }
+    }, [opportunities]);
+
     useEffect(() => {
         // Aplicar filtros quando as oportunidades mudarem (apenas se não houver filtros ativos)
-        if (!searchTerm && filters.stages.length === 0 && !filters.minValue && !filters.maxValue &&
+        if (!searchTerm && filters.stages.length === 0 && filters.tags.length === 0 && !filters.minValue && !filters.maxValue &&
             !filters.responsible && !filters.dateFrom && !filters.dateTo) {
             if (opportunities) {
                 onFilterChange([...opportunities]);
@@ -59,6 +81,18 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
         // Filtro por estágios (multi-select)
         if (filterData.stages && filterData.stages.length > 0) {
             filtered = filtered.filter(opp => filterData.stages.includes(opp.stage));
+        }
+
+        // Filtro por tags (multi-select, OR logic)
+        if (filterData.tags && filterData.tags.length > 0) {
+            filtered = filtered.filter(opp => {
+                // Use tagList if available (pre-processed by service), otherwise fallback to tags
+                const oppTags = opp.tagList || opp.tags || [];
+                return oppTags.some(t => {
+                    const tagName = t?.name || t?.tag?.name || (typeof t === 'string' ? t : '');
+                    return filterData.tags.includes(tagName);
+                });
+            });
         }
 
         // Filtro por valor mínimo
@@ -115,6 +149,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
         setSearchTerm('');
         setFilters({
             stages: [],
+            tags: [],
             minValue: '',
             maxValue: '',
             responsible: '',
@@ -126,7 +161,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
         }
     };
 
-    const hasActiveFilters = searchTerm || filters.stages.length > 0 || filters.minValue || filters.maxValue ||
+    const hasActiveFilters = searchTerm || filters.stages.length > 0 || filters.tags.length > 0 || filters.minValue || filters.maxValue ||
         filters.responsible || filters.dateFrom || filters.dateTo;
 
     const toggleStage = (stage) => {
@@ -138,6 +173,13 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
 
     const selectAllStages = () => {
         handleFilterChange('stages', []);
+    };
+
+    const toggleTag = (tag) => {
+        const newTags = filters.tags.includes(tag)
+            ? filters.tags.filter(t => t !== tag)
+            : [...filters.tags, tag];
+        handleFilterChange('tags', newTags);
     };
 
     return (
@@ -222,7 +264,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                             padding: '8px',
                             border: '1px solid var(--border-color)',
                             borderRadius: 'var(--border-radius-sm)',
-                            background: 'var(--bg-secondary)'
+                            background: 'var(--bg-main)'
                         }}>
                             {STAGES.map(stage => {
                                 const isSelected = filters.stages.length === 0 || filters.stages.includes(stage);
@@ -233,12 +275,13 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '4px',
-                                            padding: '4px 8px',
-                                            borderRadius: '4px',
+                                            padding: '4px 10px',
+                                            borderRadius: '12px',
                                             background: isSelected ? 'var(--color-primary)' : 'white',
-                                            color: isSelected ? 'white' : 'var(--text-primary)',
+                                            color: isSelected ? 'white' : 'var(--text-secondary)',
                                             cursor: 'pointer',
                                             fontSize: '0.8rem',
+                                            fontWeight: 500,
                                             border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--border-color)'}`,
                                             transition: 'all 0.15s'
                                         }}
@@ -255,6 +298,58 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                             })}
                         </div>
                     </div>
+
+                    {/* Tags - Full width if available */}
+                    {availableTags.length > 0 && (
+                        <div style={{ marginBottom: '16px' }}>
+                            <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                <Tag size={14} />
+                                <span>Tags</span>
+                            </label>
+                            <div style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '6px',
+                                padding: '8px',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--border-radius-sm)',
+                                background: 'var(--bg-main)'
+                            }}>
+                                {availableTags.map(tag => {
+                                    // Ensure tag is always a string for rendering
+                                    const tagName = typeof tag === 'string' ? tag : (tag?.tag || tag?.name || String(tag));
+                                    const isSelected = filters.tags.includes(tagName);
+                                    return (
+                                        <label
+                                            key={tagName}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '4px 10px',
+                                                borderRadius: '12px',
+                                                background: isSelected ? 'var(--color-primary)' : 'white',
+                                                color: isSelected ? 'white' : 'var(--text-secondary)',
+                                                cursor: 'pointer',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 500,
+                                                border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                                                transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={() => toggleTag(tagName)}
+                                                style={{ display: 'none' }}
+                                            />
+                                            {tagName}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Grid responsivo para os outros campos */}
                     <div style={{

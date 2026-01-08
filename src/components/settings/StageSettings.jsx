@@ -57,7 +57,7 @@ const StageSettings = () => {
                 description: '',
                 order_index: stages.length,
                 color: '#64748B',
-                color: '#64748B',
+
                 allowed_next_stages: [],
                 predecessors: []
             });

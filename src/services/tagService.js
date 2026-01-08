@@ -66,6 +66,37 @@ export const tagService = {
         return data;
     },
 
+    // Update an existing tag
+    async updateTag(tagId, newName) {
+        const normalizedName = newName.trim();
+
+        // Check if another tag with this name exists
+        const { data: existing } = await supabase
+            .from('opportunity_tags')
+            .select('id')
+            .ilike('name', normalizedName)
+            .neq('id', tagId)
+            .single();
+
+        if (existing) {
+            throw new Error('Já existe uma tag com este nome.');
+        }
+
+        const { data, error } = await supabase
+            .from('opportunity_tags')
+            .update({ name: normalizedName })
+            .eq('id', tagId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Erro ao atualizar tag:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
     // Get tags for a specific opportunity
     async getTagsByOpportunity(opportunityId) {
         const { data, error } = await supabase

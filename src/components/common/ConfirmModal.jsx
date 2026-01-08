@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, CheckCircle, X } from 'lucide-react';
+import { Button } from '@iadefysolutions/design-system';
 import styles from './ConfirmModal.module.css';
 
 const ConfirmModal = ({
@@ -46,18 +47,20 @@ const ConfirmModal = ({
                 {message && <p className={styles.message}>{message}</p>}
 
                 <div className={styles.actions}>
-                    <button
-                        className={`btn btn-secondary ${styles.cancelBtn}`}
+                    <Button
+                        variant="secondary"
                         onClick={onClose}
+                        className={styles.cancelBtn}
                     >
                         {cancelText}
-                    </button>
-                    <button
-                        className={`btn ${type === 'danger' ? 'btn-danger' : 'btn-primary'} ${styles.confirmBtn}`}
+                    </Button>
+                    <Button
+                        variant={type === 'danger' ? 'danger' : 'primary'}
                         onClick={handleConfirm}
+                        className={styles.confirmBtn}
                     >
                         {confirmText}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -65,3 +68,4 @@ const ConfirmModal = ({
 };
 
 export default ConfirmModal;
+

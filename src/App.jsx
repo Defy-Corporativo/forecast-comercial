@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { ThemeProvider } from '@iadefysolutions/design-system';
 
 import { AuthProvider } from './contexts/AuthContext';
 import { StageProvider } from './contexts/StageContext';
@@ -19,31 +20,34 @@ import DebugLogViewer from './components/debug/DebugLogViewer';
 
 const App = () => {
   return (
-    <StageProvider>
-      <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <MainLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="opportunities" element={<Opportunities />} />
-              <Route path="actions" element={<Actions />} />
-              <Route path="clients" element={<Clients />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-          </Routes>
-        </Router>
-        <DebugLogViewer />
-      </AuthProvider>
-    </StageProvider>
+    <ThemeProvider defaultTheme="light">
+      <StageProvider>
+        <AuthProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <MainLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="opportunities" element={<Opportunities />} />
+                <Route path="actions" element={<Actions />} />
+                <Route path="clients" element={<Clients />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
+            </Routes>
+          </Router>
+          <DebugLogViewer />
+        </AuthProvider>
+      </StageProvider>
+    </ThemeProvider>
   );
 }
 
 export default App;
+

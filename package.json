@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
+    "@iadefysolutions/design-system": "^1.0.0",
     "@supabase/supabase-js": "^2.84.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
