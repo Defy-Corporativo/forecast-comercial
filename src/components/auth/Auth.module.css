@@ -20,10 +20,13 @@
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         opacity: 1;
     }
+
     50% {
         transform: scale(1.1);
         opacity: 0.8;
@@ -87,4 +90,39 @@
 .authLink:hover {
     color: var(--color-primary-hover);
     text-decoration: underline;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .authContainer {
+        padding: 16px;
+        padding-top: calc(16px + var(--safe-area-top));
+        padding-bottom: calc(16px + var(--safe-area-bottom));
+    }
+
+    .authCard {
+        padding: 32px 24px;
+        max-width: 100%;
+        border-radius: var(--border-radius-lg);
+    }
+
+    .authTitle {
+        font-size: 24px;
+        margin-bottom: 24px;
+    }
+
+    .authFooter {
+        margin-top: 20px;
+        padding-top: 20px;
+    }
+}
+
+@media (max-width: 375px) {
+    .authCard {
+        padding: 24px 20px;
+    }
+
+    .authTitle {
+        font-size: 22px;
+    }
 }

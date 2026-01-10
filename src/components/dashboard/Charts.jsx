@@ -8,7 +8,13 @@ import styles from './Dashboard.module.css';
 
 const SafeResponsiveContainer = ({ children, ...props }) => {
     return (
-        <div style={{ width: props.width || '100%', height: props.height || '100%', minHeight: 1 }}>
+        <div style={{
+            width: props.width || '100%',
+            height: props.height || '100%',
+            minHeight: 1,
+            maxWidth: '100%',
+            overflow: 'hidden'
+        }}>
             <ResponsiveContainer {...props}>
                 {children}
             </ResponsiveContainer>
@@ -1311,7 +1317,7 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
             </div>
 
             {/* Legend */}
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
                     <span style={{ width: '12px', height: '3px', background: '#f59e0b', borderRadius: '2px' }}></span>
                     Meta

@@ -16,6 +16,7 @@
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -38,6 +39,7 @@
         transform: translateY(-20px);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -96,4 +98,40 @@
     min-width: 120px;
     padding: 10px 20px;
     font-size: 0.95rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .overlay {
+        padding: 16px;
+        padding-bottom: calc(16px + var(--safe-area-bottom));
+    }
+
+    .modal {
+        padding: 24px;
+        width: 100%;
+        max-width: 100%;
+        border-radius: var(--border-radius-lg);
+    }
+
+    .title {
+        font-size: 1.1rem;
+    }
+
+    .message {
+        font-size: 0.9rem;
+        margin-bottom: 24px;
+    }
+
+    .actions {
+        flex-direction: column-reverse;
+        gap: 10px;
+    }
+
+    .cancelBtn,
+    .confirmBtn {
+        width: 100%;
+        min-width: unset;
+        min-height: var(--touch-target-comfortable);
+    }
 }

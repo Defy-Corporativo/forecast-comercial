@@ -544,7 +544,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                         {/* Opportunity Type Selector */}
                         <div style={{ marginBottom: '1.5rem' }}>
                             <label className="label" style={{ marginBottom: '8px' }}>Tipo de Oportunidade *</label>
-                            <div style={{ display: 'flex', gap: '0' }}>
+                            <div className={styles.typeSelector} style={{ display: 'flex', gap: '0' }}>
                                 <button
                                     type="button"
                                     onClick={() => handleTypeChange('real')}
@@ -642,7 +642,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                         </div>
 
                         {!formData.is_goal && !formData.is_potential && (
-                            <div style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
+                            <div className={styles.formRow} style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
                                 <div className="input-group" style={{ flex: 2, marginBottom: 0 }}>
                                     <label className="label">Cliente / Empresa *</label>
                                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -757,7 +757,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                 </div>
                             </div>
                         )}
-                        <div style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
+                        <div className={styles.formRow} style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
                             <div className="input-group" style={{ flex: 2, marginBottom: 0 }}>
                                 <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <Tag size={14} />

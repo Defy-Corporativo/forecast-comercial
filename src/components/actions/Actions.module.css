@@ -308,23 +308,100 @@
 @media (max-width: 768px) {
     .statsRow {
         grid-template-columns: 1fr;
+        gap: 12px;
     }
-    
+
+    .statCard {
+        padding: 16px;
+    }
+
+    .statValue {
+        font-size: 1.5rem;
+    }
+
     .filtersBar {
         flex-direction: column;
         align-items: stretch;
+        padding: 14px 16px;
+        gap: 12px;
     }
-    
+
     .filterGroup {
         width: 100%;
     }
-    
+
+    .filterGroup select,
+    .filterGroup input {
+        min-height: var(--touch-target-min);
+        font-size: 16px;
+        /* Prevent iOS zoom */
+    }
+
     .viewToggle {
         width: 100%;
     }
-    
+
     .toggleBtn {
         flex: 1;
         justify-content: center;
+        min-height: var(--touch-target-min);
+    }
+
+    .groupHeader {
+        padding: 14px 16px;
+    }
+
+    .groupHeaderLeft {
+        gap: 10px;
+    }
+
+    .groupTitle {
+        font-size: 0.95rem;
+    }
+
+    .groupSubtitle {
+        display: none;
+    }
+
+    .actionItem {
+        padding: 14px 16px;
+    }
+
+    .actionRow {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .actionBadges {
+        width: 100%;
+    }
+
+    .actionDescription {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .statCard {
+        padding: 14px;
+        gap: 12px;
+    }
+
+    .statIcon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .statValue {
+        font-size: 1.25rem;
+    }
+
+    .statusPending,
+    .statusCompleted,
+    .age,
+    .ageOverdue {
+        font-size: 0.75rem;
+        padding: 3px 8px;
     }
 }

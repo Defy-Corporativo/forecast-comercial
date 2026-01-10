@@ -25,6 +25,17 @@ const Opportunities = () => {
     const [metaState, setMetaState] = useState(0);
     const [potencialState, setPotencialState] = useState(0);
 
+    // Mobile detection
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // Restaurar oportunidade em visualização do sessionStorage (para sobreviver a recarregamentos)
     useEffect(() => {
         const savedOpportunityId = sessionStorage.getItem('viewing_opportunity_id');
@@ -196,40 +207,32 @@ const Opportunities = () => {
             {/* Header fixo */}
             <div style={{ flexShrink: 0, zIndex: 10 }}>
                 <div className="container">
-                    <div style={{
-                        backgroundColor: 'white',
-                        borderRadius: 'var(--border-radius-md)',
-                        padding: '16px',
-                        marginTop: '16px',
-                        marginBottom: '16px',
-                        boxShadow: 'var(--shadow-sm)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px',
-                        border: '1px solid var(--border-color-light)'
-                    }}>
-                        <div className="page-header" style={{ marginBottom: 0 }}>
-                            <h1 className="page-title">Oportunidades</h1>
-                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                {/* Group Mode Switcher */}
-                                <div className={styles.viewSwitcher}>
-                                    <button
-                                        className={`${styles.viewBtn} ${groupMode === 'grouped' ? styles.active : ''}`}
-                                        onClick={() => setGroupMode('grouped')}
-                                        title="Visualização Agrupada por Oportunidade"
-                                    >
-                                        <Layers size={16} /> Agrupado
-                                    </button>
-                                    <button
-                                        className={`${styles.viewBtn} ${groupMode === 'flat' ? styles.active : ''}`}
-                                        onClick={() => setGroupMode('flat')}
-                                        title="Visualização por Previsão de Faturamento"
-                                    >
-                                        <LayoutList size={16} /> Por Previsão
-                                    </button>
-                                </div>
+                    <div className={styles.opportunitiesHeader}>
+                        {/* Row 1: Page Title */}
+                        <h1 className="page-title" style={{ margin: 0 }}>Oportunidades</h1>
 
-                                {/* View Mode Switcher */}
+                        {/* Row 2: Group Mode + View Mode (desktop only) */}
+                        <div className={styles.headerControls}>
+                            {/* Group Mode Switcher */}
+                            <div className={styles.viewSwitcher}>
+                                <button
+                                    className={`${styles.viewBtn} ${groupMode === 'grouped' ? styles.active : ''}`}
+                                    onClick={() => setGroupMode('grouped')}
+                                    title="Visualização Agrupada por Oportunidade"
+                                >
+                                    <Layers size={16} /> <span className={styles.btnLabel}>Agrupado</span>
+                                </button>
+                                <button
+                                    className={`${styles.viewBtn} ${groupMode === 'flat' ? styles.active : ''}`}
+                                    onClick={() => setGroupMode('flat')}
+                                    title="Visualização por Previsão de Faturamento"
+                                >
+                                    <LayoutList size={16} /> <span className={styles.btnLabel}>Por Previsão</span>
+                                </button>
+                            </div>
+
+                            {/* View Mode Switcher - Hidden on mobile */}
+                            {!isMobile && (
                                 <div className={styles.viewSwitcher}>
                                     <button
                                         className={`${styles.viewBtn} ${viewMode === 'list' ? styles.active : ''}`}
@@ -246,13 +249,15 @@ const Opportunities = () => {
                                         <Grid3x3 size={16} /> Cartões
                                     </button>
                                 </div>
-
-                                <Button icon={Plus} onClick={handleCreate}>
-                                    Nova Oportunidade
-                                </Button>
-                            </div>
+                            )}
                         </div>
 
+                        {/* Row 3: New Opportunity Button */}
+                        <Button icon={Plus} onClick={handleCreate} className={styles.newOpportunityBtn}>
+                            Nova Oportunidade
+                        </Button>
+
+                        {/* Row 4: Filters */}
                         <OpportunityFilters
                             opportunities={opportunitiesForFilters}
                             onFilterChange={setFilteredOpportunities}
@@ -268,8 +273,9 @@ const Opportunities = () => {
             {/* Conteúdo com scroll */}
             <div style={{ flex: 1, overflow: 'auto', backgroundColor: 'var(--bg-main)' }}>
                 <div className="container">
-                    {viewMode === 'list' ? (
-                        <OpportunityList
+                    {/* Force cards view on mobile, otherwise respect viewMode */}
+                    {(isMobile || viewMode === 'cards') ? (
+                        <OpportunityCards
                             opportunities={filteredOpportunities}
                             groupMode={groupMode}
                             onView={handleView}
@@ -277,7 +283,7 @@ const Opportunities = () => {
                             onDelete={handleDelete}
                         />
                     ) : (
-                        <OpportunityCards
+                        <OpportunityList
                             opportunities={filteredOpportunities}
                             groupMode={groupMode}
                             onView={handleView}

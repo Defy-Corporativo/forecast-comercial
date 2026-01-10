@@ -351,43 +351,14 @@ const Dashboard = () => {
             )}
 
             {/* Filtro de período - Redesigned */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                background: 'white',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-color-light)',
-                boxShadow: 'var(--shadow-xs)',
-                marginBottom: '24px',
-                gap: '24px',
-                flexWrap: 'wrap'
-            }}>
+            <div className={styles.periodFilter}>
                 {/* Período predefinido */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{
-                        fontSize: '0.85rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                    }}>Período</span>
+                <div className={styles.periodFilterGroup}>
+                    <span className={styles.periodFilterLabel}>Período</span>
                     <select
                         onChange={(e) => setPredefinedPeriod(e.target.value)}
                         defaultValue="thisYear"
-                        style={{
-                            border: '1px solid var(--border-color-light)',
-                            borderRadius: '8px',
-                            padding: '10px 14px',
-                            fontSize: '0.9rem',
-                            background: 'var(--bg-main)',
-                            cursor: 'pointer',
-                            minWidth: '180px',
-                            color: 'var(--text-primary)',
-                            fontWeight: 500,
-                            outline: 'none',
-                            transition: 'all 0.2s'
-                        }}
+                        className={styles.periodSelect}
                     >
                         <option value="thisMonth">Este mês</option>
                         <option value="lastMonth">Mês passado</option>
@@ -401,57 +372,23 @@ const Dashboard = () => {
                 </div>
 
                 {/* Separador visual */}
-                <div style={{
-                    width: '1px',
-                    height: '28px',
-                    background: 'var(--border-color-light)'
-                }} />
+                <div className={styles.periodDivider} />
 
                 {/* Período personalizado */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{
-                        fontSize: '0.85rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                    }}>De</span>
+                <div className={styles.periodFilterGroup}>
+                    <span className={styles.periodFilterLabel}>De</span>
                     <input
                         type="date"
                         value={dateRange.startDate}
                         onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                        style={{
-                            border: '1px solid var(--border-color-light)',
-                            borderRadius: '8px',
-                            padding: '10px 14px',
-                            fontSize: '0.9rem',
-                            background: 'var(--bg-main)',
-                            color: 'var(--text-primary)',
-                            fontWeight: 500,
-                            outline: 'none'
-                        }}
+                        className={styles.periodDateInput}
                     />
-                    <span style={{
-                        fontSize: '0.85rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                    }}>Até</span>
+                    <span className={styles.periodFilterLabel}>Até</span>
                     <input
                         type="date"
                         value={dateRange.endDate}
                         onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                        style={{
-                            border: '1px solid var(--border-color-light)',
-                            borderRadius: '8px',
-                            padding: '10px 14px',
-                            fontSize: '0.9rem',
-                            background: 'var(--bg-main)',
-                            color: 'var(--text-primary)',
-                            fontWeight: 500,
-                            outline: 'none'
-                        }}
+                        className={styles.periodDateInput}
                     />
                 </div>
             </div>

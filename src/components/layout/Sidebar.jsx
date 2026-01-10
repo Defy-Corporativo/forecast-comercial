@@ -1,9 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Briefcase, Settings, Menu, ChevronLeft, Building2, TrendingUp, CheckSquare } from 'lucide-react';
 import styles from './Layout.module.css';
 
 const Sidebar = ({ isCollapsed, onToggle }) => {
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     return (
         <>
             {!isCollapsed && <div className={styles.sidebarOverlay} onClick={onToggle} />}
@@ -86,18 +96,21 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         <Building2 size={20} />
                         {!isCollapsed && <span>Clientes</span>}
                     </NavLink>
-                    <NavLink
-                        to="/settings"
-                        className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
-                        title="Configurações"
-                        onClick={() => {
-                            console.log('Sidebar: Clicked Settings link');
-                            window.innerWidth < 768 && onToggle();
-                        }}
-                    >
-                        <Settings size={20} />
-                        {!isCollapsed && <span>Configurações</span>}
-                    </NavLink>
+                    {/* Hide Settings on mobile */}
+                    {!isMobile && (
+                        <NavLink
+                            to="/settings"
+                            className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+                            title="Configurações"
+                            onClick={() => {
+                                console.log('Sidebar: Clicked Settings link');
+                                window.innerWidth < 768 && onToggle();
+                            }}
+                        >
+                            <Settings size={20} />
+                            {!isCollapsed && <span>Configurações</span>}
+                        </NavLink>
+                    )}
                 </nav>
             </aside>
         </>

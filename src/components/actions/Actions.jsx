@@ -12,7 +12,7 @@ const Actions = () => {
     const [responsibles, setResponsibles] = useState([]);
 
     // View mode: 'responsible' or 'opportunity'
-    const [viewMode, setViewMode] = useState('responsible');
+    const [viewMode, setViewMode] = useState('opportunity');
 
     // Filters
     const [statusFilter, setStatusFilter] = useState(''); // '', 'pendente', 'concluida'
