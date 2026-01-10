@@ -1266,15 +1266,17 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
             };
         });
 
-        // Filter opportunities by billing probability
-        const filteredOpportunities = opportunities.filter(opp => {
-            if (billingProbabilityFilter === 'all') return true;
-            return opp.billing_probability === billingProbabilityFilter;
-        });
-
         // Process opportunities
-        filteredOpportunities.forEach(opp => {
+        // O filtro de billing_probability afeta APENAS o Forecast
+        // Meta e Faturado não são afetados pelo filtro
+        opportunities.forEach(opp => {
             const forecasts = opp.forecasts || [];
+
+            // Verificar se a oportunidade passa no filtro de billing_probability
+            // (apenas para oportunidades normais, não para metas)
+            const passesFilter = billingProbabilityFilter === 'all' ||
+                opp.is_goal ||
+                opp.billing_probability === billingProbabilityFilter;
 
             forecasts.forEach(forecast => {
                 // Use period_end if available, otherwise period_start
@@ -1289,13 +1291,16 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                 const value = Number(forecast.estimated_value) || 0;
 
                 if (opp.is_goal) {
-                    // Goal opportunity
+                    // Meta: sempre incluir (não afetado pelo filtro)
                     dataByMonth[monthKey].meta += value;
                 } else {
-                    // Regular opportunity
-                    dataByMonth[monthKey].projetado += value;
+                    // Faturado: sempre incluir se invoiced (não afetado pelo filtro)
                     if (forecast.invoiced) {
                         dataByMonth[monthKey].faturado += value;
+                    }
+                    // Forecast: apenas se passar no filtro de billing_probability
+                    if (passesFilter) {
+                        dataByMonth[monthKey].projetado += value;
                     }
                 }
             });
@@ -1344,11 +1349,12 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                 <h3 className={styles.chartTitle}>Meta vs Forecast vs Faturado</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        Possibilidade:
+                        Forecast:
                     </label>
                     <select
                         value={billingProbabilityFilter}
                         onChange={(e) => setBillingProbabilityFilter(e.target.value)}
+                        title="Filtra apenas a linha do Forecast"
                         style={{
                             border: '1px solid var(--border-color-light)',
                             borderRadius: '6px',
@@ -1359,7 +1365,7 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                             outline: 'none'
                         }}
                     >
-                        <option value="all">Todas</option>
+                        <option value="all">Todas Possibilidades</option>
                         <option value="alta">Alta</option>
                         <option value="media">Média</option>
                         <option value="baixa">Baixa</option>

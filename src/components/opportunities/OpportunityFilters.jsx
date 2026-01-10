@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, X, Target, Lightbulb, Tag } from 'lucide-react';
+import { Search, Filter, X, Target, Lightbulb, Tag, TrendingUp } from 'lucide-react';
 import { Button } from '@iadefysolutions/design-system';
 import styles from './Opportunities.module.css';
+
+const BILLING_PROBABILITIES = [
+    { value: 'alta', label: 'Alta', color: '#10b981' },
+    { value: 'media', label: 'Média', color: '#f59e0b' },
+    { value: 'baixa', label: 'Baixa', color: '#ef4444' }
+];
 
 const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost', 'Meta', 'Potencial'];
 
@@ -11,6 +17,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
     const [filters, setFilters] = useState({
         stages: [], // Empty array = all stages (no filter)
         tags: [], // Empty array = all tags (no filter)
+        billingProbabilities: [], // Empty array = all probabilities (no filter)
         minValue: '',
         maxValue: '',
         responsible: '',
@@ -91,6 +98,16 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
             });
         }
 
+        // Filtro por possibilidade de faturamento (multi-select)
+        if (filterData.billingProbabilities && filterData.billingProbabilities.length > 0) {
+            filtered = filtered.filter(opp => {
+                // Oportunidades Meta e Potencial não têm billing_probability, não filtrá-las
+                if (opp.is_goal || opp.is_potential) return true;
+                const prob = opp.billing_probability || 'baixa';
+                return filterData.billingProbabilities.includes(prob);
+            });
+        }
+
         // Filtro por valor mínimo
         if (filterData.minValue) {
             filtered = filtered.filter(opp => Number(opp.estimated_value) >= Number(filterData.minValue));
@@ -146,6 +163,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
         setFilters({
             stages: [],
             tags: [],
+            billingProbabilities: [],
             minValue: '',
             maxValue: '',
             responsible: '',
@@ -162,6 +180,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
         let count = 0;
         if (filters.stages.length > 0) count++;
         if (filters.tags.length > 0) count++;
+        if (filters.billingProbabilities.length > 0) count++;
         if (filters.minValue) count++;
         if (filters.maxValue) count++;
         if (filters.responsible) count++;
@@ -189,6 +208,17 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
             ? filters.tags.filter(t => t !== tag)
             : [...filters.tags, tag];
         handleFilterChange('tags', newTags);
+    };
+
+    const toggleBillingProbability = (prob) => {
+        const newProbs = filters.billingProbabilities.includes(prob)
+            ? filters.billingProbabilities.filter(p => p !== prob)
+            : [...filters.billingProbabilities, prob];
+        handleFilterChange('billingProbabilities', newProbs);
+    };
+
+    const selectAllBillingProbabilities = () => {
+        handleFilterChange('billingProbabilities', []);
     };
 
     return (
@@ -404,6 +434,70 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                             </div>
                         </div>
                     )}
+
+                    {/* Possibilidade de Faturamento */}
+                    <div style={{ marginBottom: '16px' }}>
+                        <label className="label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <TrendingUp size={14} />
+                                Possibilidade de Faturamento
+                            </span>
+                            <button
+                                type="button"
+                                onClick={selectAllBillingProbabilities}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--color-primary)',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    padding: 0
+                                }}
+                            >
+                                Todas
+                            </button>
+                        </label>
+                        <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '6px',
+                            padding: '8px',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--border-radius-sm)',
+                            background: 'var(--bg-main)'
+                        }}>
+                            {BILLING_PROBABILITIES.map(prob => {
+                                const isSelected = filters.billingProbabilities.length === 0 || filters.billingProbabilities.includes(prob.value);
+                                return (
+                                    <label
+                                        key={prob.value}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '4px 10px',
+                                            borderRadius: '12px',
+                                            background: isSelected ? prob.color : 'white',
+                                            color: isSelected ? 'white' : 'var(--text-secondary)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 500,
+                                            border: `1px solid ${isSelected ? prob.color : 'var(--border-color)'}`,
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => toggleBillingProbability(prob.value)}
+                                            style={{ display: 'none' }}
+                                        />
+                                        {prob.label}
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
 
                     {/* Grid responsivo para os outros campos */}
                     <div style={{
