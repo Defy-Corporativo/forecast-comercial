@@ -11,7 +11,7 @@ import { opportunityService } from '../../services/opportunityService';
 import ConfirmModal from '../common/ConfirmModal';
 import styles from './Opportunities.module.css';
 
-const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) => {
+const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, fullscreen = false }) => {
     const { user } = useAuth();
     const { stages } = useStageContext();
     const [customFields, setCustomFields] = useState([]);
@@ -21,7 +21,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
 
     // Estado para notas
     const [notes, setNotes] = useState([]);
-    const [newNote, setNewNote] = useState('');
+    // Inicializar newNote do sessionStorage para persistir drafts entre trocas de aba
+    const [newNote, setNewNote] = useState(() => {
+        const key = `opportunity_note_draft_${opportunity.id}`;
+        const saved = sessionStorage.getItem(key);
+        console.log(`[OpportunityView] Initializing newNote from sessionStorage: key=${key}, value=${saved}`);
+        return saved || '';
+    });
     const [loadingNotes, setLoadingNotes] = useState(true);
     const [savingNote, setSavingNote] = useState(false);
 
@@ -50,8 +56,19 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
     // Estado para ações
     const [actions, setActions] = useState([]);
     const [loadingActions, setLoadingActions] = useState(true);
-    const [newActionDescription, setNewActionDescription] = useState('');
-    const [newActionResponsible, setNewActionResponsible] = useState('');
+    // Inicializar do sessionStorage para persistir drafts entre trocas de aba
+    const [newActionDescription, setNewActionDescription] = useState(() => {
+        const key = `opportunity_action_desc_draft_${opportunity.id}`;
+        const saved = sessionStorage.getItem(key);
+        console.log(`[OpportunityView] Initializing newActionDescription from sessionStorage: key=${key}, value=${saved}`);
+        return saved || '';
+    });
+    const [newActionResponsible, setNewActionResponsible] = useState(() => {
+        const key = `opportunity_action_resp_draft_${opportunity.id}`;
+        const saved = sessionStorage.getItem(key);
+        console.log(`[OpportunityView] Initializing newActionResponsible from sessionStorage: key=${key}, value=${saved}`);
+        return saved || '';
+    });
     const [savingAction, setSavingAction] = useState(false);
     const [responsibles, setResponsibles] = useState([]);
     const [actionCounts, setActionCounts] = useState({ pending: 0, completed: 0 });
@@ -90,6 +107,37 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
             loadResponsibles();
         }
     }, [currentOpportunity.id]);
+
+    // Sincronizar drafts com sessionStorage
+    useEffect(() => {
+        const key = `opportunity_note_draft_${opportunity.id}`;
+        if (newNote) {
+            console.log(`[OpportunityView] Saving newNote to sessionStorage: key=${key}, value=${newNote}`);
+            sessionStorage.setItem(key, newNote);
+        } else {
+            sessionStorage.removeItem(key);
+        }
+    }, [newNote, opportunity.id]);
+
+    useEffect(() => {
+        const key = `opportunity_action_desc_draft_${opportunity.id}`;
+        if (newActionDescription) {
+            console.log(`[OpportunityView] Saving newActionDescription to sessionStorage: key=${key}, value=${newActionDescription}`);
+            sessionStorage.setItem(key, newActionDescription);
+        } else {
+            sessionStorage.removeItem(key);
+        }
+    }, [newActionDescription, opportunity.id]);
+
+    useEffect(() => {
+        const key = `opportunity_action_resp_draft_${opportunity.id}`;
+        if (newActionResponsible) {
+            console.log(`[OpportunityView] Saving newActionResponsible to sessionStorage: key=${key}`);
+            sessionStorage.setItem(key, newActionResponsible);
+        } else {
+            sessionStorage.removeItem(key);
+        }
+    }, [newActionResponsible, opportunity.id]);
 
     const loadCustomFields = async () => {
         try {
@@ -150,6 +198,9 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
                 newActionDescription.trim(),
                 newActionResponsible
             );
+            // Limpar drafts do sessionStorage
+            sessionStorage.removeItem(`opportunity_action_desc_draft_${opportunity.id}`);
+            sessionStorage.removeItem(`opportunity_action_resp_draft_${opportunity.id}`);
             setNewActionDescription('');
             setNewActionResponsible('');
             await loadActions();
@@ -241,6 +292,8 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
             );
 
             console.log('Nota criada com sucesso:', result);
+            // Limpar draft do sessionStorage
+            sessionStorage.removeItem(`opportunity_note_draft_${opportunity.id}`);
             setNewNote('');
             await loadNotes();
         } catch (error) {
@@ -426,12 +479,353 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate }) =
         }
     };
 
+    // Função para renderizar o conteúdo principal (reutilizada entre modos)
+    const renderMainContent = () => (
+        <>
+            {/* Código da Oportunidade */}
+            <div style={{ marginBottom: '24px' }}>
+                <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                    Oportunidade {currentOpportunity.opportunity_number}
+                </h2>
+            </div>
+
+            {/* Campos principais */}
+            <div className={styles.formGrid}>
+                <div className="input-group">
+                    <label className="label">Cliente / Empresa</label>
+                    <div className={styles.viewField}>
+                        {currentOpportunity.client?.name || currentOpportunity.client_name}
+                    </div>
+                </div>
+
+                <div className="input-group">
+                    <label className="label">Valor Total</label>
+                    <div className={styles.viewField} style={{ fontWeight: 600, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {formatCurrency(currentOpportunity.total_value || currentOpportunity.estimated_value)}
+                        {(currentOpportunity.forecast_count || currentOpportunity.forecasts?.length || 0) > 1 && (
+                            <span style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-secondary)',
+                                background: 'var(--bg-secondary)',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                fontWeight: 'normal'
+                            }}>
+                                <Layers size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                                {currentOpportunity.forecast_count || currentOpportunity.forecasts?.length} previsões
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="input-group">
+                    <label className="label">Responsável</label>
+                    <div className={styles.viewField}>{currentOpportunity.responsible || '-'}</div>
+                </div>
+
+                <div className="input-group">
+                    <label className="label">Possibilidade de Faturamento</label>
+                    <div className={styles.viewField}>
+                        <span style={{
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
+                            background: currentOpportunity.billing_probability === 'alta' ? 'var(--color-success-light)' :
+                                currentOpportunity.billing_probability === 'media' ? 'var(--color-warning-light)' : 'var(--bg-secondary)',
+                            color: currentOpportunity.billing_probability === 'alta' ? 'var(--color-success)' :
+                                currentOpportunity.billing_probability === 'media' ? 'var(--color-warning)' : 'var(--text-secondary)'
+                        }}>
+                            {currentOpportunity.billing_probability === 'alta' ? 'Alta' :
+                                currentOpportunity.billing_probability === 'media' ? 'Média' : 'Baixa'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {currentOpportunity.notes && (
+                <div className="input-group" style={{ marginTop: '16px' }}>
+                    <label className="label">Observações</label>
+                    <div className={styles.viewField}>{currentOpportunity.notes}</div>
+                </div>
+            )}
+        </>
+    );
+
+    // Wrapper component based on fullscreen mode
+    const WrapperComponent = fullscreen ? 'div' : 'div';
+    const wrapperStyle = fullscreen ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'var(--bg-main)',
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+    } : {};
+
+    const contentStyle = fullscreen ? {
+        flex: 1,
+        overflow: 'auto',
+        padding: '0'
+    } : {};
+
+    if (fullscreen) {
+        return (
+            <div style={wrapperStyle}>
+                {/* Header fixo */}
+                <div style={{
+                    backgroundColor: 'white',
+                    borderBottom: '1px solid var(--border-color-light)',
+                    padding: '16px 20px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                    boxShadow: 'var(--shadow-sm)'
+                }}>
+                    <div>
+                        <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>{currentOpportunity.title || 'Sem título'}</h3>
+                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            {currentOpportunity.opportunity_number} - Criado em {formatDate(currentOpportunity.creation_date)}
+                        </span>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            background: 'var(--bg-hover)',
+                            border: 'none',
+                            borderRadius: 'var(--border-radius-sm)',
+                            width: '40px',
+                            height: '40px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-secondary)',
+                            transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'var(--color-danger-light)';
+                            e.currentTarget.style.color = 'var(--color-danger)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'var(--bg-hover)';
+                            e.currentTarget.style.color = 'var(--text-secondary)';
+                        }}
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Conteúdo com scroll */}
+                <div style={contentStyle}>
+                    <div className="container" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                        {/* Roadmap de Estágios - Clean design */}
+                        {!currentOpportunity.is_goal && currentStage && (
+                            <div style={{ marginBottom: '20px' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    padding: '12px 16px',
+                                    background: 'white',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border-color-light)',
+                                    flexWrap: 'wrap'
+                                }}>
+                                    {/* Previous stages */}
+                                    {allowedPrevious.map(stage => (
+                                        <button
+                                            key={stage.id || stage.name}
+                                            onClick={() => handleStageChange(stage.name)}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '8px 14px',
+                                                background: 'transparent',
+                                                border: '1px solid var(--border-color-light)',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.85rem',
+                                                color: 'var(--text-secondary)',
+                                                fontWeight: 500,
+                                                transition: 'all 0.15s'
+                                            }}
+                                            title={`Voltar para ${stage.name}`}
+                                        >
+                                            <ChevronLeft size={14} />
+                                            {stage.name}
+                                        </button>
+                                    ))}
+
+                                    {/* Current stage - clean with blue border */}
+                                    <div style={{
+                                        padding: '8px 18px',
+                                        background: '#f0f7ff',
+                                        border: '2px solid #3b82f6',
+                                        borderRadius: '6px',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 600,
+                                        color: '#1e40af'
+                                    }}>
+                                        {currentStage.name}
+                                    </div>
+
+                                    {/* Next stages */}
+                                    {allowedNext.map(stage => (
+                                        <button
+                                            key={stage.id || stage.name}
+                                            onClick={() => handleStageChange(stage.name)}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '8px 14px',
+                                                background: 'transparent',
+                                                border: '1px solid var(--border-color-light)',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.85rem',
+                                                color: 'var(--text-secondary)',
+                                                fontWeight: 500,
+                                                transition: 'all 0.15s'
+                                            }}
+                                            title={`Avançar para ${stage.name}`}
+                                        >
+                                            {stage.name}
+                                            <ChevronRight size={14} />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Restante do conteúdo encapsulado em um card branco */}
+                        <div style={{
+                            backgroundColor: 'white',
+                            borderRadius: 'var(--border-radius-md)',
+                            padding: '24px',
+                            boxShadow: 'var(--shadow-sm)',
+                            border: '1px solid var(--border-color-light)'
+                        }}>
+                            {renderMainContent()}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer de Ações */}
+                <div style={{
+                    backgroundColor: 'white',
+                    borderTop: '1px solid var(--border-color-light)',
+                    padding: '16px 20px',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: '12px',
+                    flexShrink: 0
+                }}>
+                    <button className="btn btn-secondary" onClick={handleEdit}>
+                        <Edit2 size={16} /> Editar
+                    </button>
+                    <button className="btn btn-danger" onClick={handleDelete}>
+                        <Trash2 size={16} /> Excluir
+                    </button>
+                </div>
+
+                {/* Modals */}
+                {confirmModal.isOpen && (
+                    <ConfirmModal
+                        isOpen={confirmModal.isOpen}
+                        title={confirmModal.title}
+                        message={confirmModal.message}
+                        type={confirmModal.type}
+                        onConfirm={() => {
+                            confirmModal.onConfirm?.();
+                            setConfirmModal({ ...confirmModal, isOpen: false });
+                        }}
+                        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                    />
+                )}
+
+                {completeModal.isOpen && (
+                    <div className={styles.modalOverlay} onClick={() => setCompleteModal({ isOpen: false, actionId: null, noteText: '' })}>
+                        <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                            <div className={styles.modalHeader}>
+                                <h3>Concluir Ação</h3>
+                                <button className={styles.closeBtn} onClick={() => setCompleteModal({ isOpen: false, actionId: null, noteText: '' })}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className={styles.modalBody}>
+                                <div className="input-group">
+                                    <label className="label">Observação (opcional)</label>
+                                    <textarea
+                                        className="input"
+                                        value={completeModal.noteText}
+                                        onChange={(e) => setCompleteModal({ ...completeModal, noteText: e.target.value })}
+                                        placeholder="Adicione uma observação sobre a conclusão..."
+                                        rows={3}
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles.modalFooter}>
+                                <button className="btn btn-secondary" onClick={() => setCompleteModal({ isOpen: false, actionId: null, noteText: '' })}>
+                                    Cancelar
+                                </button>
+                                <button className="btn btn-primary" onClick={handleCompleteAction}>
+                                    <CheckCircle size={16} /> Concluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {deleteActionModal.isOpen && (
+                    <div className={styles.modalOverlay} onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, noteText: '' })}>
+                        <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                            <div className={styles.modalHeader}>
+                                <h3>Excluir Ação</h3>
+                                <button className={styles.closeBtn} onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, noteText: '' })}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className={styles.modalBody}>
+                                <div className="input-group">
+                                    <label className="label">Motivo da exclusão (opcional)</label>
+                                    <textarea
+                                        className="input"
+                                        value={deleteActionModal.noteText}
+                                        onChange={(e) => setDeleteActionModal({ ...deleteActionModal, noteText: e.target.value })}
+                                        placeholder="Adicione uma observação sobre a exclusão..."
+                                        rows={3}
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles.modalFooter}>
+                                <button className="btn btn-secondary" onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, noteText: '' })}>
+                                    Cancelar
+                                </button>
+                                <button className="btn btn-danger" onClick={handleDeleteActionConfirm}>
+                                    <Trash size={16} /> Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
             <div
                 className={styles.modal}
                 onClick={(e) => e.stopPropagation()}
-                style={{ maxWidth: '1150px' }}
             >
                 {/* Header com número e data */}
                 <div className={styles.modalHeader} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>

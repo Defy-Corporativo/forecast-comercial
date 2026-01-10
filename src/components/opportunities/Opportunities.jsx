@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, List, Grid3x3, Layers, LayoutList } from 'lucide-react';
 import { Button } from '@iadefysolutions/design-system';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,7 +21,50 @@ const Opportunities = () => {
     const [showViewModal, setShowViewModal] = useState(false);
     const [editingOpportunity, setEditingOpportunity] = useState(null);
     const [viewingOpportunity, setViewingOpportunity] = useState(null);
-    const [includeGoals, setIncludeGoals] = useState(false); // Hide goals by default
+    // Meta e Potencial states: 0=oculto, 1=listar junto, 2=filtrar somente
+    const [metaState, setMetaState] = useState(0);
+    const [potencialState, setPotencialState] = useState(0);
+
+    // Restaurar oportunidade em visualização do sessionStorage (para sobreviver a recarregamentos)
+    useEffect(() => {
+        const savedOpportunityId = sessionStorage.getItem('viewing_opportunity_id');
+        console.log(`[Opportunities] Checking for saved opportunity: savedId=${savedOpportunityId}, opportunities.length=${opportunities.length}, viewingOpportunity=${viewingOpportunity?.id}`);
+        if (savedOpportunityId && opportunities.length > 0 && !viewingOpportunity) {
+            const opp = opportunities.find(o => o.id === savedOpportunityId);
+            console.log(`[Opportunities] Found matching opportunity: ${opp ? 'yes' : 'no'}`);
+            if (opp) {
+                // Carregar oportunidade completa
+                console.log(`[Opportunities] Restoring opportunity: ${savedOpportunityId}`);
+                opportunityService.getOpportunity(savedOpportunityId)
+                    .then(fullOpp => {
+                        console.log(`[Opportunities] Successfully loaded full opportunity`);
+                        setViewingOpportunity(fullOpp);
+                        setShowViewModal(true);
+                    })
+                    .catch(err => {
+                        console.error('Error restoring viewing opportunity:', err);
+                        sessionStorage.removeItem('viewing_opportunity_id');
+                    });
+            }
+        }
+    }, [opportunities]);
+
+    // Ref para evitar limpeza do sessionStorage na montagem inicial
+    const hasInitializedRef = useRef(false);
+
+    // Salvar ID da oportunidade em visualização no sessionStorage
+    // IMPORTANTE: Não remover na montagem inicial, apenas quando o usuário fecha o modal
+    useEffect(() => {
+        if (viewingOpportunity) {
+            sessionStorage.setItem('viewing_opportunity_id', viewingOpportunity.id);
+            hasInitializedRef.current = true;
+        } else if (hasInitializedRef.current) {
+            // Só remove se já foi inicializado (ou seja, usuário fechou o modal manualmente)
+            sessionStorage.removeItem('viewing_opportunity_id');
+            // Também limpar os drafts quando o modal é fechado manualmente
+            // (mas preservar se for apenas um reload)
+        }
+    }, [viewingOpportunity]);
 
     useEffect(() => {
         if (user) {
@@ -39,9 +82,7 @@ const Opportunities = () => {
                 data = await opportunityService.getOpportunities(user.id);
             }
             setOpportunities(data || []);
-            // Apply goal/potential filter
-            const filtered = includeGoals ? data : (data || []).filter(opp => !opp.is_goal && !opp.is_potential);
-            setFilteredOpportunities(filtered);
+            // Initial filter will be applied via useMemo
         } catch (error) {
             console.error('Error loading opportunities:', error);
         } finally {
@@ -97,9 +138,28 @@ const Opportunities = () => {
     //     return () => console.log('Opportunities: Component Unmounted');
     // }, []);
 
+    // Filtrar oportunidades baseado nos estados de Meta e Potencial
     const opportunitiesForFilters = React.useMemo(() => {
-        return includeGoals ? opportunities : opportunities.filter(opp => !opp.is_goal && !opp.is_potential);
-    }, [opportunities, includeGoals]);
+        let filtered = [...opportunities];
+
+        // Estado 2 = filtrar somente (exclui tudo exceto o tipo)
+        if (metaState === 2) {
+            return filtered.filter(opp => opp.is_goal);
+        }
+        if (potencialState === 2) {
+            return filtered.filter(opp => opp.is_potential);
+        }
+
+        // Estados 0 e 1 - ocultar ou mostrar junto
+        if (metaState === 0) {
+            filtered = filtered.filter(opp => !opp.is_goal);
+        }
+        if (potencialState === 0) {
+            filtered = filtered.filter(opp => !opp.is_potential);
+        }
+
+        return filtered;
+    }, [opportunities, metaState, potencialState]);
 
     if (loading) {
         return (
@@ -196,13 +256,10 @@ const Opportunities = () => {
                         <OpportunityFilters
                             opportunities={opportunitiesForFilters}
                             onFilterChange={setFilteredOpportunities}
-                            includeGoals={includeGoals}
-                            onIncludeGoalsChange={(value) => {
-                                setIncludeGoals(value);
-                                // Re-apply filter - using the stable filtered logic is cleaner but for now stick to previous pattern
-                                const base = value ? opportunities : opportunities.filter(opp => !opp.is_goal && !opp.is_potential);
-                                setFilteredOpportunities(base);
-                            }}
+                            metaState={metaState}
+                            potencialState={potencialState}
+                            onMetaStateChange={setMetaState}
+                            onPotencialStateChange={setPotencialState}
                         />
                     </div>
                 </div>
@@ -234,14 +291,43 @@ const Opportunities = () => {
             {showViewModal && viewingOpportunity && (
                 <OpportunityView
                     opportunity={viewingOpportunity}
+                    fullscreen={false}
                     onClose={() => {
                         setShowViewModal(false);
                         setViewingOpportunity(null);
-                        loadOpportunities(); // Refresh list to reflect any changes made
+                        // Refresh silently without resetting filters
+                        (async () => {
+                            try {
+                                let data;
+                                if (groupMode === 'flat') {
+                                    data = await opportunityService.getOpportunitiesFlat(user.id);
+                                } else {
+                                    data = await opportunityService.getOpportunities(user.id);
+                                }
+                                setOpportunities(data || []);
+                            } catch (error) {
+                                console.error('Error refreshing opportunities:', error);
+                            }
+                        })();
                     }}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
-                    onUpdate={loadOpportunities}
+                    onUpdate={() => {
+                        // Silent refresh
+                        (async () => {
+                            try {
+                                let data;
+                                if (groupMode === 'flat') {
+                                    data = await opportunityService.getOpportunitiesFlat(user.id);
+                                } else {
+                                    data = await opportunityService.getOpportunities(user.id);
+                                }
+                                setOpportunities(data || []);
+                            } catch (error) {
+                                console.error('Error refreshing opportunities:', error);
+                            }
+                        })();
+                    }}
                 />
             )}
 

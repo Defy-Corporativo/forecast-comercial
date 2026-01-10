@@ -5,7 +5,7 @@ import styles from './Opportunities.module.css';
 
 const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost', 'Meta', 'Potencial'];
 
-const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onIncludeGoalsChange }) => {
+const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencialState, onMetaStateChange, onPotencialStateChange }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
@@ -39,13 +39,8 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
     }, [opportunities]);
 
     useEffect(() => {
-        // Aplicar filtros quando as oportunidades mudarem (apenas se não houver filtros ativos)
-        if (!searchTerm && filters.stages.length === 0 && filters.tags.length === 0 && !filters.minValue && !filters.maxValue &&
-            !filters.responsible && !filters.dateFrom && !filters.dateTo) {
-            if (opportunities) {
-                onFilterChange([...opportunities]);
-            }
-        } else {
+        // Sempre reaplicar filtros quando as oportunidades mudarem
+        if (opportunities) {
             applyFilters({ ...filters, search: searchTerm });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -203,26 +198,56 @@ const OpportunityFilters = ({ opportunities, onFilterChange, includeGoals, onInc
                         </button>
                     )}
                 </div>
+                {/* Botão Meta - 3 estados: 0=oculto, 1=listar, 2=filtrar */}
                 <button
-                    className={`${styles.filterToggleBtn} ${includeGoals ? styles.active : ''}`}
-                    onClick={() => onIncludeGoalsChange && onIncludeGoalsChange(!includeGoals)}
-                    title={includeGoals ? 'Ocultar Metas e Potenciais' : 'Mostrar Metas e Potenciais'}
+                    className={`${styles.filterToggleBtn}`}
+                    onClick={() => onMetaStateChange && onMetaStateChange((metaState + 1) % 3)}
+                    title={metaState === 0 ? 'Clique para mostrar Metas' : metaState === 1 ? 'Clique para filtrar apenas Metas' : 'Clique para ocultar Metas'}
                     style={{
-                        background: includeGoals ? 'linear-gradient(135deg, #f59e0b15, #8b5cf615)' : undefined,
-                        borderColor: includeGoals ? '#a855f760' : undefined,
-                        opacity: includeGoals ? 1 : 0.7,
-                        gap: '6px'
+                        background: metaState === 2 ? '#f59e0b' : metaState === 1 ? '#f59e0b15' : 'var(--bg-main)',
+                        borderColor: metaState > 0 ? '#f59e0b' : 'var(--border-color)',
+                        opacity: metaState === 0 ? 0.6 : 1,
+                        gap: '6px',
+                        transition: 'all 0.2s ease'
                     }}
                 >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Target size={14} style={{ color: includeGoals ? '#f59e0b' : 'var(--text-secondary)' }} />
-                        <span style={{ fontSize: '0.85rem', color: includeGoals ? '#f59e0b' : 'var(--text-secondary)' }}>Meta</span>
+                    <Target size={16} style={{ color: metaState === 2 ? 'white' : metaState === 1 ? '#f59e0b' : 'var(--text-tertiary)' }} />
+                    <span style={{
+                        fontSize: '0.85rem',
+                        color: metaState === 2 ? 'white' : metaState === 1 ? '#f59e0b' : 'var(--text-tertiary)',
+                        fontWeight: metaState > 0 ? 600 : 400
+                    }}>
+                        Meta
                     </span>
-                    <span style={{ color: 'var(--text-tertiary)' }}>/</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Lightbulb size={14} style={{ color: includeGoals ? '#8b5cf6' : 'var(--text-secondary)' }} />
-                        <span style={{ fontSize: '0.85rem', color: includeGoals ? '#8b5cf6' : 'var(--text-secondary)' }}>Potencial</span>
+                    {metaState === 2 && (
+                        <span style={{ fontSize: '0.7rem', color: 'white', opacity: 0.8 }}>somente</span>
+                    )}
+                </button>
+
+                {/* Botão Potencial - 3 estados: 0=oculto, 1=listar, 2=filtrar */}
+                <button
+                    className={`${styles.filterToggleBtn}`}
+                    onClick={() => onPotencialStateChange && onPotencialStateChange((potencialState + 1) % 3)}
+                    title={potencialState === 0 ? 'Clique para mostrar Potenciais' : potencialState === 1 ? 'Clique para filtrar apenas Potenciais' : 'Clique para ocultar Potenciais'}
+                    style={{
+                        background: potencialState === 2 ? '#8b5cf6' : potencialState === 1 ? '#8b5cf615' : 'var(--bg-main)',
+                        borderColor: potencialState > 0 ? '#8b5cf6' : 'var(--border-color)',
+                        opacity: potencialState === 0 ? 0.6 : 1,
+                        gap: '6px',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <Lightbulb size={16} style={{ color: potencialState === 2 ? 'white' : potencialState === 1 ? '#8b5cf6' : 'var(--text-tertiary)' }} />
+                    <span style={{
+                        fontSize: '0.85rem',
+                        color: potencialState === 2 ? 'white' : potencialState === 1 ? '#8b5cf6' : 'var(--text-tertiary)',
+                        fontWeight: potencialState > 0 ? 600 : 400
+                    }}>
+                        Potencial
                     </span>
+                    {potencialState === 2 && (
+                        <span style={{ fontSize: '0.7rem', color: 'white', opacity: 0.8 }}>somente</span>
+                    )}
                 </button>
                 <button
                     className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''}`}

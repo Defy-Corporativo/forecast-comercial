@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 const AuthContext = createContext({});
@@ -8,27 +8,30 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const isInitialLoad = useRef(true);
 
     useEffect(() => {
         // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
-            handleSession(session);
+            handleSession(session, true);
         });
 
         // Listen for changes
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
-            handleSession(session);
+            // Não mostrar loading em eventos subsequentes para evitar remontagem
+            handleSession(session, false);
         });
 
         return () => subscription.unsubscribe();
     }, []);
 
-    const handleSession = async (session) => {
+    const handleSession = async (session, isInitial) => {
         if (!session?.user) {
             setUser(null);
-            setLoading(false);
+            if (isInitial) setLoading(false);
+            isInitialLoad.current = false;
             return;
         }
 
@@ -37,7 +40,8 @@ export const AuthProvider = ({ children }) => {
             await supabase.auth.signOut();
             alert('Acesso restrito apenas para o domínio @defysolutions.com.br');
             setUser(null);
-            setLoading(false);
+            if (isInitial) setLoading(false);
+            isInitialLoad.current = false;
             return;
         }
 
@@ -59,7 +63,8 @@ export const AuthProvider = ({ children }) => {
             });
         }
 
-        setLoading(false);
+        if (isInitial) setLoading(false);
+        isInitialLoad.current = false;
     };
 
     const signOut = async () => {
