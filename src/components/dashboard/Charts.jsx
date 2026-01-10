@@ -6,18 +6,69 @@ import {
 import { X, Trash2 } from 'lucide-react';
 import styles from './Dashboard.module.css';
 
-const SafeResponsiveContainer = ({ children, ...props }) => {
+// Wrapper robusto para gráficos - mede a largura real e renderiza com dimensões explícitas
+const SafeResponsiveContainer = ({ children, height = 300 }) => {
+    const containerRef = useRef(null);
+    const [width, setWidth] = useState(0);
+
+    useEffect(() => {
+        const updateWidth = () => {
+            if (containerRef.current) {
+                const containerWidth = containerRef.current.getBoundingClientRect().width;
+                if (containerWidth > 0) {
+                    setWidth(Math.floor(containerWidth));
+                }
+            }
+        };
+
+        // Medir imediatamente
+        updateWidth();
+
+        // Medir novamente após delays para garantir layout pronto
+        const timer1 = setTimeout(updateWidth, 50);
+        const timer2 = setTimeout(updateWidth, 150);
+        const timer3 = setTimeout(updateWidth, 300);
+
+        // Medir ao redimensionar
+        window.addEventListener('resize', updateWidth);
+
+        // Observer para detectar mudanças no container
+        const resizeObserver = new ResizeObserver(updateWidth);
+        if (containerRef.current) {
+            resizeObserver.observe(containerRef.current);
+        }
+
+        return () => {
+            clearTimeout(timer1);
+            clearTimeout(timer2);
+            clearTimeout(timer3);
+            window.removeEventListener('resize', updateWidth);
+            resizeObserver.disconnect();
+        };
+    }, []);
+
+    // Clona o children (gráfico) e injeta width/height diretamente
+    const renderChart = () => {
+        if (width <= 0) return null;
+
+        // Clone o elemento filho e adicione width/height
+        return React.cloneElement(children, {
+            width: width,
+            height: height
+        });
+    };
+
     return (
-        <div style={{
-            width: props.width || '100%',
-            height: props.height || '100%',
-            minHeight: 1,
-            maxWidth: '100%',
-            overflow: 'hidden'
-        }}>
-            <ResponsiveContainer {...props}>
-                {children}
-            </ResponsiveContainer>
+        <div
+            ref={containerRef}
+            style={{
+                width: '100%',
+                height: height,
+                minHeight: height,
+                position: 'relative',
+            }}
+        >
+            {renderChart()}
         </div>
     );
 };
@@ -159,8 +210,8 @@ export const StageDistributionChart = ({ data, stages = [] }) => {
     return (
         <div className={styles.chartContainer}>
             <h3 className={styles.chartTitle}>Oportunidades por Estágio</h3>
-            <div style={{ width: '100%', minHeight: 320, height: 320 }}>
-                <SafeResponsiveContainer width="100%" height="100%">
+            <div className={styles.chartWrapper}>
+                <SafeResponsiveContainer height={300}>
                     <PieChart>
                         <defs>
                             {dataWithColors.map((entry, index) => (
@@ -433,11 +484,11 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
                     Nenhuma oportunidade com data de forecast no período selecionado.
                 </div>
             ) : (
-                <div style={{ width: '100%', height: 380 }}>
-                    <SafeResponsiveContainer width="100%" height="100%">
+                <div className={styles.chartWrapper}>
+                    <SafeResponsiveContainer height={320}>
                         <AreaChart
                             data={chartData}
-                            margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                            margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
                         >
                             <defs>
                                 {availableStages.map(stage => (
@@ -850,7 +901,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
             // Gráfico distribuído no tempo
             if (chartType === 'barVertical') {
                 return (
-                    <SafeResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer height={280}>
                         <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {keys.map((key, index) => (
@@ -893,7 +944,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                 );
             } else if (chartType === 'barHorizontal') {
                 return (
-                    <SafeResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer height={280}>
                         <BarChart data={data} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {keys.map((key, index) => (
@@ -939,7 +990,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                 );
             } else if (chartType === 'line') {
                 return (
-                    <SafeResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer height={280}>
                         <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color-light)" />
                             <XAxis
@@ -977,7 +1028,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
             } else {
                 // Area chart
                 return (
-                    <SafeResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer height={280}>
                         <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {keys.map((key, index) => (
@@ -1024,7 +1075,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
             // Gráfico não distribuído no tempo
             if (chartType === 'pie') {
                 return (
-                    <SafeResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer height={280}>
                         <PieChart>
                             <defs>
                                 {data.map((entry, index) => (
@@ -1070,7 +1121,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                 );
             } else if (chartType === 'barHorizontal') {
                 return (
-                    <SafeResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer height={280}>
                         <BarChart data={data} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {data.map((entry, index) => (
@@ -1107,7 +1158,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                 );
             } else if (chartType === 'barVertical') {
                 return (
-                    <SafeResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer height={280}>
                         <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {data.map((entry, index) => (
@@ -1142,7 +1193,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
             } else {
                 // Line or Area
                 return (
-                    <SafeResponsiveContainer width="100%" height="100%">
+                    <SafeResponsiveContainer height={280}>
                         <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                             <defs>
                                 {data.map((entry, index) => (
@@ -1186,7 +1237,7 @@ export const CustomChart = ({ config, opportunities = [], stages = [], onDelete 
                     <Trash2 size={16} />
                 </button>
             </div>
-            <div style={{ width: '100%', minHeight: 300, height: 300 }}>
+            <div className={styles.chartWrapper} style={{ minHeight: 280 }}>
                 {renderChart()}
             </div>
         </div>
@@ -1337,9 +1388,9 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                     Nenhuma meta ou oportunidade no período selecionado.
                 </div>
             ) : (
-                <div style={{ width: '100%', height: 350 }}>
-                    <SafeResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                <div className={styles.chartWrapper}>
+                    <SafeResponsiveContainer height={300}>
+                        <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                             <defs>
                                 <linearGradient id="metaGradient" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />

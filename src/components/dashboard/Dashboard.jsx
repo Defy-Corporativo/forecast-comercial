@@ -430,12 +430,7 @@ const Dashboard = () => {
 
             {/* Big Numbers Customizados - Abaixo do filtro de período */}
             {customCharts.filter(chart => chart.chart_type === 'big_number').length > 0 && (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                    gap: '16px',
-                    marginBottom: '24px'
-                }}>
+                <div className={styles.metricsGrid}>
                     {customCharts
                         .filter(chart => chart.chart_type === 'big_number')
                         .map(chart => {

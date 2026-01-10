@@ -198,6 +198,14 @@ div:hover>.custom-metric-delete-btn {
     text-align: center;
 }
 
+/* Chart wrapper for responsive height */
+.chartWrapper {
+    width: 100%;
+    height: 350px;
+    min-height: 280px;
+    position: relative;
+}
+
 /* Forecast Projection Chart */
 .forecastChartContainer {
     background-color: white;
@@ -542,93 +550,149 @@ div:hover>.custom-metric-delete-btn {
     }
 }
 
+/* ============================================
+   MOBILE STYLES - Tablet (768px)
+   ============================================ */
 @media (max-width: 768px) {
 
-    /* Prevent horizontal overflow on dashboard */
-    .dashboard,
-    .container {
-        overflow-x: hidden;
-        max-width: 100vw;
-        box-sizing: border-box;
+    /* Reset agressivo para evitar overflow horizontal */
+    .metricsGrid,
+    .chartsGrid,
+    .customChartsGrid,
+    .chartContainer,
+    .customChartContainer,
+    .forecastChartContainer,
+    .periodFilter,
+    .metricCard,
+    .forecastHeader,
+    .stageFilters,
+    .dateFilters,
+    .customChartHeader {
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
     }
 
-    /* Period filter mobile - stack vertically */
+    /* Chart wrapper precisa de overflow visible para mostrar gráficos */
+    .chartWrapper {
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Grids forçados para 1 coluna */
+    .metricsGrid,
+    .chartsGrid,
+    .customChartsGrid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Period filter mobile */
     .periodFilter {
         flex-direction: column;
-        align-items: stretch;
         gap: 12px;
-        padding: 14px;
+        padding: 16px;
+        margin-bottom: 16px;
         width: 100%;
-        box-sizing: border-box;
     }
 
     .periodFilterGroup {
         width: 100%;
+    }
+
+    /* Remover min-width que causa overflow */
+    .periodSelect {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .periodFilterGroup:first-child {
         display: flex;
         flex-direction: column;
         gap: 8px;
     }
 
-    .periodFilterLabel {
-        font-size: 0.8rem;
+    .periodFilterGroup:last-child {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
-    .periodSelect,
+    .periodFilterGroup:last-child .periodFilterLabel {
+        width: 100%;
+        text-align: center;
+        margin-top: 4px;
+    }
+
+    .periodFilterGroup:last-child .periodFilterLabel:first-child {
+        display: none;
+    }
+
+    .periodFilterGroup:last-child .periodFilterLabel:nth-child(3) {
+        display: none;
+    }
+
+    .periodFilterLabel {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    .periodSelect {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+    }
+
     .periodDateInput {
-        width: 100% !important;
+        flex: 1;
         min-width: 0;
-        box-sizing: border-box;
+        padding: 12px;
+        font-size: 16px;
     }
 
     .periodDivider {
         display: none;
     }
 
+    /* Metrics Grid - 1 coluna em mobile */
     .metricsGrid {
         grid-template-columns: 1fr;
-        gap: 12px;
-        overflow-x: hidden;
-        width: 100%;
+        gap: 10px;
+        margin-bottom: 16px;
     }
 
     .chartsGrid,
     .customChartsGrid {
         grid-template-columns: 1fr;
         gap: 16px;
-        min-width: 0;
-        overflow-x: hidden;
-        width: 100%;
     }
 
     .metricCard {
-        padding: 12px 14px;
-        min-width: 0;
-        width: 100%;
-        box-sizing: border-box;
+        padding: 16px;
+        border-radius: 12px;
     }
 
     .metricValue {
-        font-size: 18px;
-        overflow-wrap: break-word;
-        word-break: break-word;
+        font-size: 20px;
     }
 
     .metricTitle {
-        font-size: 10px;
+        font-size: 11px;
     }
 
     .metricIcon {
-        width: 32px;
-        height: 32px;
+        width: 40px;
+        height: 40px;
     }
 
+    /* Charts containers */
     .chartContainer,
     .customChartContainer {
         padding: 16px;
-        min-height: 220px;
-        min-width: 0;
-        max-width: 100%;
-        overflow-x: hidden;
+        border-radius: 12px;
+        margin-bottom: 16px;
     }
 
     .chartTitle {
@@ -638,9 +702,8 @@ div:hover>.custom-metric-delete-btn {
 
     .forecastChartContainer {
         padding: 16px;
-        min-width: 0;
-        max-width: 100%;
-        overflow-x: hidden;
+        border-radius: 12px;
+        margin-bottom: 16px;
     }
 
     .forecastHeader {
@@ -655,9 +718,7 @@ div:hover>.custom-metric-delete-btn {
     }
 
     .dateFilter {
-        flex: 1;
         flex-direction: column;
-        align-items: flex-start;
         gap: 4px;
     }
 
@@ -666,38 +727,41 @@ div:hover>.custom-metric-delete-btn {
     }
 
     .dateInput {
-        flex: 1;
         width: 100%;
-        min-width: 0;
-        min-height: var(--touch-target-min);
+        min-height: 44px;
     }
 
+    /* Stage filters - wrap para caber na tela */
     .stageFilters {
+        display: flex;
         gap: 8px;
         padding: 12px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        flex-wrap: nowrap;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        max-width: 100%;
-    }
-
-    .stageFilters::-webkit-scrollbar {
-        display: none;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .stageChip {
         flex-shrink: 0;
-        min-height: var(--touch-target-min);
-        padding: 10px 12px;
-        font-size: 13px;
+        min-height: 36px;
+        padding: 8px 12px;
+        font-size: 12px;
+        border-radius: 18px;
     }
 
-    /* Recharts responsive container fix */
+    /* Chart wrapper - altura fixa para gráficos aparecerem */
+    .chartWrapper {
+        width: 100%;
+        height: 300px;
+        min-height: 300px;
+        overflow: visible;
+    }
+
+    /* Recharts adjustments - garantir que fique dentro da tela */
     :global(.recharts-responsive-container) {
         max-width: 100% !important;
-        overflow: hidden;
     }
 
     :global(.recharts-wrapper) {
@@ -705,10 +769,19 @@ div:hover>.custom-metric-delete-btn {
     }
 
     :global(.recharts-legend-wrapper) {
-        font-size: 12px;
+        font-size: 11px !important;
+        max-width: 100% !important;
     }
 
-    /* Toggle switch larger for touch */
+    :global(.recharts-cartesian-axis-tick-value) {
+        font-size: 10px !important;
+    }
+
+    :global(.recharts-tooltip-wrapper) {
+        max-width: 85vw !important;
+    }
+
+    /* Toggle switch */
     .toggleSwitch {
         width: 50px;
         height: 28px;
@@ -723,67 +796,146 @@ div:hover>.custom-metric-delete-btn {
         transform: translateX(22px);
     }
 
-    /* Modal improvements */
-    .chartModal {
-        max-width: 100%;
-        max-height: 90vh;
-        border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
-        margin: 0;
-    }
-
+    /* Modal - bottom sheet style */
     .modalOverlay {
         padding: 0;
         align-items: flex-end;
     }
 
+    .chartModal {
+        width: 100%;
+        max-height: 90vh;
+        border-radius: 20px 20px 0 0;
+        margin: 0;
+    }
+
+    .chartModalHeader {
+        padding: 20px;
+        position: relative;
+    }
+
+    .chartModalHeader::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+    }
+
     .chartModalBody {
-        padding: 16px;
+        padding: 16px 20px;
     }
 
     .chartModalFooter {
-        padding: 16px;
-        padding-bottom: calc(16px + var(--safe-area-bottom));
+        padding: 16px 20px;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
         flex-direction: column-reverse;
         gap: 10px;
     }
 
     .chartModalFooter button {
         width: 100%;
-        min-height: var(--touch-target-comfortable);
+        min-height: 48px;
+        border-radius: 10px;
+    }
+
+    .emptyChart {
+        padding: 24px 16px;
+        text-align: center;
     }
 }
 
+/* ============================================
+   MOBILE STYLES - Phone (480px)
+   ============================================ */
 @media (max-width: 480px) {
-    .metricsGrid {
-        grid-template-columns: 1fr;
+
+    /* Period filter - mais compacto */
+    .periodFilter {
+        padding: 14px;
         gap: 10px;
     }
 
+    .periodFilterGroup:last-child .periodFilterLabel {
+        display: none;
+    }
+
+    .periodDateInput {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    /* Metrics - mais compacto */
     .metricCard {
-        flex-direction: row;
-        align-items: center;
-        padding: 14px 16px;
-    }
-
-    .metricHeader {
-        flex-direction: row-reverse;
-        width: 100%;
-    }
-
-    .metricContent {
-        flex: 1;
+        padding: 14px;
     }
 
     .metricValue {
-        font-size: 20px;
+        font-size: 18px;
     }
 
-    .metricTitle {
-        font-size: 11px;
+    .metricIcon {
+        width: 36px;
+        height: 36px;
     }
 
+    /* Charts - mais compacto */
     .chartContainer,
-    .customChartContainer {
+    .customChartContainer,
+    .forecastChartContainer {
         padding: 14px;
+    }
+
+    .chartWrapper {
+        height: 260px;
+        min-height: 260px;
+    }
+
+    .chartTitle {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    /* Stage filters - smaller chips */
+    .stageFilters {
+        padding: 8px;
+        gap: 6px;
+    }
+
+    .stageChip {
+        padding: 6px 10px;
+        font-size: 11px;
+        min-height: 32px;
+    }
+
+    .stageChipColor {
+        width: 8px;
+        height: 8px;
+    }
+
+    /* Recharts adjustments for small screens */
+    :global(.recharts-legend-wrapper) {
+        font-size: 9px !important;
+    }
+
+    :global(.recharts-cartesian-axis-tick-value) {
+        font-size: 8px !important;
+    }
+
+    :global(.recharts-tooltip-wrapper) {
+        font-size: 11px !important;
+    }
+
+    /* Custom charts header */
+    .customChartHeader {
+        margin-bottom: 10px;
+    }
+
+    .deleteChartBtn {
+        padding: 6px;
     }
 }

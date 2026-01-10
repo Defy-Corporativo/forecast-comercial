@@ -68,6 +68,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                 opp.client_name?.toLowerCase().includes(search) ||
                 opp.opportunity_number?.toLowerCase().includes(search) ||
                 opp.responsible?.toLowerCase().includes(search) ||
+                opp.title?.toLowerCase().includes(search) ||
                 opp.notes?.toLowerCase().includes(search) ||
                 opp.stage?.toLowerCase().includes(search)
             );
@@ -156,8 +157,21 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
         }
     };
 
-    const hasActiveFilters = searchTerm || filters.stages.length > 0 || filters.tags.length > 0 || filters.minValue || filters.maxValue ||
-        filters.responsible || filters.dateFrom || filters.dateTo;
+    // Conta filtros ativos (excluindo busca global)
+    const countActiveFilters = () => {
+        let count = 0;
+        if (filters.stages.length > 0) count++;
+        if (filters.tags.length > 0) count++;
+        if (filters.minValue) count++;
+        if (filters.maxValue) count++;
+        if (filters.responsible) count++;
+        if (filters.dateFrom) count++;
+        if (filters.dateTo) count++;
+        return count;
+    };
+
+    const activeFilterCount = countActiveFilters();
+    const hasActiveFilters = searchTerm || activeFilterCount > 0;
 
     const toggleStage = (stage) => {
         const newStages = filters.stages.includes(stage)
@@ -184,7 +198,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                     <input
                         type="text"
                         className={styles.searchInput}
-                        placeholder="Buscar por cliente, número, responsável..."
+                        placeholder="Buscar por cliente, número, responsável, título..."
                         value={searchTerm}
                         onChange={(e) => handleSearchChange(e.target.value)}
                     />
@@ -251,13 +265,26 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         )}
                     </button>
                     <button
-                        className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''}`}
+                        className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''} ${activeFilterCount > 0 ? styles.hasFilters : ''}`}
                         onClick={() => setShowFilters(!showFilters)}
                     >
                         <Filter size={18} />
-                        Filtros
-                        {hasActiveFilters && <span className={styles.filterBadge}></span>}
+                        <span>Filtros</span>
+                        {activeFilterCount > 0 && (
+                            <span className={styles.filterBadge}>{activeFilterCount}</span>
+                        )}
                     </button>
+                    {/* Botão limpar filtros - sempre visível quando há filtros ativos */}
+                    {hasActiveFilters && (
+                        <button
+                            className={styles.clearFiltersBtn}
+                            onClick={clearFilters}
+                            title="Limpar todos os filtros"
+                        >
+                            <X size={16} />
+                            <span className={styles.clearFiltersText}>Limpar</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -453,13 +480,6 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         </div>
                     </div>
 
-                    {hasActiveFilters && (
-                        <div className={styles.filtersActions}>
-                            <button className="btn btn-secondary" onClick={clearFilters}>
-                                Limpar Filtros
-                            </button>
-                        </div>
-                    )}
                 </div>
             )}
         </div>
