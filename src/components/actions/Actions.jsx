@@ -338,11 +338,19 @@ const Actions = () => {
                                             <span className={styles.groupIcon}>
                                                 {viewMode === 'responsible' ? <User size={18} /> : <Briefcase size={18} />}
                                             </span>
-                                            <span className={styles.groupTitle}>{group.label}</span>
-                                            {viewMode === 'opportunity' && group.opportunity && (
-                                                <span className={styles.groupSubtitle}>
-                                                    {group.opportunity.title || group.opportunity.client_name}
-                                                </span>
+                                            {viewMode === 'opportunity' && group.opportunity ? (
+                                                <div className={styles.groupTitleContainer}>
+                                                    <span className={styles.groupTitle}>
+                                                        {group.opportunity.title || group.opportunity.client_name}
+                                                    </span>
+                                                    {group.opportunity.title && group.opportunity.client_name && (
+                                                        <span className={styles.groupClientName}>
+                                                            {group.opportunity.client_name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className={styles.groupTitle}>{group.label}</span>
                                             )}
                                         </div>
                                         <div className={styles.groupHeaderRight}>
@@ -373,10 +381,21 @@ const Actions = () => {
                                                                     {age} {age === 1 ? 'dia' : 'dias'}
                                                                 </span>
                                                                 {viewMode === 'responsible' && action.opportunity && (
-                                                                    <span className={styles.opportunityBadge}>
-                                                                        <Briefcase size={14} />
-                                                                        {action.opportunity.opportunity_number}
-                                                                    </span>
+                                                                    <div className={styles.opportunityInfo}>
+                                                                        <div className={styles.opportunityBadge}>
+                                                                            <Briefcase size={14} />
+                                                                            <div className={styles.opportunityContent}>
+                                                                                <span className={styles.opportunityTitle}>
+                                                                                    {action.opportunity.title || action.opportunity.client_name}
+                                                                                </span>
+                                                                                {action.opportunity.title && action.opportunity.client_name && (
+                                                                                    <span className={styles.opportunityClient}>
+                                                                                        {action.opportunity.client_name}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
                                                                 )}
                                                                 {viewMode === 'opportunity' && (
                                                                     <span className={styles.responsibleBadge}>
