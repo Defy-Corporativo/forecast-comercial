@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie,
-    AreaChart, Area, Legend, LineChart, Line
+    AreaChart, Area, Legend, LineChart, Line, ReferenceLine, ReferenceArea
 } from 'recharts';
 import { X, Trash2 } from 'lucide-react';
 import styles from './Dashboard.module.css';
@@ -89,6 +89,12 @@ const formatCurrency = (value) => {
 const getMonthName = (date) => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     return months[date.getMonth()];
+};
+
+// Função para obter o label do mês atual no formato usado nos gráficos
+const getCurrentMonthLabel = () => {
+    const now = new Date();
+    return `${getMonthName(now)}/${now.getFullYear().toString().slice(-2)}`;
 };
 
 // Função para gerar lista de meses entre duas datas
@@ -561,6 +567,31 @@ export const ForecastProjectionChart = ({ opportunities = [], stages = [], start
                                     isAnimationActive={false}
                                 />
                             )}
+                            {/* Preenchimento do período passado até o mês atual */}
+                            {chartData.length > 0 && (
+                                <ReferenceArea
+                                    x1={chartData[0]?.name}
+                                    x2={getCurrentMonthLabel()}
+                                    fill="#64748b"
+                                    fillOpacity={0.06}
+                                    strokeOpacity={0}
+                                />
+                            )}
+                            {/* Linha vertical indicando o mês atual */}
+                            <ReferenceLine
+                                x={getCurrentMonthLabel()}
+                                stroke="#64748b"
+                                strokeWidth={2}
+                                strokeDasharray="4 4"
+                                label={{
+                                    value: 'Hoje',
+                                    position: 'insideTopRight',
+                                    fill: '#64748b',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    dy: 10
+                                }}
+                            />
                         </AreaChart>
                     </SafeResponsiveContainer>
                 </div>
@@ -1446,6 +1477,31 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
                                 strokeWidth={2}
                                 dot={{ r: 3, fill: '#10b981' }}
                                 activeDot={{ r: 5 }}
+                            />
+                            {/* Preenchimento do período passado até o mês atual */}
+                            {chartData.length > 0 && (
+                                <ReferenceArea
+                                    x1={chartData[0]?.name}
+                                    x2={getCurrentMonthLabel()}
+                                    fill="#64748b"
+                                    fillOpacity={0.06}
+                                    strokeOpacity={0}
+                                />
+                            )}
+                            {/* Linha vertical indicando o mês atual */}
+                            <ReferenceLine
+                                x={getCurrentMonthLabel()}
+                                stroke="#64748b"
+                                strokeWidth={2}
+                                strokeDasharray="4 4"
+                                label={{
+                                    value: 'Hoje',
+                                    position: 'insideTopRight',
+                                    fill: '#64748b',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    dy: 10
+                                }}
                             />
                         </LineChart>
                     </SafeResponsiveContainer>
