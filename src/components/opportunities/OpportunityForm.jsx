@@ -292,12 +292,13 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
             ...prev,
             is_goal: isGoal,
             is_potential: isPotential,
-            // Reset client/stage/responsible when switching to goal or potential mode
+            // Reset client/stage when switching to goal or potential mode
+            // For 'potencial', keep responsible field editable (not reset)
             ...((isGoal || isPotential) ? {
                 client_id: '',
                 client_name: '',
                 stage: isGoal ? 'Meta' : 'Potencial',
-                responsible: ''
+                ...(isGoal ? { responsible: '' } : {})
             } : {})
         }));
         if (isGoal || isPotential) {
@@ -498,7 +499,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 client_id: (formData.is_goal || formData.is_potential) ? null : formData.client_id,
                 client_name: formData.is_goal ? 'META' : (formData.is_potential ? 'POTENCIAL' : formData.client_name),
                 stage: formData.is_goal ? 'Meta' : (formData.is_potential ? 'Potencial' : formData.stage),
-                responsible: (formData.is_goal || formData.is_potential) ? null : formData.responsible,
+                // Responsável: permitido para 'real' e 'potencial', mas não para 'meta'
+                responsible: formData.is_goal ? null : (formData.responsible || null),
                 billing_probability: (formData.is_goal || formData.is_potential) ? null : formData.billing_probability,
                 forecasts: forecasts.map(f => ({
                     period_start: f.period_start,
@@ -901,7 +903,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                             </div>
 
                             {/* Campo Responsável - à direita das Tags */}
-                            {!formData.is_goal && !formData.is_potential && (
+                            {/* Exibir para 'real' e 'potencial', mas não para 'meta' */}
+                            {!formData.is_goal && (
                                 <div className="input-group" style={{ flex: 1, marginBottom: 0, minWidth: '180px' }}>
                                     <label className="label">Responsável</label>
                                     <select
