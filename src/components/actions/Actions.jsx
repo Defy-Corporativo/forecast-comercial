@@ -75,15 +75,6 @@ const Actions = () => {
 
             const data = await opportunityActionsService.getAllActions(filters);
             setActions(data);
-
-            // Auto-expand first group
-            if (data.length > 0 && Object.keys(expandedGroups).length === 0) {
-                const groups = groupActions(data);
-                const firstGroupKey = Object.keys(groups)[0];
-                if (firstGroupKey) {
-                    setExpandedGroups({ [firstGroupKey]: true });
-                }
-            }
         } catch (error) {
             console.error('Erro ao carregar ações:', error);
         } finally {

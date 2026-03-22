@@ -1377,7 +1377,7 @@ export const GoalsComparisonChart = ({ opportunities = [], startDate, endDate })
     return (
         <div className={styles.forecastChartContainer}>
             <div className={styles.forecastHeader}>
-                <h3 className={styles.chartTitle}>Meta vs Forecast vs Faturado</h3>
+                <h3 className={styles.chartTitle}>Meta vs Forecast (Oportunidades Reais) vs Faturado</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                         Forecast:

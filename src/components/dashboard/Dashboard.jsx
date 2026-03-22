@@ -395,13 +395,13 @@ const Dashboard = () => {
 
             <div className={styles.metricsGrid}>
                 <MetricsCard
-                    title="Valor Oportunidades"
+                    title="VL Oportunidades Reais"
                     value={formatCurrency(filteredMetrics.totalValue)}
                     icon={DollarSign}
                     color="#2563EB"
                 />
                 <MetricsCard
-                    title="Quantidade Oportunidades"
+                    title="QT Oportunidades Reais"
                     value={filteredMetrics.totalOpportunities}
                     icon={Briefcase}
                     color="#64748B"
@@ -413,16 +413,16 @@ const Dashboard = () => {
                     color="#F59E0B"
                 />
                 <MetricsCard
-                    title="Valor Faturado"
-                    value={formatCurrency(filteredMetrics.invoicedValue)}
-                    icon={DollarSign}
-                    color="#059669"
-                />
-                <MetricsCard
                     title="Potencial"
                     value={formatCurrency(filteredMetrics.potentialValue)}
                     icon={Lightbulb}
                     color="#8B5CF6"
+                />
+                <MetricsCard
+                    title="Valor Faturado"
+                    value={formatCurrency(filteredMetrics.invoicedValue)}
+                    icon={DollarSign}
+                    color="#059669"
                 />
             </div>
 
