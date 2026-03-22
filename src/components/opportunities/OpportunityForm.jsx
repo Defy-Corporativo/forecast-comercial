@@ -65,6 +65,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
     const [availableTags, setAvailableTags] = useState([]);
     const [showTagDropdown, setShowTagDropdown] = useState(false);
     const tagRef = useRef(null);
+    const tagInputRef = useRef(null);
 
     // Recurrence state
     const [showRecurrence, setShowRecurrence] = useState(false);
@@ -218,6 +219,9 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
             if (searchRef.current && !searchRef.current.contains(event.target)) {
                 setShowDropdown(false);
             }
+            if (tagRef.current && !tagRef.current.contains(event.target)) {
+                setShowTagDropdown(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -267,8 +271,15 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
     // Tag management
     const addTag = (tagName) => {
         const normalizedTag = tagName.trim();
-        if (normalizedTag && !selectedTags.includes(normalizedTag)) {
-            setSelectedTags(prev => [...prev, normalizedTag]);
+        const existingTagName = availableTags.find(
+            tag => tag.name.toLowerCase() === normalizedTag.toLowerCase()
+        )?.name || normalizedTag;
+
+        if (
+            existingTagName &&
+            !selectedTags.some(tag => tag.toLowerCase() === existingTagName.toLowerCase())
+        ) {
+            setSelectedTags(prev => [...prev, existingTagName]);
         }
         setTagInput('');
         setShowTagDropdown(false);
@@ -278,10 +289,27 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         setSelectedTags(prev => prev.filter(t => t !== tagName));
     };
 
-    const filteredAvailableTags = availableTags.filter(tag =>
-        tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
-        !selectedTags.includes(tag.name)
+    const filteredAvailableTags = availableTags.filter(tag => {
+        const matchesInput = !tagInput.trim() || tag.name.toLowerCase().includes(tagInput.trim().toLowerCase());
+        const isSelected = selectedTags.some(selectedTag => selectedTag.toLowerCase() === tag.name.toLowerCase());
+
+        return matchesInput && !isSelected;
+    });
+    const normalizedTagInput = tagInput.trim();
+    const canCreateTag = Boolean(normalizedTagInput) && !availableTags.some(
+        tag => tag.name.toLowerCase() === normalizedTagInput.toLowerCase()
+    ) && !selectedTags.some(
+        tag => tag.toLowerCase() === normalizedTagInput.toLowerCase()
     );
+    const tagDropdownMessage = normalizedTagInput
+        ? (filteredAvailableTags.length === 0 && !canCreateTag ? 'Nenhuma tag encontrada.' : '')
+        : (availableTags.length === 0
+            ? 'Nenhuma tag cadastrada.'
+            : (filteredAvailableTags.length === 0 ? 'Todas as tags disponíveis já foram selecionadas.' : ''));
+    const openTagDropdown = () => {
+        setShowTagDropdown(true);
+        tagInputRef.current?.focus();
+    };
 
     const handleTypeChange = (type) => {
         // type can be 'real', 'meta', or 'potencial'
@@ -655,7 +683,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                     left: '12px',
                                                     top: '50%',
                                                     transform: 'translateY(-50%)',
-                                                    color: '#666',
+                                                    color: 'var(--text-tertiary)',
                                                     pointerEvents: 'none'
                                                 }} />
                                                 <input
@@ -685,17 +713,17 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                     top: '100%',
                                                     left: 0,
                                                     right: 0,
-                                                    background: 'white',
+                                                    background: 'var(--bg-secondary)',
                                                     border: '1px solid var(--border-color)',
                                                     borderRadius: '8px',
                                                     marginTop: '4px',
                                                     maxHeight: '300px',
                                                     overflowY: 'auto',
-                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                                    boxShadow: 'var(--shadow-lg)',
                                                     zIndex: 1000
                                                 }}>
                                                     {filteredClients.length === 0 ? (
-                                                        <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                                                        <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                                             Nenhum cliente encontrado
                                                         </div>
                                                     ) : (
@@ -709,8 +737,8 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                                     borderBottom: '1px solid var(--border-color)',
                                                                     transition: 'background 0.2s'
                                                                 }}
-                                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
                                                             >
                                                                 <div style={{ fontWeight: 500 }}>
                                                                     {client.name}
@@ -766,15 +794,22 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                     Tags
                                 </label>
                                 <div ref={tagRef} style={{ position: 'relative' }}>
-                                    <div style={{
+                                    <div
+                                        onClick={openTagDropdown}
+                                        style={{
                                         display: 'flex',
                                         flexWrap: 'wrap',
                                         gap: '6px',
                                         padding: '8px',
-                                        border: '1px solid var(--border-color)',
+                                        border: `1px solid ${showTagDropdown ? 'var(--color-primary)' : 'var(--border-color)'}`,
                                         borderRadius: '8px',
                                         minHeight: '42px',
-                                        background: 'white'
+                                        background: 'var(--bg-input)',
+                                        boxShadow: showTagDropdown
+                                            ? '0 0 0 3px var(--focus-ring)'
+                                            : 'inset 0 1px 2px rgba(15, 23, 42, 0.04)',
+                                        transition: 'all var(--transition-base)',
+                                        cursor: 'text'
                                     }}>
                                         {selectedTags.map(tag => (
                                             <span
@@ -787,20 +822,25 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                     background: 'var(--color-primary)',
                                                     color: 'white',
                                                     borderRadius: '4px',
-                                                    fontSize: '0.85rem'
+                                                    fontSize: '0.85rem',
+                                                    boxShadow: '0 1px 2px rgba(37, 99, 235, 0.28)'
                                                 }}
                                             >
                                                 {tag}
                                                 <button
                                                     type="button"
-                                                    onClick={() => removeTag(tag)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        removeTag(tag);
+                                                    }}
                                                     style={{
                                                         background: 'none',
                                                         border: 'none',
                                                         color: 'white',
                                                         cursor: 'pointer',
                                                         padding: '0 2px',
-                                                        display: 'flex'
+                                                        display: 'flex',
+                                                        opacity: 0.9
                                                     }}
                                                 >
                                                     <X size={12} />
@@ -808,6 +848,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                             </span>
                                         ))}
                                         <input
+                                            ref={tagInputRef}
                                             type="text"
                                             value={tagInput}
                                             onChange={(e) => {
@@ -821,82 +862,97 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                                     addTag(tagInput);
                                                 }
                                             }}
-                                            placeholder={selectedTags.length === 0 ? 'Digite para adicionar tags...' : ''}
+                                            placeholder="Digite ou selecione tags..."
                                             style={{
                                                 border: 'none',
                                                 outline: 'none',
                                                 flex: 1,
                                                 minWidth: '120px',
-                                                padding: '4px'
+                                                padding: '4px',
+                                                background: 'transparent',
+                                                color: 'var(--text-primary)'
                                             }}
                                         />
                                     </div>
-                                    {showTagDropdown && tagInput && (
+                                    {showTagDropdown && (
                                         <div style={{
                                             position: 'absolute',
                                             top: '100%',
                                             left: 0,
                                             right: 0,
-                                            background: 'white',
+                                            background: 'var(--bg-secondary)',
                                             border: '1px solid var(--border-color)',
                                             borderRadius: '8px',
                                             marginTop: '4px',
                                             maxHeight: '200px',
                                             overflowY: 'auto',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                            boxShadow: 'var(--shadow-lg)',
                                             zIndex: 1000
                                         }}>
-                                            {filteredAvailableTags.length > 0 && (
-                                                <>
-                                                    {filteredAvailableTags.map(tag => (
-                                                        <div
-                                                            key={tag.id}
-                                                            onClick={() => addTag(tag.name)}
-                                                            style={{
-                                                                padding: '8px 12px',
-                                                                cursor: 'pointer',
-                                                                borderBottom: '1px solid var(--border-color)'
-                                                            }}
-                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                                        >
-                                                            {tag.name}
-                                                            <button
-                                                                onClick={(e) => handleDeleteTag(tag.id, tag.name, e)}
-                                                                style={{
-                                                                    background: 'none',
-                                                                    border: 'none',
-                                                                    cursor: 'pointer',
-                                                                    padding: '4px',
-                                                                    color: 'var(--text-tertiary)',
-                                                                    marginLeft: 'auto',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center'
-                                                                }}
-                                                                title="Excluir tag"
-                                                                onMouseEnter={(e) => e.target.style.color = 'var(--color-danger)'}
-                                                                onMouseLeave={(e) => e.target.style.color = 'var(--text-tertiary)'}
-                                                            >
-                                                                <Trash size={12} />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    <div style={{ borderTop: '1px solid var(--border-color)', margin: '4px 0' }}></div>
-                                                </>
+                                            {filteredAvailableTags.map(tag => (
+                                                <div
+                                                    key={tag.id}
+                                                    onClick={() => addTag(tag.name)}
+                                                    style={{
+                                                        padding: '10px 12px',
+                                                        cursor: 'pointer',
+                                                        borderBottom: '1px solid var(--border-color)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        gap: '12px',
+                                                        color: 'var(--text-primary)'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                >
+                                                    <span>{tag.name}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleDeleteTag(tag.id, tag.name, e)}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: '4px',
+                                                            color: 'var(--text-tertiary)',
+                                                            display: 'flex',
+                                                            alignItems: 'center'
+                                                        }}
+                                                        title="Excluir tag"
+                                                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-danger)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-tertiary)'}
+                                                    >
+                                                        <Trash size={12} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {tagDropdownMessage && (
+                                                <div style={{
+                                                    padding: '12px',
+                                                    color: 'var(--text-secondary)',
+                                                    textAlign: 'center',
+                                                    background: 'var(--bg-main)'
+                                                }}>
+                                                    {tagDropdownMessage}
+                                                </div>
                                             )}
-                                            <div
-                                                onClick={() => addTag(tagInput)}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    cursor: 'pointer',
-                                                    color: 'var(--color-primary)',
-                                                    fontWeight: 600
-                                                }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                            >
-                                                + Criar tag "{tagInput}"
-                                            </div>
+                                            {canCreateTag && (
+                                                <div
+                                                    onClick={() => addTag(normalizedTagInput)}
+                                                    style={{
+                                                        padding: '10px 12px',
+                                                        cursor: 'pointer',
+                                                        color: 'var(--color-primary)',
+                                                        fontWeight: 600,
+                                                        borderTop: filteredAvailableTags.length > 0 ? '1px solid var(--border-color)' : 'none'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                >
+                                                    + Criar tag "{normalizedTagInput}"
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

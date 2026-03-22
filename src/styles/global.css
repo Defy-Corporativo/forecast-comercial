@@ -20,7 +20,7 @@
 
 .card:hover {
     box-shadow: var(--shadow-md);
-    border-color: var(--border-color);
+    border-color: var(--border-color-strong);
 }
 
 .btn {
@@ -29,20 +29,26 @@
     justify-content: center;
     padding: 10px 20px;
     border-radius: var(--border-radius-sm);
-    font-weight: 500;
     transition: all var(--transition-base);
-    border: none;
+    border: 1px solid transparent;
     font-size: var(--font-size-md);
     cursor: pointer;
     gap: 8px;
     min-height: var(--touch-target-min);
     -webkit-tap-highlight-color: transparent;
+    font-weight: 600;
+}
+
+.btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .btn-primary {
     background-color: var(--color-primary);
     color: white;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border-color: var(--color-primary-hover);
+    box-shadow: 0 10px 20px -16px rgba(37, 99, 235, 0.9), var(--shadow-sm);
 }
 
 .btn-primary:hover {
@@ -56,15 +62,16 @@
 }
 
 .btn-secondary {
-    background-color: transparent;
+    background-color: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    color: var(--text-secondary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-secondary:hover {
     background-color: var(--bg-hover);
     color: var(--text-primary);
-    border-color: var(--border-color);
+    border-color: var(--border-color-strong);
 }
 
 .btn-danger {
@@ -90,9 +97,9 @@
 .label {
     display: block;
     margin-bottom: var(--spacing-xs);
-    color: var(--text-secondary);
+    color: var(--text-primary);
     font-size: var(--font-size-sm);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .input,
@@ -110,12 +117,13 @@ textarea.input {
     min-height: var(--touch-target-min);
     -webkit-appearance: none;
     -webkit-tap-highlight-color: transparent;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .input:hover,
 select.input:hover,
 textarea.input:hover {
-    border-color: var(--border-color);
+    border-color: var(--border-color-strong);
 }
 
 .input:focus,
@@ -123,7 +131,21 @@ select.input:focus,
 textarea.input:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary-light);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.input::placeholder,
+select.input::placeholder,
+textarea.input::placeholder {
+    color: var(--text-tertiary);
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 textarea.input {
