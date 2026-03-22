@@ -1,6 +1,87 @@
 import { supabase } from './supabaseClient';
 import { tagService } from './tagService';
 
+const OPPORTUNITY_NUMBER_PREFIX = 'OPP-'
+const OPPORTUNITY_NUMBER_PADDING = 7
+const OPPORTUNITY_NUMBER_MAX_ATTEMPTS = 100
+const OPPORTUNITY_NUMBER_PAGE_SIZE = 1000
+
+const formatOpportunityNumber = (sequence) =>
+    `${OPPORTUNITY_NUMBER_PREFIX}${String(sequence).padStart(OPPORTUNITY_NUMBER_PADDING, '0')}`
+
+const parseOpportunitySequence = (opportunityNumber) => {
+    const match = /^OPP-(\d+)$/.exec(opportunityNumber || '')
+
+    if (!match) {
+        return null
+    }
+
+    return Number.parseInt(match[1], 10)
+}
+
+const isOpportunityNumberDuplicateError = (error) => {
+    const errorText = [error?.message, error?.details, error?.hint]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+    const isUniqueViolation = error?.code === '23505' || errorText.includes('duplicate key value')
+
+    return isUniqueViolation && (
+        errorText.includes('opportunity_number') ||
+        errorText.includes('opportunities_opportunity_number_key')
+    )
+}
+
+const getUsedOpportunitySequences = async () => {
+    const usedSequences = new Set()
+    let from = 0
+
+    while (true) {
+        const to = from + OPPORTUNITY_NUMBER_PAGE_SIZE - 1
+        const { data, error } = await supabase
+            .from('opportunities')
+            .select('opportunity_number')
+            .like('opportunity_number', `${OPPORTUNITY_NUMBER_PREFIX}%`)
+            .order('opportunity_number', { ascending: true })
+            .range(from, to)
+
+        if (error) {
+            throw error
+        }
+
+        const page = data || []
+
+        page.forEach(({ opportunity_number }) => {
+            const sequence = parseOpportunitySequence(opportunity_number)
+
+            if (Number.isInteger(sequence) && sequence > 0) {
+                usedSequences.add(sequence)
+            }
+        })
+
+        if (page.length < OPPORTUNITY_NUMBER_PAGE_SIZE) {
+            break
+        }
+
+        from += OPPORTUNITY_NUMBER_PAGE_SIZE
+    }
+
+    return usedSequences
+}
+
+const getNextAvailableOpportunitySequence = async (minSequence = 1) => {
+    const usedSequences = await getUsedOpportunitySequences()
+
+    let nextSequence = Math.max(1, minSequence)
+
+    while (usedSequences.has(nextSequence)) {
+        nextSequence += 1
+    }
+
+    return nextSequence
+}
+
 export const opportunityService = {
     async getOpportunities(_userId, filters = {}) {
         let query = supabase
@@ -257,27 +338,39 @@ export const opportunityService = {
     },
 
     async createOpportunity(_userId, opportunityData) {
-        // Generate Opportunity Number
-        const { count } = await supabase
-            .from('opportunities')
-            .select('*', { count: 'exact', head: true });
-
-        const opportunityNumber = `OPP-${String(count + 1).padStart(7, '0')}`;
-
         // Separate forecasts and tags from opportunity data
         const { forecasts, tagNames, ...oppData } = opportunityData;
 
-        // Create the opportunity first
-        const { data: opportunity, error } = await supabase
-            .from('opportunities')
-            .insert([{
-                ...oppData,
-                opportunity_number: opportunityNumber
-            }])
-            .select()
-            .single();
+        let nextSequence = await getNextAvailableOpportunitySequence()
+        let opportunity = null
+        let lastDuplicateError = null
 
-        if (error) throw error;
+        for (let attempt = 0; attempt < OPPORTUNITY_NUMBER_MAX_ATTEMPTS; attempt += 1) {
+            const { data, error } = await supabase
+                .from('opportunities')
+                .insert([{
+                    ...oppData,
+                    opportunity_number: formatOpportunityNumber(nextSequence)
+                }])
+                .select()
+                .single()
+
+            if (!error) {
+                opportunity = data
+                break
+            }
+
+            if (!isOpportunityNumberDuplicateError(error)) {
+                throw error
+            }
+
+            lastDuplicateError = error
+            nextSequence = await getNextAvailableOpportunitySequence(nextSequence + 1)
+        }
+
+        if (!opportunity) {
+            throw lastDuplicateError || new Error('Nao foi possivel gerar um numero de oportunidade disponivel.')
+        }
 
         // Create forecasts if provided
         if (forecasts && forecasts.length > 0) {
