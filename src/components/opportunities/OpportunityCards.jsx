@@ -12,7 +12,39 @@ const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit
 
     const formatDate = (dateString) => {
         if (!dateString) return '-';
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
         return new Date(dateString).toLocaleDateString('pt-BR');
+    };
+
+    const formatMonthYear = (dateString) => {
+        if (!dateString) return '-';
+        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month] = dateString.split('-');
+            return `${months[Number(month) - 1]}/${year.slice(-2)}`;
+        }
+
+        const date = new Date(dateString);
+        return `${months[date.getMonth()]}/${String(date.getFullYear()).slice(-2)}`;
+    };
+
+    const renderPeriodWithEndLabel = (startDate, endDate) => {
+        if (!startDate && !endDate) return '-';
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span>{formatDate(startDate)} - {formatDate(endDate)}</span>
+                {endDate && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Fim: {formatMonthYear(endDate)}
+                    </span>
+                )}
+            </div>
+        );
     };
 
     const getStageColor = (stageName) => {
@@ -54,7 +86,7 @@ const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit
                     </div>
 
                     <div className={styles.cardTitle}>{opp.title || opp.client?.name || opp.client_name}</div>
-                    <div className={styles.cardClient}>{opp.client?.name || opp.client_name}</div>
+                    <div className={styles.cardClient}>{opp.client?.nickname || opp.client?.name || opp.client_name}</div>
 
                     <div className={styles.cardValue}>
                         <DollarSign size={16} />
@@ -83,14 +115,14 @@ const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit
                     <div className={styles.cardDetails}>
                         <div className={styles.cardDetailItem}>
                             <Calendar size={14} />
-                            <span>
+                            <div>
                                 {groupMode === 'grouped'
                                     ? (getNextForecastPeriod(opp)
-                                        ? `${formatDate(getNextForecastPeriod(opp).start)} - ${formatDate(getNextForecastPeriod(opp).end)}`
+                                        ? renderPeriodWithEndLabel(getNextForecastPeriod(opp).start, getNextForecastPeriod(opp).end)
                                         : '-')
-                                    : (opp.period_start ? `${formatDate(opp.period_start)} - ${formatDate(opp.period_end)}` : '-')
+                                    : (opp.period_start ? renderPeriodWithEndLabel(opp.period_start, opp.period_end) : '-')
                                 }
-                            </span>
+                            </div>
                         </div>
                         {opp.responsible && (
                             <div className={styles.cardDetailItem}>
@@ -126,7 +158,12 @@ const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit
                                             textDecoration: forecast.invoiced ? 'line-through' : 'none'
                                         }}
                                     >
-                                        <span>{formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                            <span>{formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}</span>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                                Fim: {formatMonthYear(forecast.period_end)}
+                                            </span>
+                                        </div>
                                         <span style={{ fontWeight: 500 }}>{formatCurrency(forecast.estimated_value)}</span>
                                     </div>
                                 ))}

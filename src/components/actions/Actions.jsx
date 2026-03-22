@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Search, Filter, User, Briefcase, Clock, CheckCircle, AlertCircle, ExternalLink, ChevronDown, ChevronRight, X, Trash } from 'lucide-react';
+import { CheckSquare, Search, User, Briefcase, Clock, CheckCircle, AlertCircle, ExternalLink, ChevronDown, ChevronRight, X, Trash, Calendar } from 'lucide-react';
 import { opportunityActionsService } from '../../services/opportunityActionsService';
 import { responsiblesService } from '../../services/responsiblesService';
+import { opportunityService } from '../../services/opportunityService';
 import { useAuth } from '../../contexts/AuthContext';
+import OpportunityView from '../opportunities/OpportunityView';
+import OpportunityForm from '../opportunities/OpportunityForm';
 import styles from './Actions.module.css';
 
 const Actions = () => {
@@ -36,6 +39,11 @@ const Actions = () => {
         opportunityId: null,
         noteText: ''
     });
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [viewingOpportunity, setViewingOpportunity] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingOpportunity, setEditingOpportunity] = useState(null);
+    const [loadingOpportunityId, setLoadingOpportunityId] = useState(null);
 
     useEffect(() => {
         loadData();
@@ -52,12 +60,14 @@ const Actions = () => {
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
         }
-        await loadActions();
     };
 
-    const loadActions = async () => {
+    const loadActions = async ({ silent = false } = {}) => {
         try {
-            setLoading(true);
+            if (!silent) {
+                setLoading(true);
+            }
+
             const filters = {};
             if (statusFilter) filters.status = statusFilter;
             if (responsibleFilter) filters.responsible = responsibleFilter;
@@ -77,7 +87,9 @@ const Actions = () => {
         } catch (error) {
             console.error('Erro ao carregar ações:', error);
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     };
 
@@ -140,7 +152,7 @@ const Actions = () => {
                 user?.name || user?.email || 'Usuário'
             );
             setCompleteModal({ isOpen: false, actionId: null, opportunityId: null, noteText: '' });
-            await loadActions();
+            await loadActions({ silent: true });
         } catch (error) {
             console.error('Erro ao concluir ação:', error);
             alert('Erro ao concluir ação. Tente novamente.');
@@ -165,10 +177,58 @@ const Actions = () => {
                 user?.name || user?.email || 'Usuário'
             );
             setDeleteActionModal({ isOpen: false, actionId: null, opportunityId: null, noteText: '' });
-            await loadActions();
+            await loadActions({ silent: true });
         } catch (error) {
             console.error('Erro ao excluir ação:', error);
             alert('Erro ao excluir ação. Tente novamente.');
+        }
+    };
+
+    const handleOpenOpportunity = async (opportunityId) => {
+        if (!opportunityId) return;
+
+        try {
+            setLoadingOpportunityId(opportunityId);
+            const opportunity = await opportunityService.getOpportunity(opportunityId);
+            setViewingOpportunity(opportunity);
+            setShowViewModal(true);
+        } catch (error) {
+            console.error('Erro ao carregar oportunidade:', error);
+            alert('Erro ao abrir oportunidade. Tente novamente.');
+        } finally {
+            setLoadingOpportunityId(null);
+        }
+    };
+
+    const handleCloseOpportunityView = async () => {
+        setShowViewModal(false);
+        setViewingOpportunity(null);
+        await loadActions({ silent: true });
+    };
+
+    const handleEditOpportunity = (opportunity) => {
+        setEditingOpportunity(opportunity);
+        setShowEditModal(true);
+    };
+
+    const handleCloseOpportunityForm = () => {
+        setShowEditModal(false);
+        setEditingOpportunity(null);
+    };
+
+    const handleSaveOpportunity = async () => {
+        setShowEditModal(false);
+        setEditingOpportunity(null);
+        await loadActions({ silent: true });
+    };
+
+    const handleDeleteOpportunity = async (opportunityId) => {
+        try {
+            await opportunityService.deleteOpportunity(opportunityId);
+            await loadActions({ silent: true });
+        } catch (error) {
+            console.error('Erro ao excluir oportunidade:', error);
+            alert('Erro ao excluir oportunidade. Tente novamente.');
         }
     };
 
@@ -179,7 +239,9 @@ const Actions = () => {
     // Count stats
     const pendingCount = actions.filter(a => a.status === 'pendente').length;
     const completedCount = actions.filter(a => a.status === 'concluida').length;
-    const overdueCount = actions.filter(a => a.status === 'pendente' && calculateAge(a.created_at) > 7).length;
+    const overdueCount = actions.filter(a => a.status === 'pendente' && (
+        (a.due_date && new Date(a.due_date + 'T23:59:59') < new Date()) || calculateAge(a.created_at) > 7
+    )).length;
 
     return (
         <div className="container">
@@ -356,6 +418,21 @@ const Actions = () => {
                                         <div className={styles.groupHeaderRight}>
                                             <span className={styles.badgeWarning}>{pendingInGroup} pendentes</span>
                                             <span className={styles.badgeSuccess}>{completedInGroup} concluídas</span>
+                                            {viewMode === 'opportunity' && group.opportunity?.id && (
+                                                <button
+                                                    type="button"
+                                                    className={styles.openOpportunityBtn}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenOpportunity(group.opportunity.id);
+                                                    }}
+                                                    disabled={loadingOpportunityId === group.opportunity.id}
+                                                    title="Abrir oportunidade"
+                                                >
+                                                    <ExternalLink size={14} />
+                                                    {loadingOpportunityId === group.opportunity.id ? 'Abrindo...' : 'Abrir oportunidade'}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -363,7 +440,8 @@ const Actions = () => {
                                         <div className={styles.groupContent}>
                                             {group.items.map(action => {
                                                 const age = calculateAge(action.created_at);
-                                                const isOverdue = action.status === 'pendente' && age > 7;
+                                                const isDueDateOverdue = action.status === 'pendente' && action.due_date && new Date(action.due_date + 'T23:59:59') < new Date();
+                                                const isOverdue = action.status === 'pendente' && (isDueDateOverdue || age > 7);
 
                                                 return (
                                                     <div
@@ -394,6 +472,19 @@ const Actions = () => {
                                                                                     </span>
                                                                                 )}
                                                                             </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                className={styles.inlineOpportunityBtn}
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleOpenOpportunity(action.opportunity.id);
+                                                                                }}
+                                                                                disabled={loadingOpportunityId === action.opportunity.id}
+                                                                                title="Abrir oportunidade"
+                                                                            >
+                                                                                <ExternalLink size={14} />
+                                                                                {loadingOpportunityId === action.opportunity.id ? 'Abrindo...' : 'Abrir'}
+                                                                            </button>
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -401,6 +492,15 @@ const Actions = () => {
                                                                     <span className={styles.responsibleBadge}>
                                                                         <User size={14} />
                                                                         {action.responsible}
+                                                                    </span>
+                                                                )}
+                                                                {action.due_date && (
+                                                                    <span className={isDueDateOverdue ? styles.ageOverdue : styles.age}>
+                                                                        <Calendar size={14} />
+                                                                        {(() => {
+                                                                            const [y, m, d] = action.due_date.split('-');
+                                                                            return `${d}/${m}/${y}`;
+                                                                        })()}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -576,6 +676,25 @@ const Actions = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showViewModal && viewingOpportunity && (
+                <OpportunityView
+                    opportunity={viewingOpportunity}
+                    fullscreen={false}
+                    onClose={handleCloseOpportunityView}
+                    onEdit={handleEditOpportunity}
+                    onDelete={handleDeleteOpportunity}
+                    onUpdate={() => loadActions({ silent: true })}
+                />
+            )}
+
+            {showEditModal && editingOpportunity && (
+                <OpportunityForm
+                    opportunity={editingOpportunity}
+                    onClose={handleCloseOpportunityForm}
+                    onSave={handleSaveOpportunity}
+                />
             )}
         </div>
     );

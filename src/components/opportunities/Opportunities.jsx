@@ -144,6 +144,21 @@ const Opportunities = () => {
         }
     };
 
+    const handleReorder = async (updates) => {
+        try {
+            // Optimistic update: apply changes locally immediately
+            setOpportunities(prev => prev.map(opp => {
+                const update = updates.find(u => u.id === opp.id);
+                return update ? { ...opp, display_priority: update.display_priority } : opp;
+            }));
+            await opportunityService.updateDisplayPriorities(updates);
+        } catch (error) {
+            console.error('Erro ao reordenar oportunidades:', error);
+            // Revert on error
+            loadOpportunities();
+        }
+    };
+
     // useEffect(() => {
     //     console.log('Opportunities: Component Mounted');
     //     return () => console.log('Opportunities: Component Unmounted');
@@ -289,6 +304,7 @@ const Opportunities = () => {
                             onView={handleView}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
+                            onReorder={groupMode === 'grouped' ? handleReorder : undefined}
                         />
                     )}
                 </div>

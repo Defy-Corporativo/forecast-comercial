@@ -14,6 +14,7 @@ CREATE TABLE profiles (
 CREATE TABLE clients (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   name text NOT NULL,
+  nickname text,
   document text,
   address text,
   notes text,
@@ -71,9 +72,12 @@ CREATE TABLE opportunities (
   is_goal boolean DEFAULT false,
   is_potential boolean DEFAULT false,
   billing_probability text DEFAULT 'baixa' CHECK (billing_probability IN ('alta', 'media', 'baixa')),
+  display_priority integer NOT NULL DEFAULT 0,
   created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+CREATE INDEX idx_opportunities_display_priority ON opportunities(display_priority);
 
 -- Tabela de previsões de faturamento (1 oportunidade : N forecasts)
 CREATE TABLE opportunity_forecasts (
@@ -170,6 +174,7 @@ CREATE TABLE opportunity_actions (
   opportunity_id uuid REFERENCES opportunities(id) ON DELETE CASCADE NOT NULL,
   description text NOT NULL,
   responsible text NOT NULL,
+  due_date date,
   status text NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'concluida')),
   created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -178,6 +183,7 @@ CREATE TABLE opportunity_actions (
 CREATE INDEX idx_opportunity_actions_opportunity_id ON opportunity_actions(opportunity_id);
 CREATE INDEX idx_opportunity_actions_responsible ON opportunity_actions(responsible);
 CREATE INDEX idx_opportunity_actions_status ON opportunity_actions(status);
+CREATE INDEX idx_opportunity_actions_due_date ON opportunity_actions(due_date);
 
 -- Tabela de responsáveis (cadastro centralizado)
 CREATE TABLE responsibles (

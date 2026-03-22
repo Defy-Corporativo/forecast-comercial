@@ -66,15 +66,19 @@ export const opportunityActionsService = {
     },
 
     // Create a new action
-    async createAction(opportunityId, description, responsible) {
+    async createAction(opportunityId, description, responsible, dueDate = null) {
+        const insertData = {
+            opportunity_id: opportunityId,
+            description: description,
+            responsible: responsible,
+            status: 'pendente'
+        };
+        if (dueDate) {
+            insertData.due_date = dueDate;
+        }
         const { data, error } = await supabase
             .from('opportunity_actions')
-            .insert([{
-                opportunity_id: opportunityId,
-                description: description,
-                responsible: responsible,
-                status: 'pendente'
-            }])
+            .insert([insertData])
             .select()
             .single();
 

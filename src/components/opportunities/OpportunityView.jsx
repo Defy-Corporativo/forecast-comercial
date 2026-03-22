@@ -69,6 +69,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
         console.log(`[OpportunityView] Initializing newActionResponsible from sessionStorage: key=${key}, value=${saved}`);
         return saved || '';
     });
+    const [newActionDueDate, setNewActionDueDate] = useState('');
     const [savingAction, setSavingAction] = useState(false);
     const [responsibles, setResponsibles] = useState([]);
     const [actionCounts, setActionCounts] = useState({ pending: 0, completed: 0 });
@@ -196,13 +197,15 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
             await opportunityActionsService.createAction(
                 currentOpportunity.id,
                 newActionDescription.trim(),
-                newActionResponsible
+                newActionResponsible,
+                newActionDueDate || null
             );
             // Limpar drafts do sessionStorage
             sessionStorage.removeItem(`opportunity_action_desc_draft_${opportunity.id}`);
             sessionStorage.removeItem(`opportunity_action_resp_draft_${opportunity.id}`);
             setNewActionDescription('');
             setNewActionResponsible('');
+            setNewActionDueDate('');
             await loadActions();
         } catch (error) {
             console.error('Erro ao adicionar ação:', error);
@@ -384,6 +387,20 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
             hour: '2-digit',
             minute: '2-digit'
         });
+    };
+
+    const formatMonthYear = (dateString) => {
+        if (!dateString) return '-';
+        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const parts = dateString.split('-');
+
+        if (parts.length === 3) {
+            const [year, month] = parts;
+            return `${months[Number(month) - 1]}/${year.slice(-2)}`;
+        }
+
+        const date = new Date(dateString);
+        return `${months[date.getMonth()]}/${String(date.getFullYear()).slice(-2)}`;
     };
 
     const handleEdit = () => {
@@ -1193,7 +1210,12 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                                         }}
                                                     >
                                                         <td style={{ padding: '12px' }}>
-                                                            {formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                                <span>{formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}</span>
+                                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                                                    Fim: {formatMonthYear(forecast.period_end)}
+                                                                </span>
+                                                            </div>
                                                         </td>
                                                         <td style={{
                                                             padding: '12px',
@@ -1573,7 +1595,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
 
                                 {/* Form para adicionar nova ação */}
                                 <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color-light)' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', marginBottom: '12px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', marginBottom: '12px' }}>
                                         <div className="input-group" style={{ margin: 0 }}>
                                             <label className="label" style={{ fontSize: '12px' }}>Descrição da Ação</label>
                                             <input
@@ -1596,6 +1618,15 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                                     <option key={r.id} value={r.name}>{r.name}</option>
                                                 ))}
                                             </select>
+                                        </div>
+                                        <div className="input-group" style={{ margin: 0, minWidth: '160px' }}>
+                                            <label className="label" style={{ fontSize: '12px' }}>Previsão de Conclusão</label>
+                                            <input
+                                                type="date"
+                                                className="input"
+                                                value={newActionDueDate}
+                                                onChange={(e) => setNewActionDueDate(e.target.value)}
+                                            />
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -1643,7 +1674,8 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                             })
                                             .map((action, index, filteredActions) => {
                                                 const age = calculateActionAge(action.created_at);
-                                                const isOverdue = action.status === 'pendente' && age > 7;
+                                                const isDueDateOverdue = action.status === 'pendente' && action.due_date && new Date(action.due_date + 'T23:59:59') < new Date();
+                                                const isOverdue = action.status === 'pendente' && (isDueDateOverdue || age > 7);
 
                                                 return (
                                                     <div
@@ -1702,6 +1734,27 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                                                     <User size={14} />
                                                                     {action.responsible}
                                                                 </span>
+
+                                                                {/* Data de previsão de conclusão */}
+                                                                {action.due_date && (
+                                                                    <span style={{
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '4px',
+                                                                        padding: '4px 10px',
+                                                                        borderRadius: '12px',
+                                                                        fontSize: '0.8rem',
+                                                                        background: isDueDateOverdue ? 'var(--color-danger-light)' : 'var(--bg-hover)',
+                                                                        color: isDueDateOverdue ? 'var(--color-danger)' : 'var(--text-secondary)',
+                                                                        fontWeight: isDueDateOverdue ? 600 : 400
+                                                                    }}>
+                                                                        <Calendar size={14} />
+                                                                        {(() => {
+                                                                            const [y, m, d] = action.due_date.split('-');
+                                                                            return `${d}/${m}/${y}`;
+                                                                        })()}
+                                                                    </span>
+                                                                )}
                                                             </div>
 
                                                             {/* Action buttons */}

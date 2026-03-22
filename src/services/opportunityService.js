@@ -91,6 +91,7 @@ export const opportunityService = {
                 client:clients (
                     id,
                     name,
+                    nickname,
                     document,
                     contacts:client_contacts (
                         id,
@@ -118,6 +119,7 @@ export const opportunityService = {
                     )
                 )
             `)
+            .order('display_priority', { ascending: false })
             .order('created_at', { ascending: false });
 
         // Apply filters if needed
@@ -161,6 +163,7 @@ export const opportunityService = {
                 client:clients (
                     id,
                     name,
+                    nickname,
                     document,
                     contacts:client_contacts (
                         id,
@@ -197,6 +200,7 @@ export const opportunityService = {
                     id,
                     description,
                     responsible,
+                    due_date,
                     status,
                     created_at
                 ),
@@ -292,6 +296,7 @@ export const opportunityService = {
                 client:clients (
                     id,
                     name,
+                    nickname,
                     document,
                     contacts:client_contacts (
                         id,
@@ -529,5 +534,21 @@ export const opportunityService = {
 
         if (error) throw error;
         return data;
+    },
+
+    // Update display priorities for multiple opportunities
+    async updateDisplayPriorities(updates) {
+        const errors = [];
+        for (const { id, display_priority } of updates) {
+            const { error } = await supabase
+                .from('opportunities')
+                .update({ display_priority, updated_at: new Date().toISOString() })
+                .eq('id', id);
+            if (error) errors.push(error);
+        }
+        if (errors.length > 0) {
+            console.error('Errors updating display priorities:', errors);
+            throw errors[0];
+        }
     }
 };

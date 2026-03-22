@@ -253,17 +253,23 @@
 }
 
 .table th {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 12px;
+    text-transform: uppercase;
     white-space: nowrap;
-    white-space: nowrap;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.05em;
     background-color: var(--bg-main);
+    border-bottom: 2px solid var(--border-color) !important;
+    padding: 14px 16px;
 }
 
 .table tbody tr {
     transition: all var(--transition-base);
+}
+
+.table tbody tr:nth-child(even) {
+    background-color: #FAFBFC;
 }
 
 .table tbody tr:hover {
@@ -565,6 +571,35 @@
 .actionBtn.danger:hover {
     background-color: var(--color-danger-light);
     color: var(--color-danger);
+}
+
+/* Drag and Drop */
+.dragHandle {
+    cursor: grab;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 4px;
+    transition: color var(--transition-fast);
+}
+
+.dragHandle:hover {
+    color: var(--text-primary);
+}
+
+.dragHandle:active {
+    cursor: grabbing;
+}
+
+.draggingRow {
+    background: var(--color-primary-light, #eff6ff) !important;
+    box-shadow: var(--shadow-md);
+    opacity: 0.95;
+}
+
+.draggingRow td {
+    background: inherit;
 }
 
 /* Filters Container */

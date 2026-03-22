@@ -14,6 +14,7 @@ const ClientForm = ({ client = null, onClose, onSave }) => {
     // Form State
     const [formData, setFormData] = useState({
         name: '',
+        nickname: '',
         address: '',
         document: '',
         notes: ''
@@ -33,6 +34,7 @@ const ClientForm = ({ client = null, onClose, onSave }) => {
         if (client) {
             setFormData({
                 name: client.name || '',
+                nickname: client.nickname || '',
                 address: client.address || '',
                 document: client.document || '',
                 notes: client.notes || ''
@@ -282,6 +284,17 @@ const ClientForm = ({ client = null, onClose, onSave }) => {
                                     onChange={handleChange}
                                     placeholder="Nome da empresa"
                                     required
+                                />
+                            </div>
+
+                            <div className="input-group">
+                                <label className="label">Apelido</label>
+                                <input
+                                    name="nickname"
+                                    className="input"
+                                    value={formData.nickname}
+                                    onChange={handleChange}
+                                    placeholder="Nome informal ou apelido da empresa"
                                 />
                             </div>
 

@@ -16,6 +16,7 @@ const ViewSettings = () => {
         { id: 'opportunity_number', label: 'Número', isFixed: true },
         { id: 'title', label: 'Título da Oportunidade', isFixed: true },
         { id: 'client_name', label: 'Cliente', isFixed: true },
+        { id: 'client_nickname', label: 'Apelido do Cliente', isFixed: true },
         { id: 'estimated_value', label: 'Valor Estimado', isFixed: true },
         { id: 'stage', label: 'Estágio', isFixed: true },
         { id: 'forecast_date', label: 'Data de Previsão', isFixed: true },
