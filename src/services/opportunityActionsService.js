@@ -39,7 +39,8 @@ export const opportunityActionsService = {
                     title,
                     client_name,
                     is_goal,
-                    is_potential
+                    is_potential,
+                    display_priority
                 )
             `)
             .order('created_at', { ascending: false });

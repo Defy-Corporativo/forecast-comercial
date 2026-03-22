@@ -18,7 +18,7 @@ const Actions = () => {
     const [viewMode, setViewMode] = useState('opportunity');
 
     // Filters
-    const [statusFilter, setStatusFilter] = useState(''); // '', 'pendente', 'concluida'
+    const [statusFilter, setStatusFilter] = useState('pendente'); // '', 'pendente', 'concluida'
     const [responsibleFilter, setResponsibleFilter] = useState('');
     const [searchText, setSearchText] = useState('');
 
@@ -129,7 +129,7 @@ const Actions = () => {
     };
 
     const clearFilters = () => {
-        setStatusFilter('');
+        setStatusFilter('pendente');
         setResponsibleFilter('');
         setSearchText('');
     };
@@ -232,9 +232,29 @@ const Actions = () => {
         }
     };
 
-    const hasFilters = statusFilter || responsibleFilter || searchText;
+    const hasFilters = statusFilter !== 'pendente' || responsibleFilter || searchText;
     const groups = groupActions(actions);
-    const groupKeys = Object.keys(groups).sort();
+    const groupKeys = Object.keys(groups).sort((keyA, keyB) => {
+        if (viewMode === 'opportunity') {
+            const oppA = groups[keyA].opportunity;
+            const oppB = groups[keyB].opportunity;
+            if (oppA && oppB) {
+                const getTypeOrder = (opp) => {
+                    if (opp.is_goal) return 2;
+                    if (opp.is_potential) return 1;
+                    return 0;
+                };
+                const typeA = getTypeOrder(oppA);
+                const typeB = getTypeOrder(oppB);
+                if (typeA !== typeB) return typeA - typeB;
+
+                const prioA = Number(oppA.display_priority || 0);
+                const prioB = Number(oppB.display_priority || 0);
+                if (prioA !== prioB) return prioB - prioA;
+            }
+        }
+        return keyA.localeCompare(keyB);
+    });
 
     // Count stats
     const pendingCount = actions.filter(a => a.status === 'pendente').length;

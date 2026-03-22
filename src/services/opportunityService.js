@@ -278,11 +278,11 @@ export const opportunityService = {
             }
         });
 
-        // Sort by period_start
+        // Sort by period_end (data final do período)
         flattened.sort((a, b) => {
-            if (!a.period_start) return 1;
-            if (!b.period_start) return -1;
-            return new Date(a.period_start) - new Date(b.period_start);
+            if (!a.period_end && !a.period_start) return 1;
+            if (!b.period_end && !b.period_start) return -1;
+            return new Date(a.period_end || a.period_start) - new Date(b.period_end || b.period_start);
         });
 
         return flattened;

@@ -114,33 +114,35 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         });
     };
 
-    // Sort opportunities: Real first, then Potencial, then Meta; within each group by display_priority DESC, then total_value DESC
+    // Sort opportunities based on mode
     const sortedOpportunities = useMemo(() => {
+        if (groupMode === 'flat') {
+            // Flat mode: always sort by period_end ascending
+            return [...opportunities].sort((a, b) => {
+                const dateA = a.period_end || a.period_start;
+                const dateB = b.period_end || b.period_start;
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return new Date(dateA) - new Date(dateB);
+            });
+        }
+
+        // Grouped mode: Real first, then Potencial, then Meta; by display_priority DESC, then total_value DESC
         const getTypeOrder = (opp) => {
-            if (opp.is_goal) return 2;  // Meta last
-            if (opp.is_potential) return 1;  // Potencial second
-            return 0;  // Real first
+            if (opp.is_goal) return 2;
+            if (opp.is_potential) return 1;
+            return 0;
         };
 
         return [...opportunities].sort((a, b) => {
             const typeOrderA = getTypeOrder(a);
             const typeOrderB = getTypeOrder(b);
+            if (typeOrderA !== typeOrderB) return typeOrderA - typeOrderB;
 
-            // First sort by type
-            if (typeOrderA !== typeOrderB) {
-                return typeOrderA - typeOrderB;
-            }
+            const prioA = Number(a.display_priority || 0);
+            const prioB = Number(b.display_priority || 0);
+            if (prioA !== prioB) return prioB - prioA;
 
-            // In grouped mode, sort by display_priority DESC (higher = first)
-            if (groupMode === 'grouped') {
-                const prioA = Number(a.display_priority || 0);
-                const prioB = Number(b.display_priority || 0);
-                if (prioA !== prioB) {
-                    return prioB - prioA;
-                }
-            }
-
-            // Then sort by total_value (or estimated_value) descending
             const valueA = Number(a.total_value || a.estimated_value || 0);
             const valueB = Number(b.total_value || b.estimated_value || 0);
             return valueB - valueA;
@@ -246,7 +248,7 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
             render: (opp) => (opp.is_goal || opp.is_potential) ? '-' : (opp.client?.name || opp.client_name || '-')
         },
         client_nickname: {
-            label: 'Apelido',
+            label: 'Cliente',
             render: (opp) => (opp.is_goal || opp.is_potential) ? '-' : (opp.client?.nickname || opp.client?.name || opp.client_name || '-')
         },
         estimated_value: {
@@ -326,7 +328,7 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
             render: (opp) => opp.client?.name || opp.client_name || '-'
         },
         client_nickname: {
-            label: 'Apelido',
+            label: 'Cliente',
             render: (opp) => opp.client?.nickname || opp.client?.name || opp.client_name || '-'
         },
         estimated_value: {
@@ -383,265 +385,301 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         );
     }
 
-    // Render expanded forecasts for grouped mode
-    const renderForecastsRow = (opportunity) => {
+    // Render expanded forecasts content (reusable for both card and table modes)
+    const renderForecastsContent = (opportunity) => {
         const forecasts = opportunity.forecasts || [];
         if (forecasts.length === 0) return null;
 
         return (
-            <tr key={`${opportunity.id}-forecasts`} style={{ backgroundColor: '#f1f5f9' }}> {/* Darker shade (slate-100) */}
-                <td colSpan={activeColumns.length + 2} style={{ padding: 0 }}>
-                    <div style={{ padding: '12px 16px 12px 48px' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                    <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 500 }}>Período</th>
-                                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 500 }}>Valor</th>
-                                    <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 500 }}>Status</th>
-                                    <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 500 }}>Observação</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {forecasts.sort((a, b) => new Date(a.period_end || a.period_start) - new Date(b.period_end || b.period_start)).map((forecast, idx) => (
-                                    <tr key={forecast.id || idx} style={{ borderTop: idx > 0 ? '1px solid var(--border-color)' : 'none' }}>
-                                        <td style={{ padding: '8px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                                                <Calendar size={14} style={{ color: 'var(--text-secondary)' }} />
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    <span>{formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}</span>
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                                        Fim: {formatMonthYear(forecast.period_end)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 500 }}>
-                                            {formatCurrency(forecast.estimated_value)}
-                                        </td>
-                                        <td style={{ padding: '8px', textAlign: 'center' }}>
-                                            {(opportunity.is_goal || opportunity.is_potential) ? (
-                                                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>-</span>
-                                            ) : forecast.invoiced ? (
-                                                <span style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    color: 'var(--color-success)',
-                                                    fontSize: '0.85rem'
-                                                }}>
-                                                    <CheckCircle size={14} /> Faturado
-                                                </span>
-                                            ) : (
-                                                <span style={{
-                                                    color: 'var(--text-secondary)',
-                                                    fontSize: '0.85rem'
-                                                }}>
-                                                    Pendente
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td style={{ padding: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                            {forecast.notes || '-'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </td>
-            </tr>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                    <tr style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 500 }}>Período</th>
+                        <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 500 }}>Valor</th>
+                        <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 500 }}>Status</th>
+                        <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 500 }}>Observação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {forecasts.sort((a, b) => new Date(a.period_end || a.period_start) - new Date(b.period_end || b.period_start)).map((forecast, idx) => (
+                        <tr key={forecast.id || idx} style={{ borderTop: idx > 0 ? '1px solid var(--border-color)' : 'none' }}>
+                            <td style={{ padding: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                                    <Calendar size={14} style={{ color: 'var(--text-secondary)' }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <span>{formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                            Fim: {formatMonthYear(forecast.period_end)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: 500 }}>
+                                {formatCurrency(forecast.estimated_value)}
+                            </td>
+                            <td style={{ padding: '8px', textAlign: 'center' }}>
+                                {(opportunity.is_goal || opportunity.is_potential) ? (
+                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>-</span>
+                                ) : forecast.invoiced ? (
+                                    <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        color: 'var(--color-success)',
+                                        fontSize: '0.85rem'
+                                    }}>
+                                        <CheckCircle size={14} /> Faturado
+                                    </span>
+                                ) : (
+                                    <span style={{
+                                        color: 'var(--text-secondary)',
+                                        fontSize: '0.85rem'
+                                    }}>
+                                        Pendente
+                                    </span>
+                                )}
+                            </td>
+                            <td style={{ padding: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                {forecast.notes || '-'}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         );
     };
 
     const isGroupedMode = groupMode === 'grouped';
 
-    const renderTableBody = (provided) => (
-        <tbody ref={provided?.innerRef} {...(provided?.droppableProps || {})}>
-            {sortedOpportunities.map((opp, index) => {
-                const rowKey = groupMode === 'flat' ? `${opp.id}-${opp.forecast_id}` : opp.id;
+    // Render a single opportunity card for grouped mode
+    const renderGroupedCard = (opp, dragHandleProps, isDragging) => {
+        const firstCol = activeColumns[0];
+        const restCols = activeColumns.slice(1);
 
-                const rowContent = (dragHandleProps, isDragging) => (
-                    <React.Fragment key={rowKey}>
-                        <tr
-                            onClick={() => onView(opp)}
-                            className={isDragging ? styles.draggingRow : ''}
-                            style={{
-                                cursor: 'pointer',
-                                backgroundColor: isDragging ? 'var(--color-primary-light, #eff6ff)' : expandedRows.has(opp.id) ? 'var(--bg-tertiary)' : undefined
-                            }}
-                        >
-                            {isGroupedMode && (
-                                <td style={{ width: '28px', padding: '4px' }}
-                                    {...(dragHandleProps || {})}
-                                    onClick={(e) => {
-                                        if (!dragHandleProps) {
-                                            e.stopPropagation();
-                                            toggleExpanded(opp.id);
-                                        }
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                        {onReorder && (
-                                            <span className={styles.dragHandle} title="Arraste para reordenar">
-                                                <GripVertical size={14} />
-                                            </span>
-                                        )}
-                                        {(opp.forecasts?.length || 0) > 0 && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); toggleExpanded(opp.id); }}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    cursor: 'pointer',
-                                                    padding: '4px',
-                                                    color: 'var(--text-secondary)'
-                                                }}
+        return (
+            <div
+                className={`${styles.opportunityGroupCard} ${isDragging ? styles.draggingCard : ''}`}
+                onClick={() => onView(opp)}
+                style={{ cursor: 'pointer' }}
+            >
+                <div className={styles.groupCardContent}>
+                    <div className={styles.groupCardDragArea}>
+                        {onReorder && dragHandleProps && (
+                            <span
+                                {...dragHandleProps}
+                                className={styles.dragHandle}
+                                title="Arraste para reordenar"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <GripVertical size={14} />
+                            </span>
+                        )}
+                        {onReorder && !dragHandleProps && (
+                            <span className={styles.dragHandle} title="Arraste para reordenar">
+                                <GripVertical size={14} />
+                            </span>
+                        )}
+                        {(opp.forecasts?.length || 0) > 0 && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); toggleExpanded(opp.id); }}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    color: 'var(--text-secondary)'
+                                }}
+                            >
+                                {expandedRows.has(opp.id) ? (
+                                    <ChevronDown size={16} />
+                                ) : (
+                                    <ChevronRight size={16} />
+                                )}
+                            </button>
+                        )}
+                    </div>
+                    <div className={styles.groupCardBody}>
+                        {firstCol && (
+                            <div className={styles.groupCardPrimary}>
+                                {fieldDefinitions[firstCol]?.render(opp)}
+                            </div>
+                        )}
+                        {restCols.length > 0 && (
+                            <div className={styles.groupCardRow2}>
+                                {restCols.map(colId => (
+                                    <span key={colId} className={styles.groupCardFieldValue}>
+                                        {fieldDefinitions[colId]?.render(opp)}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className={styles.groupCardActions} onClick={(e) => e.stopPropagation()}>
+                        <button className={styles.actionBtn} onClick={() => onEdit(opp)} title="Editar">
+                            <Edit2 size={16} />
+                        </button>
+                        <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => onDelete(opp.id)} title="Excluir">
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                </div>
+                {expandedRows.has(opp.id) && (
+                    <div className={styles.groupCardForecasts}>
+                        {renderForecastsContent(opp)}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Render grouped card list with drag-and-drop
+    const renderGroupedCardList = () => {
+        if (onReorder) {
+            return (
+                <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="opportunities-list">
+                        {(provided) => (
+                            <div
+                                className={styles.groupedList}
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                            >
+                                {sortedOpportunities.map((opp, index) => (
+                                    <Draggable key={opp.id} draggableId={opp.id} index={index}>
+                                        {(dragProvided, snapshot) => (
+                                            <div
+                                                ref={dragProvided.innerRef}
+                                                {...dragProvided.draggableProps}
+                                                style={dragProvided.draggableProps.style}
                                             >
-                                                {expandedRows.has(opp.id) ? (
-                                                    <ChevronDown size={16} />
-                                                ) : (
-                                                    <ChevronRight size={16} />
-                                                )}
-                                            </button>
+                                                {renderGroupedCard(opp, dragProvided.dragHandleProps, snapshot.isDragging)}
+                                            </div>
                                         )}
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                                {sortedOpportunities.length === 0 && (
+                                    <div className={styles.groupedEmptyState}>
+                                        Nenhuma oportunidade encontrada.
                                     </div>
-                                </td>
-                            )}
-                            {activeColumns.map(colId => (
-                                <td key={colId}>
-                                    {fieldDefinitions[colId]?.render(opp)}
-                                </td>
-                            ))}
-                            <td onClick={(e) => e.stopPropagation()}>
-                                <div className={styles.actions}>
-                                    <button className={styles.actionBtn} onClick={() => onEdit(opp)} title="Editar">
-                                        <Edit2 size={16} />
-                                    </button>
-                                    <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => onDelete(opp.id)} title="Excluir">
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {isGroupedMode && expandedRows.has(opp.id) && renderForecastsRow(opp)}
+                                )}
+                            </div>
+                        )}
+                    </Droppable>
+                </DragDropContext>
+            );
+        }
+
+        return (
+            <div className={styles.groupedList}>
+                {sortedOpportunities.map(opp => (
+                    <React.Fragment key={opp.id}>
+                        {renderGroupedCard(opp, null, false)}
                     </React.Fragment>
+                ))}
+                {sortedOpportunities.length === 0 && (
+                    <div className={styles.groupedEmptyState}>
+                        Nenhuma oportunidade encontrada.
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Get month/year key from a date string
+    const getMonthYearKey = (dateString) => {
+        if (!dateString) return null;
+        const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month] = dateString.split('-');
+            return { key: `${year}-${month}`, label: `${months[Number(month) - 1]} ${year}` };
+        }
+        const date = new Date(dateString);
+        const m = date.getMonth();
+        const y = date.getFullYear();
+        return { key: `${y}-${String(m + 1).padStart(2, '0')}`, label: `${months[m]} ${y}` };
+    };
+
+    // Render flat mode table body with month/year separators
+    const renderFlatTableBody = () => {
+        let lastMonthKey = null;
+        const rows = [];
+
+        sortedOpportunities.forEach((opp) => {
+            const rowKey = `${opp.id}-${opp.forecast_id}`;
+            const dateRef = opp.period_end || opp.period_start;
+            const monthYear = getMonthYearKey(dateRef);
+            const currentKey = monthYear?.key || 'sem-data';
+
+            if (currentKey !== lastMonthKey) {
+                lastMonthKey = currentKey;
+                rows.push(
+                    <tr key={`separator-${currentKey}`} className={styles.monthSeparator}>
+                        <td colSpan={activeColumns.length + 1}>
+                            <div className={styles.monthSeparatorLabel}>
+                                <Calendar size={14} />
+                                {monthYear?.label || 'Sem data'}
+                            </div>
+                        </td>
+                    </tr>
                 );
+            }
 
-                if (isGroupedMode && onReorder) {
-                    return (
-                        <Draggable key={opp.id} draggableId={opp.id} index={index}>
-                            {(dragProvided, snapshot) => (
-                                <React.Fragment>
-                                    <tr
-                                        ref={dragProvided.innerRef}
-                                        {...dragProvided.draggableProps}
-                                        onClick={() => onView(opp)}
-                                        className={snapshot.isDragging ? styles.draggingRow : ''}
-                                        style={{
-                                            ...dragProvided.draggableProps.style,
-                                            cursor: 'pointer',
-                                            backgroundColor: snapshot.isDragging ? 'var(--color-primary-light, #eff6ff)' : expandedRows.has(opp.id) ? 'var(--bg-tertiary)' : undefined
-                                        }}
-                                    >
-                                        <td style={{ width: '28px', padding: '4px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                                <span
-                                                    {...dragProvided.dragHandleProps}
-                                                    className={styles.dragHandle}
-                                                    title="Arraste para reordenar"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <GripVertical size={14} />
-                                                </span>
-                                                {(opp.forecasts?.length || 0) > 0 && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); toggleExpanded(opp.id); }}
-                                                        style={{
-                                                            background: 'none',
-                                                            border: 'none',
-                                                            cursor: 'pointer',
-                                                            padding: '4px',
-                                                            color: 'var(--text-secondary)'
-                                                        }}
-                                                    >
-                                                        {expandedRows.has(opp.id) ? (
-                                                            <ChevronDown size={16} />
-                                                        ) : (
-                                                            <ChevronRight size={16} />
-                                                        )}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                        {activeColumns.map(colId => (
-                                            <td key={colId}>
-                                                {fieldDefinitions[colId]?.render(opp)}
-                                            </td>
-                                        ))}
-                                        <td onClick={(e) => e.stopPropagation()}>
-                                            <div className={styles.actions}>
-                                                <button className={styles.actionBtn} onClick={() => onEdit(opp)} title="Editar">
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => onDelete(opp.id)} title="Excluir">
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {expandedRows.has(opp.id) && renderForecastsRow(opp)}
-                                </React.Fragment>
-                            )}
-                        </Draggable>
-                    );
-                }
+            rows.push(
+                <tr
+                    key={rowKey}
+                    onClick={() => onView(opp)}
+                    style={{ cursor: 'pointer' }}
+                >
+                    {activeColumns.map(colId => (
+                        <td key={colId}>
+                            {fieldDefinitions[colId]?.render(opp)}
+                        </td>
+                    ))}
+                    <td onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.actions}>
+                            <button className={styles.actionBtn} onClick={() => onEdit(opp)} title="Editar">
+                                <Edit2 size={16} />
+                            </button>
+                            <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => onDelete(opp.id)} title="Excluir">
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            );
+        });
 
-                return rowContent(null, false);
-            })}
-            {provided?.placeholder}
-            {sortedOpportunities.length === 0 && (
-                <tr>
-                    <td colSpan={activeColumns.length + (isGroupedMode ? 2 : 1)} style={{ textAlign: 'center', padding: '20px' }}>
+        if (sortedOpportunities.length === 0) {
+            rows.push(
+                <tr key="empty">
+                    <td colSpan={activeColumns.length + 1} style={{ textAlign: 'center', padding: '20px' }}>
                         Nenhuma oportunidade encontrada.
                     </td>
                 </tr>
-            )}
-        </tbody>
-    );
+            );
+        }
+
+        return <tbody>{rows}</tbody>;
+    };
+
+    if (isGroupedMode) {
+        return renderGroupedCardList();
+    }
 
     return (
         <div className={styles.tableContainer}>
-            {isGroupedMode && onReorder ? (
-                <DragDropContext onDragEnd={handleDragEnd}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={{ width: '60px' }}></th>
-                                {activeColumns.map(colId => (
-                                    <th key={colId}>{fieldDefinitions[colId]?.label}</th>
-                                ))}
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <Droppable droppableId="opportunities-list">
-                            {(provided) => renderTableBody(provided)}
-                        </Droppable>
-                    </table>
-                </DragDropContext>
-            ) : (
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            {isGroupedMode && <th style={{ width: '40px' }}></th>}
-                            {activeColumns.map(colId => (
-                                <th key={colId}>{fieldDefinitions[colId]?.label}</th>
-                            ))}
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    {renderTableBody(null)}
-                </table>
-            )}
+            <table className={styles.table}>
+                <thead>
+                    <tr>
+                        {activeColumns.map(colId => (
+                            <th key={colId}>{fieldDefinitions[colId]?.label}</th>
+                        ))}
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                {renderFlatTableBody()}
+            </table>
         </div>
     );
 };

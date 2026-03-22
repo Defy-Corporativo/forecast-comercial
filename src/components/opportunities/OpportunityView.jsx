@@ -1595,17 +1595,19 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
 
                                 {/* Form para adicionar nova ação */}
                                 <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color-light)' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', marginBottom: '12px' }}>
-                                        <div className="input-group" style={{ margin: 0 }}>
+                                    <div style={{ marginBottom: '12px' }}>
+                                        <div className="input-group" style={{ margin: '0 0 12px 0' }}>
                                             <label className="label" style={{ fontSize: '12px' }}>Descrição da Ação</label>
-                                            <input
-                                                type="text"
+                                            <textarea
                                                 className="input"
+                                                rows={3}
                                                 placeholder="Descreva a ação a ser realizada..."
                                                 value={newActionDescription}
                                                 onChange={(e) => setNewActionDescription(e.target.value)}
+                                                style={{ resize: 'none', overflowY: 'auto' }}
                                             />
                                         </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px' }}>
                                         <div className="input-group" style={{ margin: 0, minWidth: '200px' }}>
                                             <label className="label" style={{ fontSize: '12px' }}>Responsável</label>
                                             <select
@@ -1627,6 +1629,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                                 value={newActionDueDate}
                                                 onChange={(e) => setNewActionDueDate(e.target.value)}
                                             />
+                                        </div>
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

@@ -602,6 +602,140 @@
     background: inherit;
 }
 
+/* Grouped Card Layout */
+.groupedList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.opportunityGroupCard {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color-light);
+    transition: all var(--transition-base);
+}
+
+.opportunityGroupCard:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-primary);
+}
+
+.opportunityGroupCard.draggingCard {
+    background: var(--color-primary-light, #eff6ff);
+    box-shadow: var(--shadow-md);
+    opacity: 0.95;
+}
+
+.groupCardContent {
+    display: flex;
+    padding: 16px 20px;
+    cursor: pointer;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.groupCardDragArea {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    padding-top: 4px;
+}
+
+.groupCardBody {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.groupCardPrimary {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.groupCardRow2 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    align-items: center;
+}
+
+.groupCardFieldValue {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.groupCardActions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+    padding-top: 4px;
+}
+
+.groupCardForecasts {
+    border-top: 1px solid var(--border-color-light);
+    background: #f1f5f9;
+    padding: 12px 16px 12px 48px;
+}
+
+.groupedEmptyState {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border-radius: 12px;
+}
+
+/* Month/Year separator for flat mode */
+.monthSeparator td {
+    padding: 10px 16px !important;
+    background-color: var(--bg-main) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    border-top: 1px solid var(--border-color-light);
+}
+
+.monthSeparatorLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.monthSeparatorLine {
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+@media (max-width: 768px) {
+    .groupCardContent {
+        padding: 14px 16px;
+        gap: 10px;
+    }
+
+    .groupCardRow2 {
+        gap: 4px 12px;
+    }
+
+    .groupCardForecasts {
+        padding: 12px 16px 12px 16px;
+    }
+}
+
 /* Filters Container */
 .filtersContainer {
     width: 100%;
