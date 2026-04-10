@@ -4,7 +4,7 @@ export const tagService = {
     // Get all tags
     async getTags() {
         const { data, error } = await supabase
-            .from('opportunity_tags')
+            .from('fcst_opportunity_tags')
             .select('*')
             .order('name', { ascending: true });
 
@@ -23,7 +23,7 @@ export const tagService = {
         }
 
         const { data, error } = await supabase
-            .from('opportunity_tags')
+            .from('fcst_opportunity_tags')
             .select('*')
             .ilike('name', `%${query}%`)
             .order('name', { ascending: true })
@@ -43,7 +43,7 @@ export const tagService = {
 
         // Check if tag already exists
         const { data: existing } = await supabase
-            .from('opportunity_tags')
+            .from('fcst_opportunity_tags')
             .select('id')
             .ilike('name', normalizedName)
             .single();
@@ -53,7 +53,7 @@ export const tagService = {
         }
 
         const { data, error } = await supabase
-            .from('opportunity_tags')
+            .from('fcst_opportunity_tags')
             .insert([{ name: normalizedName }])
             .select()
             .single();
@@ -72,7 +72,7 @@ export const tagService = {
 
         // Check if another tag with this name exists
         const { data: existing } = await supabase
-            .from('opportunity_tags')
+            .from('fcst_opportunity_tags')
             .select('id')
             .ilike('name', normalizedName)
             .neq('id', tagId)
@@ -83,7 +83,7 @@ export const tagService = {
         }
 
         const { data, error } = await supabase
-            .from('opportunity_tags')
+            .from('fcst_opportunity_tags')
             .update({ name: normalizedName })
             .eq('id', tagId)
             .select()
@@ -100,10 +100,10 @@ export const tagService = {
     // Get tags for a specific opportunity
     async getTagsByOpportunity(opportunityId) {
         const { data, error } = await supabase
-            .from('opportunity_tag_assignments')
+            .from('fcst_opportunity_tag_assignments')
             .select(`
                 id,
-                tag:opportunity_tags (
+                tag:fcst_opportunity_tags (
                     id,
                     name
                 )
@@ -122,7 +122,7 @@ export const tagService = {
     async assignTags(opportunityId, tagIds) {
         // First, remove all existing assignments
         await supabase
-            .from('opportunity_tag_assignments')
+            .from('fcst_opportunity_tag_assignments')
             .delete()
             .eq('opportunity_id', opportunityId);
 
@@ -137,7 +137,7 @@ export const tagService = {
         }));
 
         const { data, error } = await supabase
-            .from('opportunity_tag_assignments')
+            .from('fcst_opportunity_tag_assignments')
             .insert(assignments)
             .select();
 
@@ -168,7 +168,7 @@ export const tagService = {
     async deleteTag(tagId) {
         // Check if tag is assigned to any opportunity
         const { count, error: countError } = await supabase
-            .from('opportunity_tag_assignments')
+            .from('fcst_opportunity_tag_assignments')
             .select('*', { count: 'exact', head: true })
             .eq('tag_id', tagId);
 
@@ -183,7 +183,7 @@ export const tagService = {
 
         // Delete the tag
         const { error } = await supabase
-            .from('opportunity_tags')
+            .from('fcst_opportunity_tags')
             .delete()
             .eq('id', tagId);
 

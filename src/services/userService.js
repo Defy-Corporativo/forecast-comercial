@@ -8,7 +8,7 @@ export const userService = {
     // List all users (profiles)
     async getUsers() {
         const { data, error } = await supabase
-            .from('profiles')
+            .from('fcst_profiles')
             .select('*')
             .order('created_at', { ascending: false });
 
@@ -32,7 +32,7 @@ export const userService = {
         });
 
         const { data, error } = await tempSupabase
-            .from('profiles')
+            .from('fcst_profiles')
             .insert({
                 id: userData.id,
                 email: userData.email,
@@ -49,7 +49,7 @@ export const userService = {
     // Update user profile (name only)
     async updateUser(userId, userData) {
         const { data, error } = await supabase
-            .from('profiles')
+            .from('fcst_profiles')
             .update({
                 name: userData.name,
                 updated_at: new Date().toISOString()
@@ -67,7 +67,7 @@ export const userService = {
         // Note: This requires service_role key to delete auth users
         // For now, we'll just delete the profile and mark as inactive
         const { error } = await supabase
-            .from('profiles')
+            .from('fcst_profiles')
             .delete()
             .eq('id', userId);
 

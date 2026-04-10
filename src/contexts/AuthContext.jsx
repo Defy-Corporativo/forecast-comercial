@@ -49,13 +49,13 @@ export const AuthProvider = ({ children }) => {
 
         // Ensure profile exists
         const { data, error } = await supabase
-            .from('profiles')
+            .from('fcst_profiles')
             .select('id')
             .eq('id', session.user.id)
             .maybeSingle();
 
         if (!error && !data) {
-            await supabase.from('profiles').insert({
+            await supabase.from('fcst_profiles').insert({
                 id: session.user.id,
                 email: userEmail,
                 name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || userEmail.split('@')[0],

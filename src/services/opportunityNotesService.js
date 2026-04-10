@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 export const opportunityNotesService = {
     async getNotes(opportunityId, filters = {}) {
         let query = supabase
-            .from('opportunity_notes')
+            .from('fcst_opportunity_notes')
             .select('*')
             .eq('opportunity_id', opportunityId)
             .order('created_at', { ascending: false });
@@ -33,7 +33,7 @@ export const opportunityNotesService = {
 
     async createNote(opportunityId, content, createdBy) {
         const { data, error } = await supabase
-            .from('opportunity_notes')
+            .from('fcst_opportunity_notes')
             .insert([{
                 opportunity_id: opportunityId,
                 content: content,
@@ -48,7 +48,7 @@ export const opportunityNotesService = {
 
     async updateNote(noteId, content) {
         const { data, error } = await supabase
-            .from('opportunity_notes')
+            .from('fcst_opportunity_notes')
             .update({ content, updated_at: new Date() })
             .eq('id', noteId)
             .select()
@@ -60,11 +60,10 @@ export const opportunityNotesService = {
 
     async deleteNote(noteId) {
         const { error } = await supabase
-            .from('opportunity_notes')
+            .from('fcst_opportunity_notes')
             .delete()
             .eq('id', noteId);
 
         if (error) throw error;
     }
 };
-

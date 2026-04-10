@@ -5,7 +5,7 @@ export const opportunityActionsService = {
     // Get actions for a specific opportunity
     async getActions(opportunityId, filters = {}) {
         let query = supabase
-            .from('opportunity_actions')
+            .from('fcst_opportunity_actions')
             .select('*')
             .eq('opportunity_id', opportunityId)
             .order('created_at', { ascending: false });
@@ -30,10 +30,10 @@ export const opportunityActionsService = {
     // Get all actions (for dedicated actions page)
     async getAllActions(filters = {}) {
         let query = supabase
-            .from('opportunity_actions')
+            .from('fcst_opportunity_actions')
             .select(`
                 *,
-                opportunity:opportunities (
+                opportunity:fcst_opportunities (
                     id,
                     opportunity_number,
                     title,
@@ -78,7 +78,7 @@ export const opportunityActionsService = {
             insertData.due_date = dueDate;
         }
         const { data, error } = await supabase
-            .from('opportunity_actions')
+            .from('fcst_opportunity_actions')
             .insert([insertData])
             .select()
             .single();
@@ -90,7 +90,7 @@ export const opportunityActionsService = {
     // Update an action
     async updateAction(actionId, updates) {
         const { data, error } = await supabase
-            .from('opportunity_actions')
+            .from('fcst_opportunity_actions')
             .update({
                 ...updates,
                 updated_at: new Date().toISOString()
@@ -109,7 +109,7 @@ export const opportunityActionsService = {
         let action = null;
         if (opportunityId && userName) {
             const { data } = await supabase
-                .from('opportunity_actions')
+                .from('fcst_opportunity_actions')
                 .select('*')
                 .eq('id', actionId)
                 .single();
@@ -118,7 +118,7 @@ export const opportunityActionsService = {
 
         // Delete the action
         const { error } = await supabase
-            .from('opportunity_actions')
+            .from('fcst_opportunity_actions')
             .delete()
             .eq('id', actionId);
 
@@ -142,7 +142,7 @@ export const opportunityActionsService = {
     async completeAction(actionId, opportunityId, noteText, userName) {
         // First, update the action status
         const { data: action, error: updateError } = await supabase
-            .from('opportunity_actions')
+            .from('fcst_opportunity_actions')
             .update({
                 status: 'concluida',
                 updated_at: new Date().toISOString()
@@ -170,7 +170,7 @@ export const opportunityActionsService = {
     // Get action counts for an opportunity
     async getActionCounts(opportunityId) {
         const { data, error } = await supabase
-            .from('opportunity_actions')
+            .from('fcst_opportunity_actions')
             .select('status')
             .eq('opportunity_id', opportunityId);
 

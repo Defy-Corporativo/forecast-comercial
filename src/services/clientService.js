@@ -4,10 +4,10 @@ export const clientService = {
     // Get all clients (companies) with their contacts
     async getClients(_userId, includeDeleted = false) {
         let query = supabase
-            .from('clients')
+            .from('fcst_clients')
             .select(`
                 *,
-                contacts:client_contacts (
+                contacts:fcst_client_contacts (
                     id,
                     name,
                     email,
@@ -30,10 +30,10 @@ export const clientService = {
     // Get single client with contacts
     async getClient(id) {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .select(`
                 *,
-                contacts:client_contacts (
+                contacts:fcst_client_contacts (
                     id,
                     name,
                     email,
@@ -52,12 +52,12 @@ export const clientService = {
     // Search clients by name (global search)
     async searchClients(_userId, searchTerm) {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .select(`
                 id,
                 name,
                 document,
-                contacts:client_contacts (
+                contacts:fcst_client_contacts (
                     id,
                     name,
                     email,
@@ -77,7 +77,7 @@ export const clientService = {
     // Create new client (company)
     async createClient(_userId, clientData) {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .insert([{
                 ...clientData,
                 is_deleted: false
@@ -92,7 +92,7 @@ export const clientService = {
     // Update client
     async updateClient(id, clientData) {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .update({ ...clientData, updated_at: new Date() })
             .eq('id', id)
             .select()
@@ -106,7 +106,7 @@ export const clientService = {
     async deleteClient(id) {
         // Check if client has opportunities
         const { data: opportunities } = await supabase
-            .from('opportunities')
+            .from('fcst_opportunities')
             .select('id')
             .eq('client_id', id)
             .limit(1);
@@ -114,7 +114,7 @@ export const clientService = {
         if (opportunities && opportunities.length > 0) {
             // Logical delete - has opportunities
             const { error } = await supabase
-                .from('clients')
+                .from('fcst_clients')
                 .update({ is_deleted: true, updated_at: new Date() })
                 .eq('id', id);
 
@@ -123,7 +123,7 @@ export const clientService = {
         } else {
             // Physical delete - no opportunities
             const { error } = await supabase
-                .from('clients')
+                .from('fcst_clients')
                 .delete()
                 .eq('id', id);
 
@@ -135,7 +135,7 @@ export const clientService = {
     // Restore logically deleted client
     async restoreClient(id) {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .update({ is_deleted: false, updated_at: new Date() })
             .eq('id', id)
             .select()
@@ -150,7 +150,7 @@ export const clientService = {
     // Get contacts for a client
     async getClientContacts(clientId) {
         const { data, error } = await supabase
-            .from('client_contacts')
+            .from('fcst_client_contacts')
             .select('*')
             .eq('client_id', clientId)
             .order('is_primary', { ascending: false });
@@ -164,13 +164,13 @@ export const clientService = {
         // If this is set as primary, unset other primary contacts
         if (contactData.is_primary) {
             await supabase
-                .from('client_contacts')
+                .from('fcst_client_contacts')
                 .update({ is_primary: false })
                 .eq('client_id', clientId);
         }
 
         const { data, error } = await supabase
-            .from('client_contacts')
+            .from('fcst_client_contacts')
             .insert([{ ...contactData, client_id: clientId }])
             .select()
             .single();
@@ -185,14 +185,14 @@ export const clientService = {
         if (contactData.is_primary) {
             // Get the client_id first
             const { data: contact } = await supabase
-                .from('client_contacts')
+                .from('fcst_client_contacts')
                 .select('client_id')
                 .eq('id', id)
                 .single();
 
             if (contact) {
                 await supabase
-                    .from('client_contacts')
+                    .from('fcst_client_contacts')
                     .update({ is_primary: false })
                     .eq('client_id', contact.client_id)
                     .neq('id', id);
@@ -200,7 +200,7 @@ export const clientService = {
         }
 
         const { data, error } = await supabase
-            .from('client_contacts')
+            .from('fcst_client_contacts')
             .update({ ...contactData, updated_at: new Date() })
             .eq('id', id)
             .select()
@@ -213,7 +213,7 @@ export const clientService = {
     // Delete contact
     async deleteContact(id) {
         const { error } = await supabase
-            .from('client_contacts')
+            .from('fcst_client_contacts')
             .delete()
             .eq('id', id);
 
@@ -224,13 +224,13 @@ export const clientService = {
     async setPrimaryContact(contactId, clientId) {
         // Unset all primary contacts for this client
         await supabase
-            .from('client_contacts')
+            .from('fcst_client_contacts')
             .update({ is_primary: false })
             .eq('client_id', clientId);
 
         // Set this contact as primary
         const { data, error } = await supabase
-            .from('client_contacts')
+            .from('fcst_client_contacts')
             .update({ is_primary: true, updated_at: new Date() })
             .eq('id', contactId)
             .select()

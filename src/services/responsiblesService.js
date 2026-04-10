@@ -4,7 +4,7 @@ export const responsiblesService = {
     // Get all responsibles (active only by default)
     async getResponsibles(includeInactive = false) {
         let query = supabase
-            .from('responsibles')
+            .from('pepl_responsibles')
             .select('*')
             .order('name', { ascending: true });
 
@@ -20,7 +20,7 @@ export const responsiblesService = {
     // Create a new responsible
     async createResponsible(name) {
         const { data, error } = await supabase
-            .from('responsibles')
+            .from('pepl_responsibles')
             .insert([{ name: name.trim() }])
             .select()
             .single();
@@ -32,7 +32,7 @@ export const responsiblesService = {
     // Update a responsible
     async updateResponsible(id, name) {
         const { data, error } = await supabase
-            .from('responsibles')
+            .from('pepl_responsibles')
             .update({
                 name: name.trim(),
                 updated_at: new Date().toISOString()
@@ -48,7 +48,7 @@ export const responsiblesService = {
     // Toggle active status
     async toggleActive(id, isActive) {
         const { data, error } = await supabase
-            .from('responsibles')
+            .from('pepl_responsibles')
             .update({
                 is_active: isActive,
                 updated_at: new Date().toISOString()
@@ -64,7 +64,7 @@ export const responsiblesService = {
     // Delete a responsible
     async deleteResponsible(id) {
         const { error } = await supabase
-            .from('responsibles')
+            .from('pepl_responsibles')
             .delete()
             .eq('id', id);
 

@@ -4,7 +4,7 @@ export const settingsService = {
     // Custom Fields
     async getCustomFields() {
         const { data, error } = await supabase
-            .from('custom_fields')
+            .from('fcst_custom_fields')
             .select('*')
             .eq('is_deleted', false)
             .order('order_index', { ascending: true });
@@ -15,7 +15,7 @@ export const settingsService = {
 
     async createCustomField(_userId, fieldData) {
         const { data, error } = await supabase
-            .from('custom_fields')
+            .from('fcst_custom_fields')
             .insert([{ ...fieldData }])
             .select()
             .single();
@@ -26,7 +26,7 @@ export const settingsService = {
 
     async updateCustomField(id, fieldData) {
         const { data, error } = await supabase
-            .from('custom_fields')
+            .from('fcst_custom_fields')
             .update(fieldData)
             .eq('id', id)
             .select()
@@ -38,7 +38,7 @@ export const settingsService = {
 
     async deleteCustomField(id) {
         const { data, error } = await supabase
-            .from('custom_fields')
+            .from('fcst_custom_fields')
             .update({ is_deleted: true })
             .eq('id', id)
             .select()
@@ -51,7 +51,7 @@ export const settingsService = {
     // Stage Definitions
     async getStageDefinitions() {
         const { data, error } = await supabase
-            .from('stage_definitions')
+            .from('fcst_stage_definitions')
             .select('*')
             .order('order_index', { ascending: true });
 
@@ -61,7 +61,7 @@ export const settingsService = {
 
     async createStageDefinition(_userId, stageData) {
         const { data, error } = await supabase
-            .from('stage_definitions')
+            .from('fcst_stage_definitions')
             .insert([{ ...stageData }])
             .select()
             .single();
@@ -72,7 +72,7 @@ export const settingsService = {
 
     async updateStageDefinition(id, stageData) {
         const { data, error } = await supabase
-            .from('stage_definitions')
+            .from('fcst_stage_definitions')
             .update({ ...stageData, updated_at: new Date() })
             .eq('id', id)
             .select()
@@ -84,7 +84,7 @@ export const settingsService = {
 
     async deleteStageDefinition(id) {
         const { error } = await supabase
-            .from('stage_definitions')
+            .from('fcst_stage_definitions')
             .delete()
             .eq('id', id);
 
@@ -92,7 +92,7 @@ export const settingsService = {
     },
 
     async resetStageDefinitions(_userId, defaultStages) {
-        await supabase.from('stage_definitions').delete();
+        await supabase.from('fcst_stage_definitions').delete();
 
         const stagesToInsert = defaultStages.map((stage) => ({
             name: stage.name,
@@ -103,7 +103,7 @@ export const settingsService = {
         }));
 
         const { data, error } = await supabase
-            .from('stage_definitions')
+            .from('fcst_stage_definitions')
             .insert(stagesToInsert)
             .select();
 
@@ -114,7 +114,7 @@ export const settingsService = {
     // User Preferences (globais)
     async getUserPreferences() {
         const { data, error } = await supabase
-            .from('user_preferences')
+            .from('fcst_user_preferences')
             .select('*')
             .limit(1)
             .maybeSingle();
@@ -125,14 +125,14 @@ export const settingsService = {
 
     async updateUserPreferences(_userId, preferences) {
         const { data: existing } = await supabase
-            .from('user_preferences')
+            .from('fcst_user_preferences')
             .select('id')
             .limit(1)
             .maybeSingle();
 
         if (existing) {
             const { data, error } = await supabase
-                .from('user_preferences')
+                .from('fcst_user_preferences')
                 .update({ ...preferences, updated_at: new Date() })
                 .eq('id', existing.id)
                 .select()
@@ -141,7 +141,7 @@ export const settingsService = {
             return data;
         } else {
             const { data, error } = await supabase
-                .from('user_preferences')
+                .from('fcst_user_preferences')
                 .insert([{ ...preferences }])
                 .select()
                 .single();
@@ -153,7 +153,7 @@ export const settingsService = {
     // Clients
     async getClients() {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .select('*')
             .order('name', { ascending: true });
 
@@ -163,7 +163,7 @@ export const settingsService = {
 
     async getClient(id) {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .select('*')
             .eq('id', id)
             .single();
@@ -174,7 +174,7 @@ export const settingsService = {
 
     async createClient(userId, clientData) {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .insert([{ ...clientData, user_id: userId }])
             .select()
             .single();
@@ -185,7 +185,7 @@ export const settingsService = {
 
     async updateClient(id, clientData) {
         const { data, error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .update({ ...clientData, updated_at: new Date() })
             .eq('id', id)
             .select()
@@ -197,7 +197,7 @@ export const settingsService = {
 
     async deleteClient(id) {
         const { error } = await supabase
-            .from('clients')
+            .from('fcst_clients')
             .delete()
             .eq('id', id);
 

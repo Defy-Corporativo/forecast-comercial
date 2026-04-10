@@ -29,7 +29,7 @@ const isOpportunityNumberDuplicateError = (error) => {
 
     return isUniqueViolation && (
         errorText.includes('opportunity_number') ||
-        errorText.includes('opportunities_opportunity_number_key')
+        errorText.includes('fcst_opportunities_opportunity_number_key')
     )
 }
 
@@ -40,7 +40,7 @@ const getUsedOpportunitySequences = async () => {
     while (true) {
         const to = from + OPPORTUNITY_NUMBER_PAGE_SIZE - 1
         const { data, error } = await supabase
-            .from('opportunities')
+            .from('fcst_opportunities')
             .select('opportunity_number')
             .like('opportunity_number', `${OPPORTUNITY_NUMBER_PREFIX}%`)
             .order('opportunity_number', { ascending: true })
@@ -85,15 +85,15 @@ const getNextAvailableOpportunitySequence = async (minSequence = 1) => {
 export const opportunityService = {
     async getOpportunities(_userId, filters = {}) {
         let query = supabase
-            .from('opportunities')
+            .from('fcst_opportunities')
             .select(`
                 *,
-                client:clients (
+                client:fcst_clients (
                     id,
                     name,
                     nickname,
                     document,
-                    contacts:client_contacts (
+                    contacts:fcst_client_contacts (
                         id,
                         name,
                         email,
@@ -102,7 +102,7 @@ export const opportunityService = {
                         is_primary
                     )
                 ),
-                forecasts:opportunity_forecasts (
+                forecasts:fcst_opportunity_forecasts (
                     id,
                     period_start,
                     period_end,
@@ -111,9 +111,9 @@ export const opportunityService = {
                     notes,
                     created_at
                 ),
-                tags:opportunity_tag_assignments (
+                tags:fcst_opportunity_tag_assignments (
                     id,
-                    tag:opportunity_tags (
+                    tag:fcst_opportunity_tags (
                         id,
                         name
                     )
@@ -157,15 +157,15 @@ export const opportunityService = {
     // Get opportunities in flat mode (one row per forecast)
     async getOpportunitiesFlat(_userId, filters = {}) {
         let query = supabase
-            .from('opportunities')
+            .from('fcst_opportunities')
             .select(`
                 *,
-                client:clients (
+                client:fcst_clients (
                     id,
                     name,
                     nickname,
                     document,
-                    contacts:client_contacts (
+                    contacts:fcst_client_contacts (
                         id,
                         name,
                         email,
@@ -174,7 +174,7 @@ export const opportunityService = {
                         is_primary
                     )
                 ),
-                forecasts:opportunity_forecasts (
+                forecasts:fcst_opportunity_forecasts (
                     id,
                     period_start,
                     period_end,
@@ -183,20 +183,20 @@ export const opportunityService = {
                     notes,
                     created_at
                 ),
-                tags:opportunity_tag_assignments (
+                tags:fcst_opportunity_tag_assignments (
                     id,
-                    tag:opportunity_tags (
+                    tag:fcst_opportunity_tags (
                         id,
                         name
                     )
                 ),
-                notes:opportunity_notes (
+                notes:fcst_opportunity_notes (
                     id,
                     content,
                     created_by,
                     created_at
                 ),
-                actions:opportunity_actions (
+                actions:fcst_opportunity_actions (
                     id,
                     description,
                     responsible,
@@ -204,7 +204,7 @@ export const opportunityService = {
                     status,
                     created_at
                 ),
-                history:opportunity_history (
+                history:fcst_opportunity_history (
                     id,
                     field_changed,
                     old_value,
@@ -290,15 +290,15 @@ export const opportunityService = {
 
     async getOpportunity(id) {
         const { data, error } = await supabase
-            .from('opportunities')
+            .from('fcst_opportunities')
             .select(`
                 *,
-                client:clients (
+                client:fcst_clients (
                     id,
                     name,
                     nickname,
                     document,
-                    contacts:client_contacts (
+                    contacts:fcst_client_contacts (
                         id,
                         name,
                         email,
@@ -307,7 +307,7 @@ export const opportunityService = {
                         is_primary
                     )
                 ),
-                forecasts:opportunity_forecasts (
+                forecasts:fcst_opportunity_forecasts (
                     id,
                     period_start,
                     period_end,
@@ -317,9 +317,9 @@ export const opportunityService = {
                     created_at,
                     updated_at
                 ),
-                tags:opportunity_tag_assignments (
+                tags:fcst_opportunity_tag_assignments (
                     id,
-                    tag:opportunity_tags (
+                    tag:fcst_opportunity_tags (
                         id,
                         name
                     )
@@ -352,7 +352,7 @@ export const opportunityService = {
 
         for (let attempt = 0; attempt < OPPORTUNITY_NUMBER_MAX_ATTEMPTS; attempt += 1) {
             const { data, error } = await supabase
-                .from('opportunities')
+                .from('fcst_opportunities')
                 .insert([{
                     ...oppData,
                     opportunity_number: formatOpportunityNumber(nextSequence)
@@ -389,7 +389,7 @@ export const opportunityService = {
             }));
 
             const { error: forecastError } = await supabase
-                .from('opportunity_forecasts')
+                .from('fcst_opportunity_forecasts')
                 .insert(forecastsToInsert);
 
             if (forecastError) {
@@ -417,7 +417,7 @@ export const opportunityService = {
 
         // Update opportunity
         const { data: opportunity, error } = await supabase
-            .from('opportunities')
+            .from('fcst_opportunities')
             .update({ ...oppData, updated_at: new Date() })
             .eq('id', id)
             .select()
@@ -429,7 +429,7 @@ export const opportunityService = {
         if (forecasts !== undefined) {
             // Delete existing forecasts
             await supabase
-                .from('opportunity_forecasts')
+                .from('fcst_opportunity_forecasts')
                 .delete()
                 .eq('opportunity_id', id);
 
@@ -445,7 +445,7 @@ export const opportunityService = {
                 }));
 
                 const { error: forecastError } = await supabase
-                    .from('opportunity_forecasts')
+                    .from('fcst_opportunity_forecasts')
                     .insert(forecastsToInsert);
 
                 if (forecastError) {
@@ -469,7 +469,7 @@ export const opportunityService = {
     async deleteOpportunity(id) {
         // Forecasts will be deleted automatically via CASCADE
         const { error } = await supabase
-            .from('opportunities')
+            .from('fcst_opportunities')
             .delete()
             .eq('id', id);
 
@@ -478,7 +478,7 @@ export const opportunityService = {
 
     async updateStage(id, stage) {
         const { data, error } = await supabase
-            .from('opportunities')
+            .from('fcst_opportunities')
             .update({ stage, updated_at: new Date() })
             .eq('id', id)
             .select()
@@ -491,7 +491,7 @@ export const opportunityService = {
     // Forecast-specific operations
     async createForecast(opportunityId, forecastData) {
         const { data, error } = await supabase
-            .from('opportunity_forecasts')
+            .from('fcst_opportunity_forecasts')
             .insert([{
                 opportunity_id: opportunityId,
                 ...forecastData
@@ -505,7 +505,7 @@ export const opportunityService = {
 
     async updateForecast(forecastId, forecastData) {
         const { data, error } = await supabase
-            .from('opportunity_forecasts')
+            .from('fcst_opportunity_forecasts')
             .update({ ...forecastData, updated_at: new Date() })
             .eq('id', forecastId)
             .select()
@@ -517,7 +517,7 @@ export const opportunityService = {
 
     async deleteForecast(forecastId) {
         const { error } = await supabase
-            .from('opportunity_forecasts')
+            .from('fcst_opportunity_forecasts')
             .delete()
             .eq('id', forecastId);
 
@@ -526,7 +526,7 @@ export const opportunityService = {
 
     async updateForecastInvoiced(forecastId, invoiced) {
         const { data, error } = await supabase
-            .from('opportunity_forecasts')
+            .from('fcst_opportunity_forecasts')
             .update({ invoiced, updated_at: new Date() })
             .eq('id', forecastId)
             .select()
@@ -541,7 +541,7 @@ export const opportunityService = {
         const errors = [];
         for (const { id, display_priority } of updates) {
             const { error } = await supabase
-                .from('opportunities')
+                .from('fcst_opportunities')
                 .update({ display_priority, updated_at: new Date().toISOString() })
                 .eq('id', id);
             if (error) errors.push(error);

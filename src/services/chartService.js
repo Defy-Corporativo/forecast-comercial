@@ -4,7 +4,7 @@ export const chartService = {
     async getCharts(userId) {
         // Fetch charts created by the user OR charts that are public
         const { data, error } = await supabase
-            .from('custom_charts')
+            .from('fcst_custom_charts')
             .select('*')
             .or(`created_by.eq.${userId},is_public.eq.true`)
             .order('created_at', { ascending: false });
@@ -26,7 +26,7 @@ export const chartService = {
 
     async createChart(chartData) {
         const { data, error } = await supabase
-            .from('custom_charts')
+            .from('fcst_custom_charts')
             .insert([{
                 title: chartData.title,
                 config: chartData, // Store the whole config object in the jsonb column
@@ -49,7 +49,7 @@ export const chartService = {
 
     async deleteChart(id) {
         const { error } = await supabase
-            .from('custom_charts')
+            .from('fcst_custom_charts')
             .delete()
             .eq('id', id);
 
