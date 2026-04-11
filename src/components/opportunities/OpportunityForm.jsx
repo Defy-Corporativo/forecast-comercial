@@ -584,7 +584,9 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                         {/* Opportunity Type Selector */}
                         <div style={{ marginBottom: '1.5rem' }}>
                             <label className="label" style={{ marginBottom: '10px' }}>Tipo de Oportunidade *</label>
-                            <div style={{ display: 'flex', gap: '10px' }}>
+
+                            {/* Cards principais: Real e Potencial */}
+                            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                                 {/* Real */}
                                 <button
                                     type="button"
@@ -634,58 +636,6 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                             fontSize: '0.72rem',
                                             color: getCurrentType() === 'real' ? '#3b82f6' : 'var(--text-tertiary)'
                                         }}>Receita Real</span>
-                                    </span>
-                                </button>
-
-                                {/* Meta */}
-                                <button
-                                    type="button"
-                                    onClick={() => handleTypeChange('meta')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '14px 12px',
-                                        border: getCurrentType() === 'meta' ? '2px solid #f59e0b' : '2px solid var(--border-color)',
-                                        borderRadius: '10px',
-                                        background: getCurrentType() === 'meta' ? '#fffbeb' : 'var(--bg-secondary)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        position: 'relative',
-                                        transition: 'all 0.2s ease',
-                                        boxShadow: getCurrentType() === 'meta' ? '0 0 0 3px rgba(245,158,11,0.12)' : 'none'
-                                    }}
-                                >
-                                    {getCurrentType() === 'meta' && (
-                                        <span style={{
-                                            position: 'absolute', top: '7px', right: '7px',
-                                            width: '18px', height: '18px', borderRadius: '50%',
-                                            background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                        }}>
-                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                                <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
-                                        </span>
-                                    )}
-                                    <span style={{
-                                        width: '38px', height: '38px', borderRadius: '50%',
-                                        background: getCurrentType() === 'meta' ? '#f59e0b' : '#e2e8f0',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: getCurrentType() === 'meta' ? 'white' : '#94a3b8',
-                                        transition: 'all 0.2s ease'
-                                    }}>
-                                        <Target size={18} />
-                                    </span>
-                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.3, gap: '2px' }}>
-                                        <span style={{
-                                            fontSize: '0.85rem', fontWeight: getCurrentType() === 'meta' ? 700 : 500,
-                                            color: getCurrentType() === 'meta' ? '#92400e' : 'var(--text-primary)'
-                                        }}>Oportunidade Meta</span>
-                                        <span style={{
-                                            fontSize: '0.72rem',
-                                            color: getCurrentType() === 'meta' ? '#f59e0b' : 'var(--text-tertiary)'
-                                        }}>Receita Planejada</span>
                                     </span>
                                 </button>
 
@@ -739,6 +689,35 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                             color: getCurrentType() === 'potencial' ? '#8b5cf6' : 'var(--text-tertiary)'
                                         }}>Receita em Construção</span>
                                     </span>
+                                </button>
+                            </div>
+
+                            {/* Meta: opção discreta para uso anual */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '2px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleTypeChange('meta')}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        padding: '3px 0',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        color: getCurrentType() === 'meta' ? '#d97706' : 'var(--text-tertiary)',
+                                        fontSize: '0.78rem',
+                                        fontWeight: getCurrentType() === 'meta' ? 600 : 400,
+                                        textDecoration: getCurrentType() === 'meta' ? 'none' : 'none',
+                                        borderBottom: getCurrentType() === 'meta' ? '1.5px solid #d97706' : '1.5px solid transparent',
+                                        transition: 'all 0.2s ease',
+                                        lineHeight: 1
+                                    }}
+                                    onMouseEnter={e => { if (getCurrentType() !== 'meta') { e.currentTarget.style.color = '#b45309'; e.currentTarget.style.borderBottomColor = '#b45309'; } }}
+                                    onMouseLeave={e => { if (getCurrentType() !== 'meta') { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderBottomColor = 'transparent'; } }}
+                                >
+                                    <Target size={12} />
+                                    {getCurrentType() === 'meta' ? '✓ Oportunidade Meta (Receita Planejada) — selecionada' : 'Cadastrar como Oportunidade Meta (Receita Planejada)'}
                                 </button>
                             </div>
                         </div>
