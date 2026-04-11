@@ -1,0 +1,98 @@
+{
+  "executado_em": "2026-04-11T08:30:50.845137",
+  "origem": "https://iugjnefiuqxtlggkzvmw.supabase.co",
+  "destino": "https://uvjoslhhikvxkpjnxyvk.supabase.co",
+  "resumo": [
+    {
+      "tabela": "profiles",
+      "lidos": 5,
+      "inseridos": 5,
+      "status": "OK"
+    },
+    {
+      "tabela": "clients",
+      "lidos": 9,
+      "inseridos": 9,
+      "status": "OK"
+    },
+    {
+      "tabela": "custom_fields",
+      "lidos": 0,
+      "inseridos": 0,
+      "status": "VAZIO/RLS"
+    },
+    {
+      "tabela": "stage_definitions",
+      "lidos": 5,
+      "inseridos": 5,
+      "status": "OK"
+    },
+    {
+      "tabela": "opportunity_tags",
+      "lidos": 5,
+      "inseridos": 5,
+      "status": "OK"
+    },
+    {
+      "tabela": "responsibles",
+      "lidos": 8,
+      "inseridos": 8,
+      "status": "OK"
+    },
+    {
+      "tabela": "user_preferences",
+      "lidos": 1,
+      "inseridos": 1,
+      "status": "OK"
+    },
+    {
+      "tabela": "client_contacts",
+      "lidos": 53,
+      "inseridos": 53,
+      "status": "OK"
+    },
+    {
+      "tabela": "opportunities",
+      "lidos": 30,
+      "inseridos": 30,
+      "status": "OK"
+    },
+    {
+      "tabela": "opportunity_forecasts",
+      "lidos": 170,
+      "inseridos": 170,
+      "status": "OK"
+    },
+    {
+      "tabela": "opportunity_history",
+      "lidos": 0,
+      "inseridos": 0,
+      "status": "VAZIO/RLS"
+    },
+    {
+      "tabela": "opportunity_notes",
+      "lidos": 32,
+      "inseridos": 32,
+      "status": "OK"
+    },
+    {
+      "tabela": "opportunity_actions",
+      "lidos": 30,
+      "inseridos": 30,
+      "status": "OK"
+    },
+    {
+      "tabela": "opportunity_tag_assignments",
+      "lidos": 29,
+      "inseridos": 29,
+      "status": "OK"
+    },
+    {
+      "tabela": "custom_charts",
+      "lidos": 0,
+      "inseridos": 0,
+      "status": "VAZIO/RLS"
+    }
+  ],
+  "erros": 0
+}

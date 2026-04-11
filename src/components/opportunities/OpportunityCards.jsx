@@ -78,10 +78,16 @@ const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit
                         <div className={styles.cardNumber}>{opp.opportunity_number}</div>
                         <span
                             className={styles.cardStageBadge}
-                            style={{ backgroundColor: getStageColor(opp.stage) + '20', color: getStageColor(opp.stage) }}
+                            style={
+                                opp.is_potential
+                                    ? { backgroundColor: '#8b5cf6', color: '#fff' }
+                                    : opp.is_goal
+                                        ? { backgroundColor: '#f59e0b', color: '#fff' }
+                                        : { backgroundColor: getStageColor(opp.stage) + '20', color: getStageColor(opp.stage) }
+                            }
                             title={getStageDescription(opp.stage)}
                         >
-                            {opp.stage}
+                            {opp.is_potential ? 'Potencial' : opp.is_goal ? 'Meta' : opp.stage}
                         </span>
                     </div>
 

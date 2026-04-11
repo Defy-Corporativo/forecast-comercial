@@ -316,6 +316,9 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         const isGoal = type === 'meta';
         const isPotential = type === 'potencial';
 
+        // First real stage available (excluding special stages 'Meta' and 'Potencial')
+        const firstRealStage = stages.find(s => s.name !== 'Meta' && s.name !== 'Potencial')?.name || (stages[0]?.name || 'Pipeline');
+
         setFormData(prev => ({
             ...prev,
             is_goal: isGoal,
@@ -327,9 +330,16 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                 client_name: '',
                 stage: isGoal ? 'Meta' : 'Potencial',
                 ...(isGoal ? { responsible: '' } : {})
-            } : {})
+            } : {
+                // When switching back to 'real', reset stage only if it was a special stage
+                stage: (prev.stage === 'Meta' || prev.stage === 'Potencial') ? firstRealStage : prev.stage,
+                client_id: '',
+                client_name: '',
+            })
         }));
         if (isGoal || isPotential) {
+            setSearchTerm('');
+        } else {
             setSearchTerm('');
         }
     };
@@ -573,85 +583,161 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                     <div className={styles.modalBody}>
                         {/* Opportunity Type Selector */}
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <label className="label" style={{ marginBottom: '8px' }}>Tipo de Oportunidade *</label>
-                            <div className={styles.typeSelector} style={{ display: 'flex', gap: '0' }}>
+                            <label className="label" style={{ marginBottom: '10px' }}>Tipo de Oportunidade *</label>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                {/* Real */}
                                 <button
                                     type="button"
                                     onClick={() => handleTypeChange('real')}
                                     style={{
                                         flex: 1,
-                                        padding: '12px 16px',
-                                        border: '1px solid var(--border-color)',
-                                        borderRight: 'none',
-                                        borderRadius: '8px 0 0 8px',
-                                        background: getCurrentType() === 'real' ? 'linear-gradient(135deg, #3b82f615, #3b82f608)' : 'white',
-                                        borderColor: getCurrentType() === 'real' ? '#3b82f640' : 'var(--border-color)',
+                                        padding: '14px 12px',
+                                        border: getCurrentType() === 'real' ? '2px solid #3b82f6' : '2px solid var(--border-color)',
+                                        borderRadius: '10px',
+                                        background: getCurrentType() === 'real' ? '#eff6ff' : 'var(--bg-secondary)',
                                         cursor: 'pointer',
                                         display: 'flex',
+                                        flexDirection: 'column',
                                         alignItems: 'center',
-                                        justifyContent: 'center',
                                         gap: '8px',
-                                        fontWeight: getCurrentType() === 'real' ? 600 : 400,
-                                        color: getCurrentType() === 'real' ? '#3b82f6' : 'var(--text-secondary)',
-                                        transition: 'all 0.2s ease'
+                                        position: 'relative',
+                                        transition: 'all 0.2s ease',
+                                        boxShadow: getCurrentType() === 'real' ? '0 0 0 3px rgba(59,130,246,0.12)' : 'none'
                                     }}
                                 >
-                                    <DollarSign size={18} />
-                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-                                        <span style={{ fontSize: '0.9rem' }}>Oportunidade Real</span>
-                                        <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Receita Real)</span>
+                                    {getCurrentType() === 'real' && (
+                                        <span style={{
+                                            position: 'absolute', top: '7px', right: '7px',
+                                            width: '18px', height: '18px', borderRadius: '50%',
+                                            background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}>
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                        </span>
+                                    )}
+                                    <span style={{
+                                        width: '38px', height: '38px', borderRadius: '50%',
+                                        background: getCurrentType() === 'real' ? '#3b82f6' : '#e2e8f0',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: getCurrentType() === 'real' ? 'white' : '#94a3b8',
+                                        transition: 'all 0.2s ease'
+                                    }}>
+                                        <DollarSign size={18} />
+                                    </span>
+                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.3, gap: '2px' }}>
+                                        <span style={{
+                                            fontSize: '0.85rem', fontWeight: getCurrentType() === 'real' ? 700 : 500,
+                                            color: getCurrentType() === 'real' ? '#1e40af' : 'var(--text-primary)'
+                                        }}>Oportunidade Real</span>
+                                        <span style={{
+                                            fontSize: '0.72rem',
+                                            color: getCurrentType() === 'real' ? '#3b82f6' : 'var(--text-tertiary)'
+                                        }}>Receita Real</span>
                                     </span>
                                 </button>
+
+                                {/* Meta */}
                                 <button
                                     type="button"
                                     onClick={() => handleTypeChange('meta')}
                                     style={{
                                         flex: 1,
-                                        padding: '12px 16px',
-                                        border: '1px solid var(--border-color)',
-                                        borderRight: 'none',
-                                        background: getCurrentType() === 'meta' ? 'linear-gradient(135deg, #f59e0b15, #f59e0b08)' : 'white',
-                                        borderColor: getCurrentType() === 'meta' ? '#f59e0b40' : 'var(--border-color)',
+                                        padding: '14px 12px',
+                                        border: getCurrentType() === 'meta' ? '2px solid #f59e0b' : '2px solid var(--border-color)',
+                                        borderRadius: '10px',
+                                        background: getCurrentType() === 'meta' ? '#fffbeb' : 'var(--bg-secondary)',
                                         cursor: 'pointer',
                                         display: 'flex',
+                                        flexDirection: 'column',
                                         alignItems: 'center',
-                                        justifyContent: 'center',
                                         gap: '8px',
-                                        fontWeight: getCurrentType() === 'meta' ? 600 : 400,
-                                        color: getCurrentType() === 'meta' ? '#f59e0b' : 'var(--text-secondary)',
-                                        transition: 'all 0.2s ease'
+                                        position: 'relative',
+                                        transition: 'all 0.2s ease',
+                                        boxShadow: getCurrentType() === 'meta' ? '0 0 0 3px rgba(245,158,11,0.12)' : 'none'
                                     }}
                                 >
-                                    <Target size={18} />
-                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-                                        <span style={{ fontSize: '0.9rem' }}>Oportunidade Meta</span>
-                                        <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Receita Planejada)</span>
+                                    {getCurrentType() === 'meta' && (
+                                        <span style={{
+                                            position: 'absolute', top: '7px', right: '7px',
+                                            width: '18px', height: '18px', borderRadius: '50%',
+                                            background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}>
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                        </span>
+                                    )}
+                                    <span style={{
+                                        width: '38px', height: '38px', borderRadius: '50%',
+                                        background: getCurrentType() === 'meta' ? '#f59e0b' : '#e2e8f0',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: getCurrentType() === 'meta' ? 'white' : '#94a3b8',
+                                        transition: 'all 0.2s ease'
+                                    }}>
+                                        <Target size={18} />
+                                    </span>
+                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.3, gap: '2px' }}>
+                                        <span style={{
+                                            fontSize: '0.85rem', fontWeight: getCurrentType() === 'meta' ? 700 : 500,
+                                            color: getCurrentType() === 'meta' ? '#92400e' : 'var(--text-primary)'
+                                        }}>Oportunidade Meta</span>
+                                        <span style={{
+                                            fontSize: '0.72rem',
+                                            color: getCurrentType() === 'meta' ? '#f59e0b' : 'var(--text-tertiary)'
+                                        }}>Receita Planejada</span>
                                     </span>
                                 </button>
+
+                                {/* Potencial */}
                                 <button
                                     type="button"
                                     onClick={() => handleTypeChange('potencial')}
                                     style={{
                                         flex: 1,
-                                        padding: '12px 16px',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: '0 8px 8px 0',
-                                        background: getCurrentType() === 'potencial' ? 'linear-gradient(135deg, #8b5cf615, #8b5cf608)' : 'white',
-                                        borderColor: getCurrentType() === 'potencial' ? '#8b5cf640' : 'var(--border-color)',
+                                        padding: '14px 12px',
+                                        border: getCurrentType() === 'potencial' ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
+                                        borderRadius: '10px',
+                                        background: getCurrentType() === 'potencial' ? '#f5f3ff' : 'var(--bg-secondary)',
                                         cursor: 'pointer',
                                         display: 'flex',
+                                        flexDirection: 'column',
                                         alignItems: 'center',
-                                        justifyContent: 'center',
                                         gap: '8px',
-                                        fontWeight: getCurrentType() === 'potencial' ? 600 : 400,
-                                        color: getCurrentType() === 'potencial' ? '#8b5cf6' : 'var(--text-secondary)',
-                                        transition: 'all 0.2s ease'
+                                        position: 'relative',
+                                        transition: 'all 0.2s ease',
+                                        boxShadow: getCurrentType() === 'potencial' ? '0 0 0 3px rgba(139,92,246,0.12)' : 'none'
                                     }}
                                 >
-                                    <Lightbulb size={18} />
-                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-                                        <span style={{ fontSize: '0.9rem' }}>Oportunidade Potencial</span>
-                                        <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Receita em Construção)</span>
+                                    {getCurrentType() === 'potencial' && (
+                                        <span style={{
+                                            position: 'absolute', top: '7px', right: '7px',
+                                            width: '18px', height: '18px', borderRadius: '50%',
+                                            background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}>
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                        </span>
+                                    )}
+                                    <span style={{
+                                        width: '38px', height: '38px', borderRadius: '50%',
+                                        background: getCurrentType() === 'potencial' ? '#8b5cf6' : '#e2e8f0',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: getCurrentType() === 'potencial' ? 'white' : '#94a3b8',
+                                        transition: 'all 0.2s ease'
+                                    }}>
+                                        <Lightbulb size={18} />
+                                    </span>
+                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.3, gap: '2px' }}>
+                                        <span style={{
+                                            fontSize: '0.85rem', fontWeight: getCurrentType() === 'potencial' ? 700 : 500,
+                                            color: getCurrentType() === 'potencial' ? '#5b21b6' : 'var(--text-primary)'
+                                        }}>Oportunidade Potencial</span>
+                                        <span style={{
+                                            fontSize: '0.72rem',
+                                            color: getCurrentType() === 'potencial' ? '#8b5cf6' : 'var(--text-tertiary)'
+                                        }}>Receita em Construção</span>
                                     </span>
                                 </button>
                             </div>

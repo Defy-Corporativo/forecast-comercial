@@ -202,11 +202,12 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                             alignItems: 'center',
                             gap: '4px',
                             padding: '2px 6px',
-                            background: 'linear-gradient(135deg, #8b5cf620, #8b5cf610)',
-                            color: '#7c3aed',
+                            background: 'linear-gradient(135deg, #8b5cf640, #8b5cf625)',
+                            color: '#5b21b6',
                             borderRadius: '4px',
                             fontSize: '0.75rem',
-                            fontWeight: 500
+                            fontWeight: 600,
+                            border: '1px solid #8b5cf630'
                         }}>
                             <Lightbulb size={12} />
                             Potencial
@@ -275,10 +276,16 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
             render: (opp) => (
                 <span
                     className={styles.stageBadge}
-                    style={{ backgroundColor: getStageColor(opp.stage), color: '#fff' }}
+                    style={
+                        opp.is_potential
+                            ? { backgroundColor: '#8b5cf6', color: '#fff' }
+                            : opp.is_goal
+                                ? { backgroundColor: '#f59e0b', color: '#fff' }
+                                : { backgroundColor: getStageColor(opp.stage), color: '#fff' }
+                    }
                     title={getStageDescription(opp.stage)}
                 >
-                    {opp.stage}
+                    {opp.is_potential ? 'Potencial' : opp.is_goal ? 'Meta' : opp.stage}
                 </span>
             )
         },
@@ -340,10 +347,16 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
             render: (opp) => (
                 <span
                     className={styles.stageBadge}
-                    style={{ backgroundColor: getStageColor(opp.stage), color: '#fff' }}
+                    style={
+                        opp.is_potential
+                            ? { backgroundColor: '#8b5cf6', color: '#fff' }
+                            : opp.is_goal
+                                ? { backgroundColor: '#f59e0b', color: '#fff' }
+                                : { backgroundColor: getStageColor(opp.stage), color: '#fff' }
+                    }
                     title={getStageDescription(opp.stage)}
                 >
-                    {opp.stage}
+                    {opp.is_potential ? 'Potencial' : opp.is_goal ? 'Meta' : opp.stage}
                 </span>
             )
         },

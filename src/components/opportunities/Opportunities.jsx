@@ -23,7 +23,7 @@ const Opportunities = () => {
     const [viewingOpportunity, setViewingOpportunity] = useState(null);
     // Meta e Potencial states: 0=oculto, 1=listar junto, 2=filtrar somente
     const [metaState, setMetaState] = useState(0);
-    const [potencialState, setPotencialState] = useState(0);
+    const [potencialState, setPotencialState] = useState(1); // Padrão: listar junto (1 clique)
 
     // Mobile detection
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
