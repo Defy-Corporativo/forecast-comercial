@@ -260,9 +260,6 @@ const ResponsibleActions = () => {
                                                 {isCompleting ? 'Concluindo...' : 'Concluir'}
                                             </button>
                                         </div>
-                                        {!noteText.trim() && (
-                                            <p className={styles.requiredNote}>* A nota é obrigatória para concluir a ação</p>
-                                        )}
                                     </div>
                                 </div>
                             );
