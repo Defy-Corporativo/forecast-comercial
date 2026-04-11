@@ -14,6 +14,7 @@ import Actions from './components/actions/Actions';
 import Clients from './components/clients/Clients';
 import DebugLogViewer from './components/debug/DebugLogViewer';
 import ResponsibleActions from './components/actions/ResponsibleActions';
+import AcoesRedirect from './components/actions/AcoesRedirect';
 
 
 
@@ -27,7 +28,9 @@ const App = () => {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
-              {/* Rota pública - ações do responsável */}
+              {/* Rota pública - /acoes sem UUID redireciona para o link do usuário logado */}
+              <Route path="/acoes" element={<AcoesRedirect />} />
+              {/* Rota pública - ações do responsável com UUID */}
               <Route path="/acoes/:responsibleId" element={<ResponsibleActions />} />
               <Route
                 path="/*"
