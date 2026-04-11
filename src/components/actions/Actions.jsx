@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Search, User, Briefcase, Clock, CheckCircle, AlertCircle, ExternalLink, ChevronDown, ChevronRight, X, Trash, Calendar } from 'lucide-react';
+import { CheckSquare, Search, User, Briefcase, Clock, CheckCircle, AlertCircle, ExternalLink, ChevronDown, ChevronRight, X, Trash, Calendar, Link2, Copy } from 'lucide-react';
 import { opportunityActionsService } from '../../services/opportunityActionsService';
 import { responsiblesService } from '../../services/responsiblesService';
 import { opportunityService } from '../../services/opportunityService';
@@ -44,6 +44,7 @@ const Actions = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingOpportunity, setEditingOpportunity] = useState(null);
     const [loadingOpportunityId, setLoadingOpportunityId] = useState(null);
+    const [copiedResponsible, setCopiedResponsible] = useState(null);
 
     useEffect(() => {
         loadData();
@@ -429,6 +430,29 @@ const Actions = () => {
                                         <div className={styles.groupHeaderRight}>
                                             <span className={styles.badgeWarning}>{pendingInGroup} pendentes</span>
                                             <span className={styles.badgeSuccess}>{completedInGroup} concluídas</span>
+                                            {viewMode === 'responsible' && (() => {
+                                                const resp = responsibles.find(r => r.name === key);
+                                                if (!resp) return null;
+                                                const isCopied = copiedResponsible === resp.id;
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        className={styles.copyLinkBtn}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const link = `${window.location.origin}/acoes/${resp.id}`;
+                                                            navigator.clipboard.writeText(link).then(() => {
+                                                                setCopiedResponsible(resp.id);
+                                                                setTimeout(() => setCopiedResponsible(null), 2000);
+                                                            });
+                                                        }}
+                                                        title="Copiar link compartilhável"
+                                                    >
+                                                        {isCopied ? <CheckCircle size={14} /> : <Link2 size={14} />}
+                                                        {isCopied ? 'Copiado!' : 'Copiar link'}
+                                                    </button>
+                                                );
+                                            })()}
                                             {viewMode === 'opportunity' && group.opportunity?.id && (
                                                 <button
                                                     type="button"

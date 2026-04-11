@@ -182,6 +182,89 @@ export const opportunityActionsService = {
         return { pending, completed, total: pending + completed };
     },
 
+    // Get all actions for a specific responsible name (for public page)
+    async getActionsByResponsibleName(responsibleName) {
+        const { data, error } = await supabase
+            .from('fcst_opportunity_actions')
+            .select(`
+                *,
+                opportunity:fcst_opportunities (
+                    id,
+                    opportunity_number,
+                    title,
+                    client_name,
+                    is_goal,
+                    is_potential,
+                    display_priority
+                )
+            `)
+            .eq('responsible', responsibleName)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Filter out actions from goal opportunities (meta)
+        return (data || []).filter(action =>
+            action.opportunity && !action.opportunity.is_goal
+        );
+    },
+
+    // Add a note to an action without completing it (for public page)
+    async addNoteToAction(actionId, opportunityId, noteText, responsibleName) {
+        // Get action details for the note prefix
+        const { data: action, error: fetchError } = await supabase
+            .from('fcst_opportunity_actions')
+            .select('description')
+            .eq('id', actionId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        const noteContent = `Atualização sobre a ação: ${action.description}\n\n${noteText}`;
+
+        await opportunityNotesService.createNote(
+            opportunityId,
+            noteContent,
+            responsibleName
+        );
+
+        return action;
+    },
+
+    // Complete an action from the public page (with mandatory note)
+    async completeActionPublic(actionId, opportunityId, noteText, responsibleName) {
+        // First, get action details
+        const { data: action, error: fetchError } = await supabase
+            .from('fcst_opportunity_actions')
+            .select('description')
+            .eq('id', actionId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        // Update the action status
+        const { error: updateError } = await supabase
+            .from('fcst_opportunity_actions')
+            .update({
+                status: 'concluida',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', actionId);
+
+        if (updateError) throw updateError;
+
+        // Create the note with automatic prefix
+        const noteContent = `Atualização sobre a ação: ${action.description}\n\n[Ação Concluída]\n\n${noteText}`;
+
+        await opportunityNotesService.createNote(
+            opportunityId,
+            noteContent,
+            responsibleName
+        );
+
+        return action;
+    },
+
     // Calculate action age in days
     calculateAge(createdAt) {
         const created = new Date(createdAt);

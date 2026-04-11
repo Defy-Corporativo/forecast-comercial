@@ -13,6 +13,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import Actions from './components/actions/Actions';
 import Clients from './components/clients/Clients';
 import DebugLogViewer from './components/debug/DebugLogViewer';
+import ResponsibleActions from './components/actions/ResponsibleActions';
 
 
 
@@ -26,6 +27,8 @@ const App = () => {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
+              {/* Rota pública - ações do responsável */}
+              <Route path="/acoes/:responsibleId" element={<ResponsibleActions />} />
               <Route
                 path="/*"
                 element={

@@ -61,6 +61,18 @@ export const responsiblesService = {
         return data;
     },
 
+    // Get a responsible by ID
+    async getResponsibleById(id) {
+        const { data, error } = await supabase
+            .from('pepl_responsibles')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
     // Delete a responsible
     async deleteResponsible(id) {
         const { error } = await supabase

@@ -1,0 +1,318 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import { Clock, CheckCircle, AlertCircle, Briefcase, Calendar, Save, CheckSquare, AlertTriangle } from 'lucide-react';
+import { responsiblesService } from '../../services/responsiblesService';
+import { opportunityActionsService } from '../../services/opportunityActionsService';
+import styles from './ResponsibleActions.module.css';
+
+const ResponsibleActions = () => {
+    const { responsibleId } = useParams();
+    const [responsible, setResponsible] = useState(null);
+    const [actions, setActions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [notes, setNotes] = useState({}); // { actionId: noteText }
+    const [savingAction, setSavingAction] = useState(null); // actionId being saved
+    const [completingAction, setCompletingAction] = useState(null); // actionId being completed
+    const [toast, setToast] = useState(null);
+
+    const showToast = useCallback((message) => {
+        setToast(message);
+        setTimeout(() => setToast(null), 3000);
+    }, []);
+
+    const loadData = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Buscar responsável pelo UUID
+            const resp = await responsiblesService.getResponsibleById(responsibleId);
+            setResponsible(resp);
+
+            // Buscar ações do responsável
+            const actionsData = await opportunityActionsService.getActionsByResponsibleName(resp.name);
+            setActions(actionsData);
+        } catch (err) {
+            console.error('Erro ao carregar dados:', err);
+            setError('Responsável não encontrado ou link inválido.');
+        } finally {
+            setLoading(false);
+        }
+    }, [responsibleId]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    const handleNoteChange = (actionId, text) => {
+        setNotes(prev => ({ ...prev, [actionId]: text }));
+    };
+
+    const handleSaveNote = async (action) => {
+        const noteText = (notes[action.id] || '').trim();
+        if (!noteText) return;
+
+        try {
+            setSavingAction(action.id);
+            await opportunityActionsService.addNoteToAction(
+                action.id,
+                action.opportunity_id,
+                noteText,
+                responsible.name
+            );
+            // Limpar a nota após salvar
+            setNotes(prev => ({ ...prev, [action.id]: '' }));
+            showToast('Nota salva com sucesso!');
+        } catch (err) {
+            console.error('Erro ao salvar nota:', err);
+            alert('Erro ao salvar nota. Tente novamente.');
+        } finally {
+            setSavingAction(null);
+        }
+    };
+
+    const handleComplete = async (action) => {
+        const noteText = (notes[action.id] || '').trim();
+        if (!noteText) {
+            alert('É obrigatório escrever uma nota ao concluir a ação.');
+            return;
+        }
+
+        try {
+            setCompletingAction(action.id);
+            await opportunityActionsService.completeActionPublic(
+                action.id,
+                action.opportunity_id,
+                noteText,
+                responsible.name
+            );
+            // Limpar a nota e recarregar
+            setNotes(prev => ({ ...prev, [action.id]: '' }));
+            showToast('Ação concluída com sucesso!');
+            await loadData();
+        } catch (err) {
+            console.error('Erro ao concluir ação:', err);
+            alert('Erro ao concluir ação. Tente novamente.');
+        } finally {
+            setCompletingAction(null);
+        }
+    };
+
+    const calculateAge = (createdAt) => {
+        return opportunityActionsService.calculateAge(createdAt);
+    };
+
+    // --- Render States ---
+
+    if (loading) {
+        return (
+            <div className={styles.loadingState}>
+                <div className={styles.spinner} />
+                <span>Carregando suas ações...</span>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={styles.errorState}>
+                <AlertTriangle size={48} style={{ color: '#f59e0b' }} />
+                <h2>Link inválido</h2>
+                <p>{error}</p>
+            </div>
+        );
+    }
+
+    // --- Stats ---
+    const pendingActions = actions.filter(a => a.status === 'pendente');
+    const completedActions = actions.filter(a => a.status === 'concluida');
+    const overdueActions = pendingActions.filter(a => {
+        const isDueDateOverdue = a.due_date && new Date(a.due_date + 'T23:59:59') < new Date();
+        return isDueDateOverdue || calculateAge(a.created_at) > 7;
+    });
+
+    return (
+        <div className={styles.pageWrapper}>
+            {/* Header */}
+            <div className={styles.header}>
+                <div className={styles.headerContent}>
+                    <p className={styles.greeting}>Suas ações no Forecast Comercial</p>
+                    <h1 className={styles.responsibleName}>{responsible.name}</h1>
+                    <p className={styles.headerSubtitle}>
+                        {pendingActions.length === 0
+                            ? 'Todas as ações estão concluídas! 🎉'
+                            : `Você tem ${pendingActions.length} ${pendingActions.length === 1 ? 'ação pendente' : 'ações pendentes'}`
+                        }
+                    </p>
+                </div>
+            </div>
+
+            {/* Stats */}
+            <div className={styles.statsRow}>
+                <div className={styles.statCard}>
+                    <div className={styles.statIcon} style={{ background: '#fff8e1', color: '#f59e0b' }}>
+                        <Clock size={22} />
+                    </div>
+                    <div>
+                        <div className={styles.statValue}>{pendingActions.length}</div>
+                        <div className={styles.statLabel}>Pendentes</div>
+                    </div>
+                </div>
+                <div className={styles.statCard}>
+                    <div className={styles.statIcon} style={{ background: '#ecfdf5', color: '#10b981' }}>
+                        <CheckCircle size={22} />
+                    </div>
+                    <div>
+                        <div className={styles.statValue}>{completedActions.length}</div>
+                        <div className={styles.statLabel}>Concluídas</div>
+                    </div>
+                </div>
+                <div className={styles.statCard}>
+                    <div className={styles.statIcon} style={{ background: '#fef2f2', color: '#ef4444' }}>
+                        <AlertCircle size={22} />
+                    </div>
+                    <div>
+                        <div className={styles.statValue}>{overdueActions.length}</div>
+                        <div className={styles.statLabel}>Atrasadas</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Actions List */}
+            <div className={styles.contentArea}>
+                <h2 className={styles.sectionTitle}>
+                    <CheckSquare size={20} />
+                    Suas Ações
+                </h2>
+
+                {actions.length === 0 ? (
+                    <div className={styles.emptyState}>
+                        <CheckCircle size={48} style={{ opacity: 0.4 }} />
+                        <p>Nenhuma ação encontrada.</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Pendentes primeiro */}
+                        {pendingActions.map(action => {
+                            const age = calculateAge(action.created_at);
+                            const isDueDateOverdue = action.due_date && new Date(action.due_date + 'T23:59:59') < new Date();
+                            const isOverdue = isDueDateOverdue || age > 7;
+                            const noteText = notes[action.id] || '';
+                            const isSaving = savingAction === action.id;
+                            const isCompleting = completingAction === action.id;
+
+                            return (
+                                <div key={action.id} className={styles.actionCard}>
+                                    <div className={styles.actionCardHeader}>
+                                        <p className={styles.actionDescription}>{action.description}</p>
+                                    </div>
+
+                                    <div className={styles.actionMeta}>
+                                        <span className={`${styles.metaBadge} ${styles.metaBadgeWarning}`}>
+                                            <Clock size={13} />
+                                            Pendente
+                                        </span>
+                                        <span className={`${styles.metaBadge} ${isOverdue ? styles.metaBadgeOverdue : ''}`}>
+                                            {isOverdue && <AlertCircle size={13} />}
+                                            {age} {age === 1 ? 'dia' : 'dias'}
+                                        </span>
+                                        {action.due_date && (
+                                            <span className={`${styles.metaBadge} ${isDueDateOverdue ? styles.metaBadgeOverdue : ''}`}>
+                                                <Calendar size={13} />
+                                                {(() => {
+                                                    const [y, m, d] = action.due_date.split('-');
+                                                    return `${d}/${m}/${y}`;
+                                                })()}
+                                            </span>
+                                        )}
+                                        {action.opportunity && (
+                                            <span className={styles.opportunityLabel}>
+                                                <Briefcase size={13} />
+                                                {action.opportunity.title || action.opportunity.client_name}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className={styles.noteArea}>
+                                        <textarea
+                                            className={styles.noteTextarea}
+                                            placeholder="Escreva uma nota sobre o andamento ou conclusão desta ação..."
+                                            value={noteText}
+                                            onChange={(e) => handleNoteChange(action.id, e.target.value)}
+                                            rows={3}
+                                        />
+                                        <div className={styles.noteActions}>
+                                            <button
+                                                className={styles.btnSaveNote}
+                                                onClick={() => handleSaveNote(action)}
+                                                disabled={!noteText.trim() || isSaving || isCompleting}
+                                            >
+                                                <Save size={15} />
+                                                {isSaving ? 'Salvando...' : 'Salvar Nota'}
+                                            </button>
+                                            <button
+                                                className={styles.btnComplete}
+                                                onClick={() => handleComplete(action)}
+                                                disabled={isSaving || isCompleting}
+                                            >
+                                                <CheckCircle size={15} />
+                                                {isCompleting ? 'Concluindo...' : 'Concluir'}
+                                            </button>
+                                        </div>
+                                        {!noteText.trim() && (
+                                            <p className={styles.requiredNote}>* A nota é obrigatória para concluir a ação</p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Concluídas por último */}
+                        {completedActions.length > 0 && (
+                            <>
+                                <h2 className={styles.sectionTitle} style={{ marginTop: '32px', color: '#64748b' }}>
+                                    <CheckCircle size={20} />
+                                    Concluídas ({completedActions.length})
+                                </h2>
+                                {completedActions.map(action => (
+                                    <div key={action.id} className={`${styles.actionCard} ${styles.actionCardCompleted}`}>
+                                        <div className={styles.actionCardHeader}>
+                                            <p className={styles.actionDescription}>{action.description}</p>
+                                            <span className={styles.completedBadge}>
+                                                <CheckCircle size={13} />
+                                                Concluída
+                                            </span>
+                                        </div>
+                                        <div className={styles.actionMeta}>
+                                            {action.opportunity && (
+                                                <span className={styles.opportunityLabel}>
+                                                    <Briefcase size={13} />
+                                                    {action.opportunity.title || action.opportunity.client_name}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+                    </>
+                )}
+            </div>
+
+            <div className={styles.footer}>
+                Forecast Comercial — Defy Solutions
+            </div>
+
+            {/* Toast */}
+            {toast && (
+                <div className={styles.successToast}>
+                    <CheckCircle size={18} />
+                    {toast}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default ResponsibleActions;

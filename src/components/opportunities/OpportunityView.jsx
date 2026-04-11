@@ -1313,10 +1313,10 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <thead>
                                             <tr style={{ background: 'var(--bg-secondary)', fontSize: '0.85rem' }}>
-                                                <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500 }}>Período</th>
-                                                <th style={{ textAlign: 'right', padding: '12px', fontWeight: 500 }}>Valor</th>
-                                                <th style={{ textAlign: 'center', padding: '12px', fontWeight: 500 }}>Status</th>
-                                                <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500 }}>Observação</th>
+                                                <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500, width: '22%' }}>Período</th>
+                                                <th style={{ textAlign: 'right', padding: '12px', fontWeight: 500, width: '16%' }}>Valor</th>
+                                                <th style={{ textAlign: 'center', padding: '12px', fontWeight: 500, width: '16%' }}>Status</th>
+                                                <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500, width: '46%' }}>Observação</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1351,23 +1351,92 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                                             {currentOpportunity.is_goal ? (
                                                                 <span style={{ color: 'var(--text-tertiary)' }}>-</span>
                                                             ) : (
-                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                                                                    <span style={{
+                                                                <button
+                                                                    onClick={() => handleToggleInvoiced(forecast)}
+                                                                    title={forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado'}
+                                                                    onMouseEnter={(e) => {
+                                                                        const btn = e.currentTarget;
+                                                                        const isInvoiced = forecast.invoiced;
+                                                                        btn.style.background = isInvoiced
+                                                                            ? 'rgba(16, 185, 129, 0.22)'
+                                                                            : 'rgba(107, 114, 128, 0.18)';
+                                                                        btn.style.boxShadow = isInvoiced
+                                                                            ? '0 0 0 2px #10b981, 0 2px 6px rgba(16,185,129,0.25)'
+                                                                            : '0 0 0 2px #9ca3af, 0 2px 6px rgba(107,114,128,0.18)';
+                                                                        btn.style.transform = 'scale(1.06)';
+                                                                        // Mostrar ícone de troca
+                                                                        btn.querySelector('.status-switch-icon').style.opacity = '1';
+                                                                        btn.querySelector('.status-dot').style.opacity = '0';
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                        const btn = e.currentTarget;
+                                                                        const isInvoiced = forecast.invoiced;
+                                                                        btn.style.background = isInvoiced
+                                                                            ? 'rgba(16, 185, 129, 0.12)'
+                                                                            : 'rgba(107, 114, 128, 0.1)';
+                                                                        btn.style.boxShadow = isInvoiced
+                                                                            ? 'inset 0 0 0 1.5px rgba(16,185,129,0.35)'
+                                                                            : 'inset 0 0 0 1.5px rgba(107,114,128,0.25)';
+                                                                        btn.style.transform = 'scale(1)';
+                                                                        btn.querySelector('.status-switch-icon').style.opacity = '0';
+                                                                        btn.querySelector('.status-dot').style.opacity = '1';
+                                                                    }}
+                                                                    onMouseDown={(e) => {
+                                                                        e.currentTarget.style.transform = 'scale(0.97)';
+                                                                    }}
+                                                                    onMouseUp={(e) => {
+                                                                        e.currentTarget.style.transform = 'scale(1.06)';
+                                                                    }}
+                                                                    style={{
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '6px',
+                                                                        padding: '6px 13px 6px 9px',
+                                                                        border: 'none',
+                                                                        borderRadius: '20px',
+                                                                        cursor: 'pointer',
                                                                         fontSize: '0.8rem',
-                                                                        color: forecast.invoiced ? 'var(--color-success)' : 'var(--text-secondary)',
-                                                                        fontWeight: 500,
-                                                                        minWidth: '60px',
-                                                                        textAlign: 'right'
-                                                                    }}>
-                                                                        {forecast.invoiced ? 'Faturado' : 'Pendente'}
-                                                                    </span>
-                                                                    <div title={forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado'}>
-                                                                        <Checkbox
-                                                                            checked={forecast.invoiced}
-                                                                            onChange={() => handleToggleInvoiced(forecast)}
-                                                                        />
-                                                                    </div>
-                                                                </div>
+                                                                        fontWeight: 600,
+                                                                        transition: 'all 0.18s ease',
+                                                                        background: forecast.invoiced
+                                                                            ? 'rgba(16, 185, 129, 0.12)'
+                                                                            : 'rgba(107, 114, 128, 0.1)',
+                                                                        color: forecast.invoiced ? '#059669' : '#6b7280',
+                                                                        boxShadow: forecast.invoiced
+                                                                            ? 'inset 0 0 0 1.5px rgba(16,185,129,0.35)'
+                                                                            : 'inset 0 0 0 1.5px rgba(107,114,128,0.25)',
+                                                                        userSelect: 'none',
+                                                                        position: 'relative'
+                                                                    }}
+                                                                >
+                                                                    {/* Ícone de troca — aparece no hover */}
+                                                                    <span
+                                                                        className="status-switch-icon"
+                                                                        style={{
+                                                                            fontSize: '0.85rem',
+                                                                            lineHeight: 1,
+                                                                            flexShrink: 0,
+                                                                            opacity: 0,
+                                                                            transition: 'opacity 0.15s ease',
+                                                                            position: 'absolute',
+                                                                            left: '9px'
+                                                                        }}
+                                                                    >⇅</span>
+                                                                    {/* Indicador circular — some no hover */}
+                                                                    <span
+                                                                        className="status-dot"
+                                                                        style={{
+                                                                            width: '8px',
+                                                                            height: '8px',
+                                                                            borderRadius: '50%',
+                                                                            flexShrink: 0,
+                                                                            background: forecast.invoiced ? '#10b981' : '#9ca3af',
+                                                                            transition: 'opacity 0.15s ease',
+                                                                            opacity: 1
+                                                                        }}
+                                                                    />
+                                                                    {forecast.invoiced ? 'Faturado' : 'Pendente'}
+                                                                </button>
                                                             )}
                                                         </td>
                                                         <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
