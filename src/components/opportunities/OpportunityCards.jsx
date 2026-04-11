@@ -80,7 +80,7 @@ const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit
                             className={styles.cardStageBadge}
                             style={
                                 opp.is_potential
-                                    ? { backgroundColor: '#8b5cf6', color: '#fff' }
+                                    ? { backgroundColor: '#94a3b8', color: '#fff' }
                                     : opp.is_goal
                                         ? { backgroundColor: '#f59e0b', color: '#fff' }
                                         : { backgroundColor: getStageColor(opp.stage) + '20', color: getStageColor(opp.stage) }

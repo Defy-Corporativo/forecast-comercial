@@ -94,6 +94,16 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
         noteText: ''
     });
 
+    // Modal para edição de ação
+    const [editActionModal, setEditActionModal] = useState({
+        isOpen: false,
+        action: null,
+        description: '',
+        responsible: '',
+        dueDate: '',
+        saving: false
+    });
+
     // Sincronizar estado local quando a prop mudar (apenas na primeira renderização)
     useEffect(() => {
         setCurrentOpportunity(opportunity);
@@ -246,6 +256,36 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
             actionId: action.id,
             noteText: ''
         });
+    };
+
+    const handleOpenEditActionModal = (action) => {
+        setEditActionModal({
+            isOpen: true,
+            action,
+            description: action.description,
+            responsible: action.responsible,
+            dueDate: action.due_date || '',
+            saving: false
+        });
+    };
+
+    const handleSaveEditAction = async () => {
+        if (!editActionModal.description.trim() || !editActionModal.responsible) return;
+        setEditActionModal(prev => ({ ...prev, saving: true }));
+        try {
+            await opportunityActionsService.updateAction(editActionModal.action.id, {
+                description: editActionModal.description.trim(),
+                responsible: editActionModal.responsible,
+                due_date: editActionModal.dueDate || null
+            });
+            setEditActionModal({ isOpen: false, action: null, description: '', responsible: '', dueDate: '', saving: false });
+            await loadActions();
+        } catch (error) {
+            console.error('Erro ao editar ação:', error);
+            alert('Erro ao salvar alterações. Tente novamente.');
+        } finally {
+            setEditActionModal(prev => ({ ...prev, saving: false }));
+        }
     };
 
     const handleCompleteAction = async () => {
@@ -1061,109 +1101,188 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
 
                     {/* Seção de Notas e Ações - com tabs */}
                     <div style={{ marginTop: '32px', borderTop: '1px solid var(--border-color-light)', paddingTop: '24px' }}>
-                        {/* Tabs Header */}
-                        <div style={{ display: 'flex', gap: '0', marginBottom: '16px', borderBottom: '2px solid var(--border-color-light)', paddingBottom: '0' }}>
-                            {/* Tab de Previsões */}
-                            <button
-                                onClick={() => setActiveTab('forecasts')}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    padding: '12px 20px',
-                                    background: activeTab === 'forecasts' ? 'white' : 'var(--bg-main)',
-                                    color: activeTab === 'forecasts' ? 'var(--color-primary)' : 'var(--text-secondary)',
-                                    border: 'none',
-                                    borderBottom: activeTab === 'forecasts' ? '3px solid var(--color-primary)' : '3px solid transparent',
-                                    marginBottom: '-2px',
-                                    cursor: 'pointer',
-                                    fontSize: '15px',
-                                    fontWeight: 600,
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                <Calendar size={18} />
-                                Previsões
-                                <span style={{
-                                    background: activeTab === 'forecasts' ? 'var(--color-primary)' : 'var(--bg-secondary)',
-                                    color: activeTab === 'forecasts' ? 'white' : 'var(--text-secondary)',
-                                    padding: '2px 10px',
-                                    borderRadius: '12px',
-                                    fontSize: '13px',
-                                    fontWeight: 600
-                                }}>
-                                    {currentOpportunity.forecasts?.length || 0}
-                                </span>
-                            </button>
-
-                            {/* Tab de Ações - apenas para oportunidades não-meta */}
-                            {!currentOpportunity.is_goal && (
+                        {/* Tabs Header - novo design proeminente */}
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '0' }}>
+                            {/* Container fundo das abas */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                gap: '4px',
+                                flex: 1,
+                                background: 'var(--bg-secondary)',
+                                borderRadius: '12px 12px 0 0',
+                                padding: '8px 8px 0 8px',
+                                borderBottom: '2px solid var(--border-color)'
+                            }}>
+                                {/* Tab de Previsões */}
                                 <button
-                                    onClick={() => setActiveTab('actions')}
+                                    onClick={() => setActiveTab('forecasts')}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '8px',
-                                        padding: '12px 20px',
-                                        background: activeTab === 'actions' ? 'white' : 'var(--bg-main)',
-                                        color: activeTab === 'actions' ? 'var(--color-primary)' : 'var(--text-secondary)',
-                                        border: 'none',
-                                        borderBottom: activeTab === 'actions' ? '3px solid var(--color-primary)' : '3px solid transparent',
-                                        marginBottom: '-2px',
+                                        padding: '14px 48px',
+                                        background: activeTab === 'forecasts' ? 'white' : '#e8eaed',
+                                        color: activeTab === 'forecasts' ? 'var(--color-primary)' : '#8a93a2',
+                                        border: activeTab === 'forecasts'
+                                            ? '2px solid var(--border-color)'
+                                            : '2px solid transparent',
+                                        borderBottom: activeTab === 'forecasts' ? '2px solid white' : '2px solid var(--border-color)',
+                                        borderRadius: '8px 8px 0 0',
+                                        marginTop: activeTab === 'forecasts' ? '0' : '6px',
+                                        marginBottom: activeTab === 'forecasts' ? '-2px' : '0',
                                         cursor: 'pointer',
-                                        fontSize: '15px',
+                                        fontSize: '14px',
                                         fontWeight: 600,
-                                        transition: 'all 0.2s'
+                                        transition: 'all 0.2s',
+                                        boxShadow: activeTab === 'forecasts' ? '0 -2px 8px rgba(0,0,0,0.06)' : 'none',
+                                        whiteSpace: 'nowrap',
+                                        position: 'relative',
+                                        outline: 'none'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (activeTab !== 'forecasts') {
+                                            e.currentTarget.style.background = 'rgba(255,255,255,0.8)';
+                                            e.currentTarget.style.color = 'var(--text-primary)';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (activeTab !== 'forecasts') {
+                                            e.currentTarget.style.background = '#f0f2f5';
+                                            e.currentTarget.style.color = '#8a93a2';
+                                        }
                                     }}
                                 >
-                                    <CheckSquare size={18} />
-                                    Ações
+                                    <Calendar size={16} />
+                                    Previsões
                                     <span style={{
-                                        background: actionCounts.pending > 0 ? 'var(--color-warning)' : (activeTab === 'actions' ? 'var(--color-primary)' : 'var(--bg-secondary)'),
-                                        color: actionCounts.pending > 0 || activeTab === 'actions' ? 'white' : 'var(--text-secondary)',
-                                        padding: '2px 10px',
-                                        borderRadius: '12px',
-                                        fontSize: '13px',
-                                        fontWeight: 600
+                                        background: activeTab === 'forecasts' ? 'var(--color-primary)' : 'var(--border-color)',
+                                        color: activeTab === 'forecasts' ? 'white' : 'var(--text-secondary)',
+                                        padding: '2px 8px',
+                                        borderRadius: '10px',
+                                        fontSize: '12px',
+                                        fontWeight: 700,
+                                        minWidth: '22px',
+                                        textAlign: 'center'
                                     }}>
-                                        {actionCounts.pending} / {actionCounts.pending + actionCounts.completed}
+                                        {currentOpportunity.forecasts?.length || 0}
                                     </span>
                                 </button>
-                            )}
 
-                            <button
-                                onClick={() => setActiveTab('notes')}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    padding: '12px 20px',
-                                    background: activeTab === 'notes' ? 'white' : 'var(--bg-main)',
-                                    color: activeTab === 'notes' ? 'var(--color-primary)' : 'var(--text-secondary)',
-                                    border: 'none',
-                                    borderBottom: activeTab === 'notes' ? '3px solid var(--color-primary)' : '3px solid transparent',
-                                    marginBottom: '-2px',
-                                    cursor: 'pointer',
-                                    fontSize: '15px',
-                                    fontWeight: 600,
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                <MessageSquare size={18} />
-                                Notas
-                                <span style={{
-                                    background: activeTab === 'notes' ? 'var(--color-primary)' : 'var(--bg-secondary)',
-                                    color: activeTab === 'notes' ? 'white' : 'var(--text-secondary)',
-                                    padding: '2px 10px',
-                                    borderRadius: '12px',
-                                    fontSize: '13px',
-                                    fontWeight: 600
-                                }}>
-                                    {notes.length}
-                                </span>
-                            </button>
+                                {/* Tab de Ações - apenas para oportunidades não-meta */}
+                                {!currentOpportunity.is_goal && (
+                                    <button
+                                        onClick={() => setActiveTab('actions')}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            padding: '14px 48px',
+                                            background: activeTab === 'actions' ? 'white' : '#e8eaed',
+                                            color: activeTab === 'actions' ? 'var(--color-primary)' : '#8a93a2',
+                                            border: activeTab === 'actions'
+                                                ? '2px solid var(--border-color)'
+                                                : '2px solid transparent',
+                                            borderBottom: activeTab === 'actions' ? '2px solid white' : '2px solid var(--border-color)',
+                                            borderRadius: '8px 8px 0 0',
+                                            marginTop: activeTab === 'actions' ? '0' : '6px',
+                                            marginBottom: activeTab === 'actions' ? '-2px' : '0',
+                                            cursor: 'pointer',
+                                            fontSize: '14px',
+                                            fontWeight: 600,
+                                            transition: 'all 0.2s',
+                                            boxShadow: activeTab === 'actions' ? '0 -2px 8px rgba(0,0,0,0.06)' : 'none',
+                                            whiteSpace: 'nowrap',
+                                            position: 'relative',
+                                            outline: 'none'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (activeTab !== 'actions') {
+                                                e.currentTarget.style.background = 'rgba(255,255,255,0.8)';
+                                                e.currentTarget.style.color = 'var(--text-primary)';
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            if (activeTab !== 'actions') {
+                                                e.currentTarget.style.background = '#f0f2f5';
+                                                e.currentTarget.style.color = '#8a93a2';
+                                            }
+                                        }}
+                                    >
+                                        <CheckSquare size={16} />
+                                        Ações
+                                        <span style={{
+                                            background: actionCounts.pending > 0 ? 'var(--color-warning)' : (activeTab === 'actions' ? 'var(--color-primary)' : 'var(--border-color)'),
+                                            color: actionCounts.pending > 0 || activeTab === 'actions' ? 'white' : 'var(--text-secondary)',
+                                            padding: '2px 8px',
+                                            borderRadius: '10px',
+                                            fontSize: '12px',
+                                            fontWeight: 700,
+                                            minWidth: '22px',
+                                            textAlign: 'center'
+                                        }}>
+                                            {actionCounts.pending} / {actionCounts.pending + actionCounts.completed}
+                                        </span>
+                                    </button>
+                                )}
 
-                            {/* Botão de filtros */}
+                                {/* Tab de Notas */}
+                                <button
+                                    onClick={() => setActiveTab('notes')}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '14px 48px',
+                                        background: activeTab === 'notes' ? 'white' : '#e8eaed',
+                                        color: activeTab === 'notes' ? 'var(--color-primary)' : '#8a93a2',
+                                        border: activeTab === 'notes'
+                                            ? '2px solid var(--border-color)'
+                                            : '2px solid transparent',
+                                        borderBottom: activeTab === 'notes' ? '2px solid white' : '2px solid var(--border-color)',
+                                        borderRadius: '8px 8px 0 0',
+                                        marginTop: activeTab === 'notes' ? '0' : '6px',
+                                        marginBottom: activeTab === 'notes' ? '-2px' : '0',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        transition: 'all 0.2s',
+                                        boxShadow: activeTab === 'notes' ? '0 -2px 8px rgba(0,0,0,0.06)' : 'none',
+                                        whiteSpace: 'nowrap',
+                                        position: 'relative',
+                                        outline: 'none'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (activeTab !== 'notes') {
+                                            e.currentTarget.style.background = 'rgba(255,255,255,0.8)';
+                                            e.currentTarget.style.color = 'var(--text-primary)';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (activeTab !== 'notes') {
+                                            e.currentTarget.style.background = '#f0f2f5';
+                                            e.currentTarget.style.color = '#8a93a2';
+                                        }
+                                    }}
+                                >
+                                    <MessageSquare size={16} />
+                                    Notas
+                                    <span style={{
+                                        background: activeTab === 'notes' ? 'var(--color-primary)' : 'var(--border-color)',
+                                        color: activeTab === 'notes' ? 'white' : 'var(--text-secondary)',
+                                        padding: '2px 8px',
+                                        borderRadius: '10px',
+                                        fontSize: '12px',
+                                        fontWeight: 700,
+                                        minWidth: '22px',
+                                        textAlign: 'center'
+                                    }}>
+                                        {notes.length}
+                                    </span>
+                                </button>
+                            </div>
+
+                            {/* Botão de filtros - fora das abas, alinhado à direita */}
                             {(activeTab === 'notes' || activeTab === 'actions') && (
                                 <button
                                     className="btn btn-secondary"
@@ -1171,8 +1290,8 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                     style={{
                                         fontSize: '13px',
                                         padding: '8px 14px',
-                                        marginLeft: 'auto',
-                                        alignSelf: 'center'
+                                        marginBottom: '2px',
+                                        flexShrink: 0
                                     }}
                                 >
                                     <Search size={14} />
@@ -1180,6 +1299,8 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                 </button>
                             )}
                         </div>
+                        {/* Linha separadora entre tabs e conteúdo */}
+                        <div style={{ marginBottom: '16px' }} />
 
                         {/* Conteúdo da Tab de Previsões */}
                         {activeTab === 'forecasts' && (
@@ -1374,8 +1495,6 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
 
                                 {/* Lista de notas */}
                                 <div style={{
-                                    maxHeight: '300px',
-                                    overflowY: 'auto',
                                     border: notes.length > 0 ? '1px solid var(--border-color-light)' : 'none',
                                     borderRadius: '8px'
                                 }}>
@@ -1647,8 +1766,6 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
 
                                 {/* Lista de ações */}
                                 <div style={{
-                                    maxHeight: '350px',
-                                    overflowY: 'auto',
                                     border: actions.length > 0 ? '1px solid var(--border-color-light)' : 'none',
                                     borderRadius: '8px'
                                 }}>
@@ -1777,6 +1894,19 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                                                         Concluir
                                                                     </button>
                                                                 )}
+                                                                <button
+                                                                    onClick={() => handleOpenEditActionModal(action)}
+                                                                    className="btn btn-secondary"
+                                                                    style={{
+                                                                        fontSize: '12px',
+                                                                        padding: '6px 12px',
+                                                                        gap: '4px'
+                                                                    }}
+                                                                    title="Editar ação"
+                                                                >
+                                                                    <Edit2 size={14} />
+                                                                    Editar
+                                                                </button>
                                                                 <button
                                                                     onClick={() => handleDeleteAction(action)}
                                                                     className="btn btn-secondary"
@@ -1962,6 +2092,98 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                 >
                                     <Trash size={16} />
                                     Excluir Ação
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal de Edição de Ação */}
+                {editActionModal.isOpen && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1100
+                        }}
+                        onClick={() => setEditActionModal({ isOpen: false, action: null, description: '', responsible: '', dueDate: '', saving: false })}
+                    >
+                        <div
+                            style={{
+                                background: 'white',
+                                borderRadius: '12px',
+                                padding: '28px',
+                                maxWidth: '560px',
+                                width: '90%',
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 style={{ margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
+                                <Edit2 size={20} style={{ color: 'var(--color-primary)' }} />
+                                Editar Ação
+                            </h3>
+
+                            <div className="input-group" style={{ marginBottom: '16px' }}>
+                                <label className="label" style={{ fontSize: '12px' }}>Descrição da Ação</label>
+                                <textarea
+                                    className="input"
+                                    rows={4}
+                                    placeholder="Descreva a ação a ser realizada..."
+                                    value={editActionModal.description}
+                                    onChange={(e) => setEditActionModal(prev => ({ ...prev, description: e.target.value }))}
+                                    style={{ resize: 'vertical', minHeight: '100px' }}
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                                <div className="input-group" style={{ margin: 0 }}>
+                                    <label className="label" style={{ fontSize: '12px' }}>Responsável</label>
+                                    <select
+                                        className="input"
+                                        value={editActionModal.responsible}
+                                        onChange={(e) => setEditActionModal(prev => ({ ...prev, responsible: e.target.value }))}
+                                    >
+                                        <option value="">Selecione...</option>
+                                        {responsibles.map(r => (
+                                            <option key={r.id} value={r.name}>{r.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="input-group" style={{ margin: 0 }}>
+                                    <label className="label" style={{ fontSize: '12px' }}>Previsão de Conclusão</label>
+                                    <input
+                                        type="date"
+                                        className="input"
+                                        value={editActionModal.dueDate}
+                                        onChange={(e) => setEditActionModal(prev => ({ ...prev, dueDate: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setEditActionModal({ isOpen: false, action: null, description: '', responsible: '', dueDate: '', saving: false })}
+                                    disabled={editActionModal.saving}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleSaveEditAction}
+                                    disabled={!editActionModal.description.trim() || !editActionModal.responsible || editActionModal.saving}
+                                >
+                                    <Save size={16} />
+                                    {editActionModal.saving ? 'Salvando...' : 'Salvar Alterações'}
                                 </button>
                             </div>
                         </div>

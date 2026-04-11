@@ -269,23 +269,22 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         )}
                     </button>
 
-                    {/* Botão Potencial - 3 estados: 0=oculto, 1=listar, 2=filtrar */}
                     <button
                         className={`${styles.filterToggleBtn}`}
                         onClick={() => onPotencialStateChange && onPotencialStateChange((potencialState + 1) % 3)}
                         title={potencialState === 0 ? 'Clique para mostrar Potenciais' : potencialState === 1 ? 'Clique para filtrar apenas Potenciais' : 'Clique para ocultar Potenciais'}
                         style={{
-                            background: potencialState === 2 ? '#8b5cf6' : potencialState === 1 ? '#8b5cf615' : 'var(--bg-main)',
-                            borderColor: potencialState > 0 ? '#8b5cf6' : 'var(--border-color)',
+                            background: potencialState === 2 ? '#7c6fcd' : potencialState === 1 ? '#7c6fcd15' : 'var(--bg-main)',
+                            borderColor: potencialState > 0 ? '#7c6fcd' : 'var(--border-color)',
                             opacity: potencialState === 0 ? 0.6 : 1,
                             gap: '6px',
                             transition: 'all 0.2s ease'
                         }}
                     >
-                        <Lightbulb size={16} style={{ color: potencialState === 2 ? 'white' : potencialState === 1 ? '#8b5cf6' : 'var(--text-tertiary)' }} />
+                        <Lightbulb size={16} style={{ color: potencialState === 2 ? 'white' : potencialState === 1 ? '#7c6fcd' : 'var(--text-tertiary)' }} />
                         <span style={{
                             fontSize: '0.85rem',
-                            color: potencialState === 2 ? 'white' : potencialState === 1 ? '#8b5cf6' : 'var(--text-tertiary)',
+                            color: potencialState === 2 ? 'white' : potencialState === 1 ? '#7c6fcd' : 'var(--text-tertiary)',
                             fontWeight: potencialState > 0 ? 600 : 400
                         }}>
                             Potencial

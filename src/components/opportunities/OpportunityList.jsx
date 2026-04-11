@@ -180,39 +180,6 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
             label: 'Título',
             render: (opp) => (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {opp.is_goal && (
-                        <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '2px 6px',
-                            background: 'linear-gradient(135deg, #f59e0b20, #f59e0b10)',
-                            color: '#b45309',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 500
-                        }}>
-                            <Target size={12} />
-                            Meta
-                        </span>
-                    )}
-                    {opp.is_potential && (
-                        <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '2px 6px',
-                            background: 'linear-gradient(135deg, #8b5cf640, #8b5cf625)',
-                            color: '#5b21b6',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            border: '1px solid #8b5cf630'
-                        }}>
-                            <Lightbulb size={12} />
-                            Potencial
-                        </span>
-                    )}
                     {opp.title || '-'}
                     {(opp.tagList || []).length > 0 && (
                         <span style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
@@ -246,11 +213,19 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         },
         client_name: {
             label: 'Cliente',
-            render: (opp) => (opp.is_goal || opp.is_potential) ? '-' : (opp.client?.name || opp.client_name || '-')
+            render: (opp) => opp.is_goal
+                ? <span style={{ color: '#b8771e', fontWeight: 500, fontSize: '0.85rem' }}>Meta</span>
+                : opp.is_potential
+                    ? <span style={{ color: '#7c6fcd', fontWeight: 500, fontSize: '0.85rem' }}>Potencial</span>
+                    : (opp.client?.name || opp.client_name || '-')
         },
         client_nickname: {
             label: 'Cliente',
-            render: (opp) => (opp.is_goal || opp.is_potential) ? '-' : (opp.client?.nickname || opp.client?.name || opp.client_name || '-')
+            render: (opp) => opp.is_goal
+                ? <span style={{ color: '#b8771e', fontWeight: 500, fontSize: '0.85rem' }}>Meta</span>
+                : opp.is_potential
+                    ? <span style={{ color: '#7c6fcd', fontWeight: 500, fontSize: '0.85rem' }}>Potencial</span>
+                    : (opp.client?.nickname || opp.client?.name || opp.client_name || '-')
         },
         estimated_value: {
             label: 'Valor Total',
@@ -273,21 +248,18 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         },
         stage: {
             label: 'Estágio',
-            render: (opp) => (
-                <span
-                    className={styles.stageBadge}
-                    style={
-                        opp.is_potential
-                            ? { backgroundColor: '#8b5cf6', color: '#fff' }
-                            : opp.is_goal
-                                ? { backgroundColor: '#f59e0b', color: '#fff' }
-                                : { backgroundColor: getStageColor(opp.stage), color: '#fff' }
-                    }
-                    title={getStageDescription(opp.stage)}
-                >
-                    {opp.is_potential ? 'Potencial' : opp.is_goal ? 'Meta' : opp.stage}
-                </span>
-            )
+            render: (opp) => {
+                if (opp.is_potential || opp.is_goal) return null;
+                return (
+                    <span
+                        className={styles.stageBadge}
+                        style={{ backgroundColor: getStageColor(opp.stage), color: '#fff' }}
+                        title={getStageDescription(opp.stage)}
+                    >
+                        {opp.stage}
+                    </span>
+                );
+            }
         },
         period: {
             label: 'Próximo Período',
@@ -344,21 +316,18 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         },
         stage: {
             label: 'Estágio',
-            render: (opp) => (
-                <span
-                    className={styles.stageBadge}
-                    style={
-                        opp.is_potential
-                            ? { backgroundColor: '#8b5cf6', color: '#fff' }
-                            : opp.is_goal
-                                ? { backgroundColor: '#f59e0b', color: '#fff' }
-                                : { backgroundColor: getStageColor(opp.stage), color: '#fff' }
-                    }
-                    title={getStageDescription(opp.stage)}
-                >
-                    {opp.is_potential ? 'Potencial' : opp.is_goal ? 'Meta' : opp.stage}
-                </span>
-            )
+            render: (opp) => {
+                if (opp.is_potential || opp.is_goal) return null;
+                return (
+                    <span
+                        className={styles.stageBadge}
+                        style={{ backgroundColor: getStageColor(opp.stage), color: '#fff' }}
+                        title={getStageDescription(opp.stage)}
+                    >
+                        {opp.stage}
+                    </span>
+                );
+            }
         },
         forecast_date: {
             label: 'Data de Previsão',
