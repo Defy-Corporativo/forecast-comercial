@@ -231,6 +231,7 @@ CREATE INDEX idx_fcst_opportunity_actions_due_date ON fcst_opportunity_actions(d
 CREATE TABLE pepl_responsibles (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   name text NOT NULL UNIQUE,
+  email text,
   is_active boolean DEFAULT true,
   created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL

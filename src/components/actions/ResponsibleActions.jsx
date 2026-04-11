@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Clock, CheckCircle, AlertCircle, Briefcase, Calendar, Save, CheckSquare, AlertTriangle } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, Briefcase, Calendar, Save, CheckSquare, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { responsiblesService } from '../../services/responsiblesService';
 import { opportunityActionsService } from '../../services/opportunityActionsService';
+import { supabase } from '../../services/supabaseClient';
 import styles from './ResponsibleActions.module.css';
 
 const ResponsibleActions = () => {
@@ -12,13 +13,42 @@ const ResponsibleActions = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [notes, setNotes] = useState({}); // { actionId: noteText }
-    const [savingAction, setSavingAction] = useState(null); // actionId being saved
-    const [completingAction, setCompletingAction] = useState(null); // actionId being completed
+    const [savingAction, setSavingAction] = useState(null);
+    const [completingAction, setCompletingAction] = useState(null);
     const [toast, setToast] = useState(null);
+
+    // Controle de acesso
+    const [loggedUserEmail, setLoggedUserEmail] = useState(null);
+    const [loggedUserName, setLoggedUserName] = useState(null);
+    const [isOwner, setIsOwner] = useState(false);
+    const [authChecked, setAuthChecked] = useState(false);
 
     const showToast = useCallback((message) => {
         setToast(message);
         setTimeout(() => setToast(null), 3000);
+    }, []);
+
+    // Verificar sessão do usuário logado
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    setLoggedUserEmail(session.user.email);
+                    setLoggedUserName(
+                        session.user.user_metadata?.full_name ||
+                        session.user.user_metadata?.name ||
+                        session.user.email?.split('@')[0] ||
+                        'Usuário'
+                    );
+                }
+            } catch (err) {
+                // Sem sessão = visitante anônimo
+            } finally {
+                setAuthChecked(true);
+            }
+        };
+        checkAuth();
     }, []);
 
     const loadData = useCallback(async () => {
@@ -26,11 +56,9 @@ const ResponsibleActions = () => {
             setLoading(true);
             setError(null);
 
-            // Buscar responsável pelo UUID
             const resp = await responsiblesService.getResponsibleById(responsibleId);
             setResponsible(resp);
 
-            // Buscar ações do responsável
             const actionsData = await opportunityActionsService.getActionsByResponsibleName(resp.name);
             setActions(actionsData);
         } catch (err) {
@@ -45,11 +73,27 @@ const ResponsibleActions = () => {
         loadData();
     }, [loadData]);
 
+    // Determinar se o usuário logado é o dono do link
+    useEffect(() => {
+        if (authChecked && responsible) {
+            if (loggedUserEmail && responsible.email) {
+                setIsOwner(loggedUserEmail.toLowerCase() === responsible.email.toLowerCase());
+            } else {
+                // Se o responsável não tem e-mail cadastrado, permitir edição (sem como validar)
+                setIsOwner(true);
+            }
+        }
+    }, [authChecked, responsible, loggedUserEmail]);
+
+    const readOnly = authChecked && !isOwner;
+
     const handleNoteChange = (actionId, text) => {
+        if (readOnly) return;
         setNotes(prev => ({ ...prev, [actionId]: text }));
     };
 
     const handleSaveNote = async (action) => {
+        if (readOnly) return;
         const noteText = (notes[action.id] || '').trim();
         if (!noteText) return;
 
@@ -61,7 +105,6 @@ const ResponsibleActions = () => {
                 noteText,
                 responsible.name
             );
-            // Limpar a nota após salvar
             setNotes(prev => ({ ...prev, [action.id]: '' }));
             showToast('Nota salva com sucesso!');
         } catch (err) {
@@ -73,6 +116,7 @@ const ResponsibleActions = () => {
     };
 
     const handleComplete = async (action) => {
+        if (readOnly) return;
         const noteText = (notes[action.id] || '').trim();
         if (!noteText) {
             alert('É obrigatório escrever uma nota ao concluir a ação.');
@@ -87,7 +131,6 @@ const ResponsibleActions = () => {
                 noteText,
                 responsible.name
             );
-            // Limpar a nota e recarregar
             setNotes(prev => ({ ...prev, [action.id]: '' }));
             showToast('Ação concluída com sucesso!');
             await loadData();
@@ -105,7 +148,7 @@ const ResponsibleActions = () => {
 
     // --- Render States ---
 
-    if (loading) {
+    if (loading || !authChecked) {
         return (
             <div className={styles.loadingState}>
                 <div className={styles.spinner} />
@@ -134,15 +177,27 @@ const ResponsibleActions = () => {
 
     return (
         <div className={styles.pageWrapper}>
+            {/* Banner de somente leitura */}
+            {readOnly && (
+                <div className={styles.readOnlyBanner}>
+                    <ShieldAlert size={18} />
+                    <span>
+                        Estas atividades não pertencem a você{loggedUserName ? `, ${loggedUserName}` : ''}. Você tem acesso apenas de leitura.
+                    </span>
+                </div>
+            )}
+
             {/* Header */}
             <div className={styles.header}>
                 <div className={styles.headerContent}>
-                    <p className={styles.greeting}>Suas ações no Forecast Comercial</p>
+                    <p className={styles.greeting}>
+                        {readOnly ? 'Ações de' : 'Suas ações no Forecast Comercial'}
+                    </p>
                     <h1 className={styles.responsibleName}>{responsible.name}</h1>
                     <p className={styles.headerSubtitle}>
                         {pendingActions.length === 0
                             ? 'Todas as ações estão concluídas! 🎉'
-                            : `Você tem ${pendingActions.length} ${pendingActions.length === 1 ? 'ação pendente' : 'ações pendentes'}`
+                            : `${pendingActions.length} ${pendingActions.length === 1 ? 'ação pendente' : 'ações pendentes'}`
                         }
                     </p>
                 </div>
@@ -183,7 +238,7 @@ const ResponsibleActions = () => {
             <div className={styles.contentArea}>
                 <h2 className={styles.sectionTitle}>
                     <CheckSquare size={20} />
-                    Suas Ações
+                    {readOnly ? `Ações de ${responsible.name}` : 'Suas Ações'}
                 </h2>
 
                 {actions.length === 0 ? (
@@ -234,33 +289,36 @@ const ResponsibleActions = () => {
                                         )}
                                     </div>
 
-                                    <div className={styles.noteArea}>
-                                        <textarea
-                                            className={styles.noteTextarea}
-                                            placeholder="Escreva uma nota sobre o andamento ou conclusão desta ação..."
-                                            value={noteText}
-                                            onChange={(e) => handleNoteChange(action.id, e.target.value)}
-                                            rows={3}
-                                        />
-                                        <div className={styles.noteActions}>
-                                            <button
-                                                className={styles.btnSaveNote}
-                                                onClick={() => handleSaveNote(action)}
-                                                disabled={!noteText.trim() || isSaving || isCompleting}
-                                            >
-                                                <Save size={15} />
-                                                {isSaving ? 'Salvando...' : 'Salvar Nota'}
-                                            </button>
-                                            <button
-                                                className={styles.btnComplete}
-                                                onClick={() => handleComplete(action)}
-                                                disabled={isSaving || isCompleting}
-                                            >
-                                                <CheckCircle size={15} />
-                                                {isCompleting ? 'Concluindo...' : 'Concluir'}
-                                            </button>
+                                    {/* Área de nota — só aparece para o dono */}
+                                    {!readOnly && (
+                                        <div className={styles.noteArea}>
+                                            <textarea
+                                                className={styles.noteTextarea}
+                                                placeholder="Escreva uma nota sobre o andamento ou conclusão desta ação..."
+                                                value={noteText}
+                                                onChange={(e) => handleNoteChange(action.id, e.target.value)}
+                                                rows={3}
+                                            />
+                                            <div className={styles.noteActions}>
+                                                <button
+                                                    className={styles.btnSaveNote}
+                                                    onClick={() => handleSaveNote(action)}
+                                                    disabled={!noteText.trim() || isSaving || isCompleting}
+                                                >
+                                                    <Save size={15} />
+                                                    {isSaving ? 'Salvando...' : 'Salvar Nota'}
+                                                </button>
+                                                <button
+                                                    className={styles.btnComplete}
+                                                    onClick={() => handleComplete(action)}
+                                                    disabled={isSaving || isCompleting}
+                                                >
+                                                    <CheckCircle size={15} />
+                                                    {isCompleting ? 'Concluindo...' : 'Concluir'}
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             );
                         })}

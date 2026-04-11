@@ -18,10 +18,10 @@ export const responsiblesService = {
     },
 
     // Create a new responsible
-    async createResponsible(name) {
+    async createResponsible(name, email = null) {
         const { data, error } = await supabase
             .from('pepl_responsibles')
-            .insert([{ name: name.trim() }])
+            .insert([{ name: name.trim(), email: email ? email.trim() : null }])
             .select()
             .single();
 
@@ -30,11 +30,12 @@ export const responsiblesService = {
     },
 
     // Update a responsible
-    async updateResponsible(id, name) {
+    async updateResponsible(id, name, email = null) {
         const { data, error } = await supabase
             .from('pepl_responsibles')
             .update({
                 name: name.trim(),
+                email: email ? email.trim() : null,
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)

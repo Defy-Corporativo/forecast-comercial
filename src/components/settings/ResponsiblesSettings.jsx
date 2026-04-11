@@ -7,8 +7,10 @@ const ResponsiblesSettings = () => {
     const [responsibles, setResponsibles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [newName, setNewName] = useState('');
+    const [newEmail, setNewEmail] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [editingName, setEditingName] = useState('');
+    const [editingEmail, setEditingEmail] = useState('');
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -32,8 +34,9 @@ const ResponsiblesSettings = () => {
 
         try {
             setSaving(true);
-            await responsiblesService.createResponsible(newName);
+            await responsiblesService.createResponsible(newName, newEmail);
             setNewName('');
+            setNewEmail('');
             await loadResponsibles();
         } catch (error) {
             console.error('Erro ao adicionar responsável:', error);
@@ -50,20 +53,23 @@ const ResponsiblesSettings = () => {
     const handleStartEdit = (responsible) => {
         setEditingId(responsible.id);
         setEditingName(responsible.name);
+        setEditingEmail(responsible.email || '');
     };
 
     const handleCancelEdit = () => {
         setEditingId(null);
         setEditingName('');
+        setEditingEmail('');
     };
 
     const handleSaveEdit = async () => {
         if (!editingName.trim()) return;
 
         try {
-            await responsiblesService.updateResponsible(editingId, editingName);
+            await responsiblesService.updateResponsible(editingId, editingName, editingEmail);
             setEditingId(null);
             setEditingName('');
+            setEditingEmail('');
             await loadResponsibles();
         } catch (error) {
             console.error('Erro ao atualizar responsável:', error);
@@ -112,14 +118,22 @@ const ResponsiblesSettings = () => {
             </p>
 
             {/* Form to add new responsible */}
-            <form onSubmit={handleAdd} style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+            <form onSubmit={handleAdd} style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
                 <input
                     type="text"
                     className="input"
                     placeholder="Nome do responsável"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    style={{ flex: 1 }}
+                    style={{ flex: '1 1 180px', minWidth: '160px' }}
+                />
+                <input
+                    type="email"
+                    className="input"
+                    placeholder="E-mail (opcional)"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    style={{ flex: '1 1 200px', minWidth: '180px' }}
                 />
                 <button
                     type="submit"
@@ -140,6 +154,7 @@ const ResponsiblesSettings = () => {
                         <thead>
                             <tr>
                                 <th>Nome</th>
+                                <th>E-mail</th>
                                 <th style={{ width: '100px' }}>Status</th>
                                 <th style={{ width: '120px' }}>Ações</th>
                             </tr>
@@ -165,6 +180,22 @@ const ResponsiblesSettings = () => {
                                             />
                                         ) : (
                                             responsible.name
+                                        )}
+                                    </td>
+                                    <td>
+                                        {editingId === responsible.id ? (
+                                            <input
+                                                type="email"
+                                                className="input"
+                                                value={editingEmail}
+                                                onChange={(e) => setEditingEmail(e.target.value)}
+                                                placeholder="E-mail (opcional)"
+                                                style={{ margin: 0 }}
+                                            />
+                                        ) : (
+                                            <span style={{ color: responsible.email ? 'inherit' : 'var(--text-secondary)', fontSize: '13px' }}>
+                                                {responsible.email || '—'}
+                                            </span>
                                         )}
                                     </td>
                                     <td>
