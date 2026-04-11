@@ -76,6 +76,7 @@
 /* ---- Stats Row ---- */
 .statsRow {
     display: flex;
+    flex-direction: column;
     gap: 10px;
     max-width: 900px;
     margin: -20px auto 0;
@@ -457,6 +458,7 @@
     }
 
     .statsRow {
+        flex-direction: row;
         gap: 16px;
         margin-top: -24px;
         padding: 0 24px;
