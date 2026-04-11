@@ -74,6 +74,18 @@ export const responsiblesService = {
         return data;
     },
 
+    // Get a responsible by email
+    async getResponsibleByEmail(email) {
+        const { data, error } = await supabase
+            .from('pepl_responsibles')
+            .select('*')
+            .eq('email', email.toLowerCase())
+            .maybeSingle();
+
+        if (error) throw error;
+        return data; // pode ser null se não encontrar
+    },
+
     // Delete a responsible
     async deleteResponsible(id) {
         const { error } = await supabase

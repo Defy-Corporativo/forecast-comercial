@@ -18,8 +18,7 @@ const ResponsibleActions = () => {
     const [toast, setToast] = useState(null);
 
     // Controle de acesso
-    const [loggedUserEmail, setLoggedUserEmail] = useState(null);
-    const [loggedUserName, setLoggedUserName] = useState(null);
+    const [loggedResponsible, setLoggedResponsible] = useState(null); // registro completo do responsável logado
     const [isOwner, setIsOwner] = useState(false);
     const [authChecked, setAuthChecked] = useState(false);
 
@@ -28,22 +27,19 @@ const ResponsibleActions = () => {
         setTimeout(() => setToast(null), 3000);
     }, []);
 
-    // Verificar sessão do usuário logado
+    // Verificar sessão do usuário logado e buscar seu registro de responsável
     useEffect(() => {
         const checkAuth = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                    setLoggedUserEmail(session.user.email);
-                    setLoggedUserName(
-                        session.user.user_metadata?.full_name ||
-                        session.user.user_metadata?.name ||
-                        session.user.email?.split('@')[0] ||
-                        'Usuário'
-                    );
+                if (session?.user?.email) {
+                    const resp = await responsiblesService.getResponsibleByEmail(session.user.email);
+                    if (resp) {
+                        setLoggedResponsible(resp);
+                    }
                 }
             } catch (err) {
-                // Sem sessão = visitante anônimo
+                // Sem sessão ou sem cadastro = visitante
             } finally {
                 setAuthChecked(true);
             }
@@ -76,14 +72,14 @@ const ResponsibleActions = () => {
     // Determinar se o usuário logado é o dono do link
     useEffect(() => {
         if (authChecked && responsible) {
-            if (loggedUserEmail && responsible.email) {
-                setIsOwner(loggedUserEmail.toLowerCase() === responsible.email.toLowerCase());
+            if (loggedResponsible) {
+                setIsOwner(loggedResponsible.id === responsible.id);
             } else {
-                // Se o responsável não tem e-mail cadastrado, permitir edição (sem como validar)
-                setIsOwner(true);
+                // Sem responsável logado: se o responsável do link não tem e-mail, permitir
+                setIsOwner(!responsible.email);
             }
         }
-    }, [authChecked, responsible, loggedUserEmail]);
+    }, [authChecked, responsible, loggedResponsible]);
 
     const readOnly = authChecked && !isOwner;
 
@@ -180,15 +176,25 @@ const ResponsibleActions = () => {
             {/* Banner de somente leitura */}
             {readOnly && (
                 <div className={styles.readOnlyBanner}>
-                    <ShieldAlert size={18} />
-                    <span>
-                        Estas atividades não pertencem a você{loggedUserName ? `, ${loggedUserName}` : ''}. Você tem acesso apenas de leitura.
-                    </span>
+                    <div className={styles.readOnlyContent}>
+                        <ShieldAlert size={20} />
+                        <span>
+                            Estas atividades não pertencem a você{loggedResponsible ? `, ${loggedResponsible.name}` : ''}. Acesso apenas de leitura.
+                        </span>
+                    </div>
+                    {loggedResponsible && (
+                        <a
+                            href={`${window.location.origin}/acoes/${loggedResponsible.id}`}
+                            className={styles.readOnlyBtn}
+                        >
+                            Abra suas tarefas
+                        </a>
+                    )}
                 </div>
             )}
 
             {/* Header */}
-            <div className={styles.header}>
+            <div className={`${styles.header} ${readOnly ? styles.headerWithBanner : ''}`}>
                 <div className={styles.headerContent}>
                     <p className={styles.greeting}>
                         {readOnly ? 'Ações de' : 'Suas ações no Forecast Comercial'}
