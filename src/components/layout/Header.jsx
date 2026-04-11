@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut, Menu } from 'lucide-react';
+import { LogOut, Menu, ListChecks } from 'lucide-react';
+import { responsiblesService } from '../../services/responsiblesService';
 
 import styles from './Layout.module.css';
 
@@ -8,6 +9,7 @@ const Header = ({ onMenuToggle }) => {
     const { user, signOut } = useAuth();
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [myResponsible, setMyResponsible] = useState(null);
     const menuRef = useRef(null);
 
     useEffect(() => {
@@ -17,6 +19,15 @@ const Header = ({ onMenuToggle }) => {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Buscar o responsável cadastrado para o e-mail logado
+    useEffect(() => {
+        if (user?.email) {
+            responsiblesService.getResponsibleByEmail(user.email)
+                .then(resp => setMyResponsible(resp))
+                .catch(() => {});
+        }
+    }, [user?.email]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -107,6 +118,19 @@ const Header = ({ onMenuToggle }) => {
                                     <div className={styles.userMenuEmail}>{user?.email}</div>
                                 </div>
                             </div>
+                            <div className={styles.userMenuDivider}></div>
+                            {myResponsible && (
+                                <a
+                                    href={`/acoes/${myResponsible.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={styles.userMenuItem}
+                                    onClick={() => setShowUserMenu(false)}
+                                >
+                                    <ListChecks size={16} />
+                                    <span>Minhas Ações</span>
+                                </a>
+                            )}
                             <div className={styles.userMenuDivider}></div>
                             <button className={styles.userMenuLogout} onClick={handleLogout}>
                                 <LogOut size={16} />

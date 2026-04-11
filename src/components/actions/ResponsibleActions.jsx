@@ -362,7 +362,12 @@ const ResponsibleActions = () => {
             </div>
 
             <div className={styles.footer}>
-                Forecast Comercial — Defy Solutions
+                {isOwner && (
+                    <a href="/" className={styles.dashboardBtn}>
+                        ← Voltar ao Forecast
+                    </a>
+                )}
+                <span>Forecast Comercial — Defy Solutions</span>
             </div>
 
             {/* Toast */}
