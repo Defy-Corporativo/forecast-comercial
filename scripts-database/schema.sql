@@ -17,8 +17,7 @@ DROP INDEX IF EXISTS idx_fcst_opportunity_actions_opportunity_id;
 DROP INDEX IF EXISTS idx_fcst_opportunity_actions_responsible;
 DROP INDEX IF EXISTS idx_fcst_opportunity_actions_status;
 DROP INDEX IF EXISTS idx_fcst_opportunity_actions_due_date;
-DROP INDEX IF EXISTS idx_pepl_responsibles_name;
-DROP INDEX IF EXISTS idx_pepl_responsibles_is_active;
+
 
 -- ============================================================
 -- DROP de tabelas (ordem inversa de dependência)
@@ -37,7 +36,6 @@ DROP TABLE IF EXISTS fcst_client_contacts CASCADE;
 DROP TABLE IF EXISTS fcst_clients CASCADE;
 DROP TABLE IF EXISTS fcst_user_preferences CASCADE;
 DROP TABLE IF EXISTS fcst_profiles CASCADE;
-DROP TABLE IF EXISTS pepl_responsibles CASCADE;
 
 -- ============================================================
 -- CRIAÇÃO DAS TABELAS
@@ -226,16 +224,3 @@ CREATE INDEX idx_fcst_opportunity_actions_opportunity_id ON fcst_opportunity_act
 CREATE INDEX idx_fcst_opportunity_actions_responsible ON fcst_opportunity_actions(responsible);
 CREATE INDEX idx_fcst_opportunity_actions_status ON fcst_opportunity_actions(status);
 CREATE INDEX idx_fcst_opportunity_actions_due_date ON fcst_opportunity_actions(due_date);
-
--- Tabela de responsáveis (cadastro centralizado) — prefixo "pepl_" (people)
-CREATE TABLE pepl_responsibles (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name text NOT NULL UNIQUE,
-  email text,
-  is_active boolean DEFAULT true,
-  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-CREATE INDEX idx_pepl_responsibles_name ON pepl_responsibles(name);
-CREATE INDEX idx_pepl_responsibles_is_active ON pepl_responsibles(is_active);

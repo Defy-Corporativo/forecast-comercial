@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import CustomFields from './CustomFields';
 import StageSettings from './StageSettings';
 import ViewSettings from './ViewSettings';
-import ResponsiblesSettings from './ResponsiblesSettings';
+
 import TagSettings from './TagSettings';
 import styles from './Settings.module.css';
 import ExportData from './ExportData';
 
 const Settings = () => {
-    const [activeTab, setActiveTab] = useState('responsibles');
+    const [activeTab, setActiveTab] = useState('tags');
 
     return (
         <div className="container">
@@ -17,12 +17,7 @@ const Settings = () => {
             </div>
 
             <div className={styles.tabs}>
-                <button
-                    className={`${styles.tab} ${activeTab === 'responsibles' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('responsibles')}
-                >
-                    Responsáveis
-                </button>
+
                 <button
                     className={`${styles.tab} ${activeTab === 'tags' ? styles.active : ''}`}
                     onClick={() => setActiveTab('tags')}
@@ -56,7 +51,7 @@ const Settings = () => {
             </div>
 
             <div className={styles.tabContent}>
-                {activeTab === 'responsibles' && <ResponsiblesSettings />}
+
                 {activeTab === 'tags' && <TagSettings />}
                 {activeTab === 'fields' && <CustomFields />}
                 {activeTab === 'stages' && <StageSettings />}
