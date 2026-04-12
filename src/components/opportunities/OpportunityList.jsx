@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Edit2, Trash2, ChevronDown, ChevronRight, Calendar, DollarSign, CheckCircle, Target, Tag, Lightbulb, GripVertical } from 'lucide-react';
+import { Edit2, Trash2, ChevronDown, ChevronRight, Calendar, Tag, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
+import { opportunityService } from '../../services/opportunityService';
 import styles from './Opportunities.module.css';
 
 const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit, onDelete, onReorder }) => {
@@ -172,6 +173,22 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
             onReorder(updates);
         }
     }, [sortedOpportunities, onReorder]);
+
+    // Toggle invoiced status de uma previsão diretamente na listagem
+    const handleToggleInvoiced = useCallback(async (opportunity, forecast) => {
+        if (opportunity.is_goal || opportunity.is_potential) return;
+        try {
+            const newStatus = !forecast.invoiced;
+            await opportunityService.updateForecastInvoiced(forecast.id, newStatus);
+            // Mutação direta no objeto para refletir imediatamente
+            forecast.invoiced = newStatus;
+            // Força re-render
+            setExpandedRows(prev => new Set(prev));
+        } catch (error) {
+            console.error('Erro ao atualizar status da previsão:', error);
+            alert('Erro ao atualizar status. Tente novamente.');
+        }
+    }, []);
 
     // Field definitions for grouped mode
     const groupedFieldDefinitions = {
@@ -375,53 +392,133 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
         return (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                    <tr style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 500 }}>Período</th>
-                        <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 500 }}>Valor</th>
-                        <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 500 }}>Status</th>
-                        <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 500 }}>Observação</th>
+                    <tr style={{ background: 'var(--bg-secondary)', fontSize: '0.85rem' }}>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500, width: '22%' }}>Período</th>
+                        <th style={{ textAlign: 'right', padding: '12px', fontWeight: 500, width: '16%' }}>Valor</th>
+                        <th style={{ textAlign: 'center', padding: '12px', fontWeight: 500, width: '16%' }}>Status</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 500, width: '46%' }}>Observação</th>
                     </tr>
                 </thead>
                 <tbody>
                     {forecasts.sort((a, b) => new Date(a.period_end || a.period_start) - new Date(b.period_end || b.period_start)).map((forecast, idx) => (
-                        <tr key={forecast.id || idx} style={{ borderTop: idx > 0 ? '1px solid var(--border-color)' : 'none' }}>
-                            <td style={{ padding: '8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                                    <Calendar size={14} style={{ color: 'var(--text-secondary)' }} />
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                        <span>{formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}</span>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                            Fim: {formatMonthYear(forecast.period_end)}
-                                        </span>
-                                    </div>
+                        <tr
+                            key={forecast.id || idx}
+                            style={{
+                                borderTop: '1px solid var(--border-color-light)',
+                                background: forecast.invoiced ? 'rgba(16, 185, 129, 0.05)' : 'white'
+                            }}
+                        >
+                            <td style={{ padding: '12px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span>{formatDate(forecast.period_start)} - {formatDate(forecast.period_end)}</span>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                        Fim: {formatMonthYear(forecast.period_end)}
+                                    </span>
                                 </div>
                             </td>
-                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: 500 }}>
+                            <td style={{
+                                padding: '12px',
+                                textAlign: 'right',
+                                fontWeight: 500,
+                                textDecoration: forecast.invoiced ? 'line-through' : 'none',
+                                color: forecast.invoiced ? 'var(--text-secondary)' : 'var(--text-primary)'
+                            }}>
                                 {formatCurrency(forecast.estimated_value)}
                             </td>
-                            <td style={{ padding: '8px', textAlign: 'center' }}>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
                                 {(opportunity.is_goal || opportunity.is_potential) ? (
-                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>-</span>
-                                ) : forecast.invoiced ? (
-                                    <span style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px',
-                                        color: 'var(--color-success)',
-                                        fontSize: '0.85rem'
-                                    }}>
-                                        <CheckCircle size={14} /> Faturado
-                                    </span>
+                                    <span style={{ color: 'var(--text-tertiary)' }}>-</span>
                                 ) : (
-                                    <span style={{
-                                        color: 'var(--text-secondary)',
-                                        fontSize: '0.85rem'
-                                    }}>
-                                        Pendente
-                                    </span>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleToggleInvoiced(opportunity, forecast); }}
+                                        title={forecast.invoiced ? 'Clique para marcar como pendente' : 'Clique para marcar como faturado'}
+                                        onMouseEnter={(e) => {
+                                            const btn = e.currentTarget;
+                                            btn.style.background = forecast.invoiced
+                                                ? 'rgba(16, 185, 129, 0.22)'
+                                                : 'rgba(107, 114, 128, 0.18)';
+                                            btn.style.boxShadow = forecast.invoiced
+                                                ? '0 0 0 2px #10b981, 0 2px 6px rgba(16,185,129,0.25)'
+                                                : '0 0 0 2px #9ca3af, 0 2px 6px rgba(107,114,128,0.18)';
+                                            btn.style.transform = 'scale(1.06)';
+                                            const icon = btn.querySelector('.status-switch-icon');
+                                            const dot = btn.querySelector('.status-dot');
+                                            if (icon) icon.style.opacity = '1';
+                                            if (dot) dot.style.opacity = '0';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            const btn = e.currentTarget;
+                                            btn.style.background = forecast.invoiced
+                                                ? 'rgba(16, 185, 129, 0.12)'
+                                                : 'rgba(107, 114, 128, 0.1)';
+                                            btn.style.boxShadow = forecast.invoiced
+                                                ? 'inset 0 0 0 1.5px rgba(16,185,129,0.35)'
+                                                : 'inset 0 0 0 1.5px rgba(107,114,128,0.25)';
+                                            btn.style.transform = 'scale(1)';
+                                            const icon = btn.querySelector('.status-switch-icon');
+                                            const dot = btn.querySelector('.status-dot');
+                                            if (icon) icon.style.opacity = '0';
+                                            if (dot) dot.style.opacity = '1';
+                                        }}
+                                        onMouseDown={(e) => {
+                                            e.currentTarget.style.transform = 'scale(0.97)';
+                                        }}
+                                        onMouseUp={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1.06)';
+                                        }}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            padding: '6px 13px 6px 9px',
+                                            border: 'none',
+                                            borderRadius: '20px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600,
+                                            transition: 'all 0.18s ease',
+                                            background: forecast.invoiced
+                                                ? 'rgba(16, 185, 129, 0.12)'
+                                                : 'rgba(107, 114, 128, 0.1)',
+                                            color: forecast.invoiced ? '#059669' : '#6b7280',
+                                            boxShadow: forecast.invoiced
+                                                ? 'inset 0 0 0 1.5px rgba(16,185,129,0.35)'
+                                                : 'inset 0 0 0 1.5px rgba(107,114,128,0.25)',
+                                            userSelect: 'none',
+                                            position: 'relative'
+                                        }}
+                                    >
+                                        {/* Ícone de troca — aparece no hover */}
+                                        <span
+                                            className="status-switch-icon"
+                                            style={{
+                                                fontSize: '0.85rem',
+                                                lineHeight: 1,
+                                                flexShrink: 0,
+                                                opacity: 0,
+                                                transition: 'opacity 0.15s ease',
+                                                position: 'absolute',
+                                                left: '9px'
+                                            }}
+                                        >⇅</span>
+                                        {/* Indicador circular — some no hover */}
+                                        <span
+                                            className="status-dot"
+                                            style={{
+                                                width: '8px',
+                                                height: '8px',
+                                                borderRadius: '50%',
+                                                flexShrink: 0,
+                                                background: forecast.invoiced ? '#10b981' : '#9ca3af',
+                                                transition: 'opacity 0.15s ease',
+                                                opacity: 1
+                                            }}
+                                        />
+                                        {forecast.invoiced ? 'Faturado' : 'Pendente'}
+                                    </button>
                                 )}
                             </td>
-                            <td style={{ padding: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                            <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                                 {forecast.notes || '-'}
                             </td>
                         </tr>
