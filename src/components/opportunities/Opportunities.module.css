@@ -236,6 +236,63 @@
     align-items: center;
 }
 
+/* Modo de visualização compacto (sem estilo de campo editável) */
+.viewGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px 24px;
+}
+
+.viewItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+.viewItem:last-child {
+    border-bottom: none;
+}
+
+.viewItemFullWidth {
+    grid-column: 1 / -1;
+}
+
+.viewLabel {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.viewValue {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.viewDescription {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@media (max-width: 768px) {
+    .viewGrid {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .viewItem {
+        padding: 10px 0;
+    }
+}
+
 /* List View */
 .tableContainer {
     overflow-x: auto;

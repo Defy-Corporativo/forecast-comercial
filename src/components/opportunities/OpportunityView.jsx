@@ -539,54 +539,47 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
     // Função para renderizar o conteúdo principal (reutilizada entre modos)
     const renderMainContent = () => (
         <>
-            {/* Código da Oportunidade */}
-            <div style={{ marginBottom: '24px' }}>
-                <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                    Oportunidade {currentOpportunity.opportunity_number}
-                </h2>
-            </div>
-
-            {/* Campos principais */}
-            <div className={styles.formGrid}>
-                <div className="input-group">
-                    <label className="label">Cliente / Empresa</label>
-                    <div className={styles.viewField}>
+            {/* Campos principais - modo visualização compacto */}
+            <div className={styles.viewGrid}>
+                <div className={styles.viewItem}>
+                    <span className={styles.viewLabel}>Cliente / Empresa</span>
+                    <span className={styles.viewValue}>
                         {currentOpportunity.client?.name || currentOpportunity.client_name}
-                    </div>
+                    </span>
                 </div>
 
-                <div className="input-group">
-                    <label className="label">Valor Total</label>
-                    <div className={styles.viewField} style={{ fontWeight: 600, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className={styles.viewItem}>
+                    <span className={styles.viewLabel}>Valor Total</span>
+                    <span className={styles.viewValue} style={{ color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {formatCurrency(currentOpportunity.total_value || currentOpportunity.estimated_value)}
                         {(currentOpportunity.forecast_count || currentOpportunity.forecasts?.length || 0) > 1 && (
                             <span style={{
-                                fontSize: '0.75rem',
+                                fontSize: '0.7rem',
                                 color: 'var(--text-secondary)',
                                 background: 'var(--bg-secondary)',
-                                padding: '2px 8px',
+                                padding: '2px 6px',
                                 borderRadius: '4px',
                                 fontWeight: 'normal'
                             }}>
-                                <Layers size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                                <Layers size={11} style={{ verticalAlign: 'middle', marginRight: '3px' }} />
                                 {currentOpportunity.forecast_count || currentOpportunity.forecasts?.length} previsões
                             </span>
                         )}
-                    </div>
+                    </span>
                 </div>
 
-                <div className="input-group">
-                    <label className="label">Responsável</label>
-                    <div className={styles.viewField}>{currentOpportunity.responsible || '-'}</div>
+                <div className={styles.viewItem}>
+                    <span className={styles.viewLabel}>Responsável</span>
+                    <span className={styles.viewValue}>{currentOpportunity.responsible || '-'}</span>
                 </div>
 
-                <div className="input-group">
-                    <label className="label">Possibilidade de Faturamento</label>
-                    <div className={styles.viewField}>
+                <div className={styles.viewItem}>
+                    <span className={styles.viewLabel}>Possibilidade de Faturamento</span>
+                    <span className={styles.viewValue}>
                         <span style={{
-                            padding: '4px 12px',
-                            borderRadius: '12px',
-                            fontSize: '0.85rem',
+                            padding: '3px 10px',
+                            borderRadius: '10px',
+                            fontSize: '0.8rem',
                             fontWeight: 500,
                             background: currentOpportunity.billing_probability === 'alta' ? 'var(--color-success-light)' :
                                 currentOpportunity.billing_probability === 'media' ? 'var(--color-warning-light)' : 'var(--bg-secondary)',
@@ -596,16 +589,16 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                             {currentOpportunity.billing_probability === 'alta' ? 'Alta' :
                                 currentOpportunity.billing_probability === 'media' ? 'Média' : 'Baixa'}
                         </span>
-                    </div>
+                    </span>
                 </div>
-            </div>
 
-            {currentOpportunity.notes && (
-                <div className="input-group" style={{ marginTop: '16px' }}>
-                    <label className="label">Observações</label>
-                    <div className={styles.viewField}>{currentOpportunity.notes}</div>
-                </div>
-            )}
+                {currentOpportunity.notes && (
+                    <div className={`${styles.viewItem} ${styles.viewItemFullWidth}`}>
+                        <span className={styles.viewLabel}>Descrição da oportunidade</span>
+                        <span className={styles.viewDescription}>{currentOpportunity.notes}</span>
+                    </div>
+                )}
+            </div>
         </>
     );
 
@@ -996,54 +989,47 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                         </div>
                     )}
 
-                    {/* Código da Oportunidade (antigo título) */}
-                    <div style={{ marginBottom: '24px' }}>
-                        <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                            Oportunidade {currentOpportunity.opportunity_number}
-                        </h2>
-                    </div>
-
-                    {/* Campos principais */}
-                    <div className={styles.formGrid}>
-                        <div className="input-group">
-                            <label className="label">Cliente / Empresa</label>
-                            <div className={styles.viewField}>
+                    {/* Campos principais - modo visualização compacto */}
+                    <div className={styles.viewGrid}>
+                        <div className={styles.viewItem}>
+                            <span className={styles.viewLabel}>Cliente / Empresa</span>
+                            <span className={styles.viewValue}>
                                 {currentOpportunity.client?.name || currentOpportunity.client_name}
-                            </div>
+                            </span>
                         </div>
 
-                        <div className="input-group">
-                            <label className="label">Valor Total</label>
-                            <div className={styles.viewField} style={{ fontWeight: 600, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className={styles.viewItem}>
+                            <span className={styles.viewLabel}>Valor Total</span>
+                            <span className={styles.viewValue} style={{ color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {formatCurrency(currentOpportunity.total_value || currentOpportunity.estimated_value)}
                                 {(currentOpportunity.forecast_count || currentOpportunity.forecasts?.length || 0) > 1 && (
                                     <span style={{
-                                        fontSize: '0.75rem',
+                                        fontSize: '0.7rem',
                                         color: 'var(--text-secondary)',
                                         background: 'var(--bg-secondary)',
-                                        padding: '2px 8px',
+                                        padding: '2px 6px',
                                         borderRadius: '4px',
                                         fontWeight: 'normal'
                                     }}>
-                                        <Layers size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                                        <Layers size={11} style={{ verticalAlign: 'middle', marginRight: '3px' }} />
                                         {currentOpportunity.forecast_count || currentOpportunity.forecasts?.length} previsões
                                     </span>
                                 )}
-                            </div>
+                            </span>
                         </div>
 
-                        <div className="input-group">
-                            <label className="label">Responsável</label>
-                            <div className={styles.viewField}>{currentOpportunity.responsible || '-'}</div>
+                        <div className={styles.viewItem}>
+                            <span className={styles.viewLabel}>Responsável</span>
+                            <span className={styles.viewValue}>{currentOpportunity.responsible || '-'}</span>
                         </div>
 
-                        <div className="input-group">
-                            <label className="label">Possibilidade de Faturamento</label>
-                            <div className={styles.viewField}>
+                        <div className={styles.viewItem}>
+                            <span className={styles.viewLabel}>Possibilidade de Faturamento</span>
+                            <span className={styles.viewValue}>
                                 <span style={{
-                                    padding: '4px 12px',
-                                    borderRadius: '12px',
-                                    fontSize: '0.85rem',
+                                    padding: '3px 10px',
+                                    borderRadius: '10px',
+                                    fontSize: '0.8rem',
                                     fontWeight: 500,
                                     background: currentOpportunity.billing_probability === 'alta' ? 'var(--color-success-light)' :
                                         currentOpportunity.billing_probability === 'media' ? 'var(--color-warning-light)' : 'var(--bg-secondary)',
@@ -1053,24 +1039,22 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                     {currentOpportunity.billing_probability === 'alta' ? 'Alta' :
                                         currentOpportunity.billing_probability === 'media' ? 'Média' : 'Baixa'}
                                 </span>
+                            </span>
+                        </div>
+
+                        {currentOpportunity.notes && (
+                            <div className={`${styles.viewItem} ${styles.viewItemFullWidth}`}>
+                                <span className={styles.viewLabel}>Descrição da oportunidade</span>
+                                <span className={styles.viewDescription}>{currentOpportunity.notes}</span>
                             </div>
-                        </div>
+                        )}
                     </div>
-
-
-
-                    {currentOpportunity.notes && (
-                        <div className="input-group" style={{ marginTop: '16px' }}>
-                            <label className="label">Observações</label>
-                            <div className={styles.viewField}>{currentOpportunity.notes}</div>
-                        </div>
-                    )}
 
                     {/* Campos customizados */}
                     {customFields.length > 0 && currentOpportunity.custom_data && (
                         <>
                             <h4 className={styles.sectionSubtitle}>Informações Adicionais</h4>
-                            <div className={styles.formGrid}>
+                            <div className={styles.viewGrid}>
                                 {customFields.map(field => {
                                     const value = currentOpportunity.custom_data[field.field_name];
                                     if (!value && value !== false) return null;
@@ -1089,9 +1073,9 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                     }
 
                                     return (
-                                        <div key={field.id} className="input-group">
-                                            <label className="label">{field.field_name}</label>
-                                            <div className={styles.viewField}>{displayValue}</div>
+                                        <div key={field.id} className={styles.viewItem}>
+                                            <span className={styles.viewLabel}>{field.field_name}</span>
+                                            <span className={styles.viewValue}>{displayValue}</span>
                                         </div>
                                     );
                                 })}
@@ -1121,7 +1105,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '8px',
-                                        padding: '14px 48px',
+                                        padding: '14px 72px',
                                         background: activeTab === 'forecasts' ? 'white' : '#e8eaed',
                                         color: activeTab === 'forecasts' ? 'var(--color-primary)' : '#8a93a2',
                                         border: activeTab === 'forecasts'
@@ -1154,7 +1138,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                     }}
                                 >
                                     <Calendar size={16} />
-                                    Previsões
+                                    Previsões financeiras
                                     <span style={{
                                         background: activeTab === 'forecasts' ? 'var(--color-primary)' : 'var(--border-color)',
                                         color: activeTab === 'forecasts' ? 'white' : 'var(--text-secondary)',
@@ -1177,7 +1161,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '8px',
-                                            padding: '14px 48px',
+                                            padding: '14px 72px',
                                             background: activeTab === 'actions' ? 'white' : '#e8eaed',
                                             color: activeTab === 'actions' ? 'var(--color-primary)' : '#8a93a2',
                                             border: activeTab === 'actions'
@@ -1210,7 +1194,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                         }}
                                     >
                                         <CheckSquare size={16} />
-                                        Ações
+                                        Ações para evolução
                                         <span style={{
                                             background: actionCounts.pending > 0 ? 'var(--color-warning)' : (activeTab === 'actions' ? 'var(--color-primary)' : 'var(--border-color)'),
                                             color: actionCounts.pending > 0 || activeTab === 'actions' ? 'white' : 'var(--text-secondary)',
@@ -1233,7 +1217,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '8px',
-                                        padding: '14px 48px',
+                                        padding: '14px 72px',
                                         background: activeTab === 'notes' ? 'white' : '#e8eaed',
                                         color: activeTab === 'notes' ? 'var(--color-primary)' : '#8a93a2',
                                         border: activeTab === 'notes'
@@ -1266,7 +1250,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                     }}
                                 >
                                     <MessageSquare size={16} />
-                                    Notas
+                                    Notas de atualização
                                     <span style={{
                                         background: activeTab === 'notes' ? 'var(--color-primary)' : 'var(--border-color)',
                                         color: activeTab === 'notes' ? 'white' : 'var(--text-secondary)',

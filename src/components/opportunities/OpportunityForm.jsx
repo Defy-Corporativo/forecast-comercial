@@ -1062,11 +1062,12 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                         </div>
 
                         <div className="input-group">
-                            <label className="label">Observações</label>
+                            <label className="label">Descrição da oportunidade</label>
                             <textarea
                                 name="notes"
                                 className="input"
-                                rows="2"
+                                rows="3"
+                                style={{ resize: 'vertical', overflowY: 'auto' }}
                                 value={formData.notes}
                                 onChange={handleChange}
                             />
