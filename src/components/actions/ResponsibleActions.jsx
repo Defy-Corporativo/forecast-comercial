@@ -16,6 +16,7 @@ const ResponsibleActions = () => {
     const [savingAction, setSavingAction] = useState(null);
     const [completingAction, setCompletingAction] = useState(null);
     const [toast, setToast] = useState(null);
+    const [completeFlags, setCompleteFlags] = useState({}); // { actionId: boolean }
 
     // Controle de acesso
     const [loggedResponsible, setLoggedResponsible] = useState(null); // registro completo do responsável logado
@@ -88,52 +89,53 @@ const ResponsibleActions = () => {
         setNotes(prev => ({ ...prev, [actionId]: text }));
     };
 
-    const handleSaveNote = async (action) => {
+    const handleToggleComplete = (actionId) => {
         if (readOnly) return;
-        const noteText = (notes[action.id] || '').trim();
-        if (!noteText) return;
-
-        try {
-            setSavingAction(action.id);
-            await opportunityActionsService.addNoteToAction(
-                action.id,
-                action.opportunity_id,
-                noteText,
-                responsible.name
-            );
-            setNotes(prev => ({ ...prev, [action.id]: '' }));
-            showToast('Nota salva com sucesso!');
-        } catch (err) {
-            console.error('Erro ao salvar nota:', err);
-            alert('Erro ao salvar nota. Tente novamente.');
-        } finally {
-            setSavingAction(null);
-        }
+        setCompleteFlags(prev => ({ ...prev, [actionId]: !prev[actionId] }));
     };
 
-    const handleComplete = async (action) => {
+    const handleSave = async (action) => {
         if (readOnly) return;
         const noteText = (notes[action.id] || '').trim();
+        const shouldComplete = !!completeFlags[action.id];
+
         if (!noteText) {
-            alert('É obrigatório escrever uma nota ao concluir a ação.');
+            alert(shouldComplete
+                ? 'É obrigatório escrever uma nota ao concluir a ação.'
+                : 'Escreva uma nota antes de salvar.'
+            );
             return;
         }
 
         try {
-            setCompletingAction(action.id);
-            await opportunityActionsService.completeActionPublic(
-                action.id,
-                action.opportunity_id,
-                noteText,
-                responsible.name
-            );
-            setNotes(prev => ({ ...prev, [action.id]: '' }));
-            showToast('Ação concluída com sucesso!');
-            await loadData();
+            if (shouldComplete) {
+                setCompletingAction(action.id);
+                await opportunityActionsService.completeActionPublic(
+                    action.id,
+                    action.opportunity_id,
+                    noteText,
+                    responsible.name
+                );
+                setNotes(prev => ({ ...prev, [action.id]: '' }));
+                setCompleteFlags(prev => ({ ...prev, [action.id]: false }));
+                showToast('Ação concluída com sucesso!');
+                await loadData();
+            } else {
+                setSavingAction(action.id);
+                await opportunityActionsService.addNoteToAction(
+                    action.id,
+                    action.opportunity_id,
+                    noteText,
+                    responsible.name
+                );
+                setNotes(prev => ({ ...prev, [action.id]: '' }));
+                showToast('Nota salva com sucesso!');
+            }
         } catch (err) {
-            console.error('Erro ao concluir ação:', err);
-            alert('Erro ao concluir ação. Tente novamente.');
+            console.error('Erro ao salvar:', err);
+            alert('Erro ao salvar. Tente novamente.');
         } finally {
+            setSavingAction(null);
             setCompletingAction(null);
         }
     };
@@ -306,21 +308,22 @@ const ResponsibleActions = () => {
                                                 rows={3}
                                             />
                                             <div className={styles.noteActions}>
+                                                <label className={styles.completeCheckbox}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!completeFlags[action.id]}
+                                                        onChange={() => handleToggleComplete(action.id)}
+                                                        disabled={isSaving || isCompleting}
+                                                    />
+                                                    <span>Registrar tarefa como concluída</span>
+                                                </label>
                                                 <button
-                                                    className={styles.btnSaveNote}
-                                                    onClick={() => handleSaveNote(action)}
+                                                    className={completeFlags[action.id] ? styles.btnComplete : styles.btnSaveNote}
+                                                    onClick={() => handleSave(action)}
                                                     disabled={!noteText.trim() || isSaving || isCompleting}
                                                 >
                                                     <Save size={15} />
-                                                    {isSaving ? 'Salvando...' : 'Salvar Nota'}
-                                                </button>
-                                                <button
-                                                    className={styles.btnComplete}
-                                                    onClick={() => handleComplete(action)}
-                                                    disabled={isSaving || isCompleting}
-                                                >
-                                                    <CheckCircle size={15} />
-                                                    {isCompleting ? 'Concluindo...' : 'Concluir'}
+                                                    {isSaving || isCompleting ? 'Salvando...' : 'Salvar'}
                                                 </button>
                                             </div>
                                         </div>
