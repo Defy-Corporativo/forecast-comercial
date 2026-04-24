@@ -146,7 +146,47 @@ const ResponsibleActions = () => {
 
     // --- Render States ---
 
-    if (loading || !authChecked) {
+    if (!authChecked) {
+        return (
+            <div className={styles.loadingState}>
+                <div className={styles.spinner} />
+                <span>Verificando seu acesso...</span>
+            </div>
+        );
+    }
+
+    // Se não está logado, exigir login antes de mostrar qualquer coisa
+    if (authChecked && !loggedResponsible) {
+        return (
+            <div className={styles.loadingState} style={{ gap: '16px', textAlign: 'center' }}>
+                <ShieldAlert size={48} style={{ color: '#3b82f6' }} />
+                <h2 style={{ margin: 0, color: '#1e293b', fontSize: '1.4rem' }}>Login necessário</h2>
+                <p style={{ margin: 0, color: '#64748b', maxWidth: '380px', lineHeight: '1.6', fontSize: '0.95rem' }}>
+                    Para visualizar e atualizar suas ações, faça login com sua conta corporativa.
+                </p>
+                <a
+                    href="/login?returnTo=/acoes"
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '12px 24px',
+                        background: '#3b82f6',
+                        color: 'white',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        fontWeight: '700',
+                        fontSize: '0.95rem',
+                        marginTop: '8px',
+                    }}
+                >
+                    Fazer login
+                </a>
+            </div>
+        );
+    }
+
+    if (loading) {
         return (
             <div className={styles.loadingState}>
                 <div className={styles.spinner} />
@@ -175,33 +215,21 @@ const ResponsibleActions = () => {
 
     return (
         <div className={styles.pageWrapper}>
-            {/* Banner de somente leitura */}
+            {/* Banner de somente leitura — só aparece quando logado mas vendo ações de outro */}
             {readOnly && (
                 <div className={styles.readOnlyBanner}>
                     <div className={styles.readOnlyContent}>
                         <ShieldAlert size={20} />
                         <span>
-                            {loggedResponsible
-                                ? `Estas atividades não pertencem a você, ${loggedResponsible.name}. Acesso apenas de leitura.`
-                                : 'Você está visualizando ações de outra pessoa. Faça login para acessar suas próprias ações.'
-                            }
+                            Estas atividades não pertencem a você, {loggedResponsible.name}. Acesso apenas de leitura.
                         </span>
                     </div>
-                    {loggedResponsible ? (
-                        <a
-                            href={`${window.location.origin}/acoes/${loggedResponsible.id}`}
-                            className={styles.readOnlyBtn}
-                        >
-                            Abra suas tarefas
-                        </a>
-                    ) : (
-                        <a
-                            href={`/login?returnTo=/acoes`}
-                            className={styles.readOnlyBtn}
-                        >
-                            Fazer login
-                        </a>
-                    )}
+                    <a
+                        href={`${window.location.origin}/acoes/${loggedResponsible.id}`}
+                        className={styles.readOnlyBtn}
+                    >
+                        Abra suas tarefas
+                    </a>
                 </div>
             )}
 
