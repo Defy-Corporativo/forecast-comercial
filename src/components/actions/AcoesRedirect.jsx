@@ -55,7 +55,7 @@ const AcoesRedirect = () => {
                 <p style={styles.subtitle}>
                     Faça login no sistema para acessar suas ações diretamente por este link.
                 </p>
-                <a href="/login" style={styles.btn}>Fazer login</a>
+                <a href="/login?returnTo=/acoes" style={styles.btn}>Fazer login</a>
             </div>
         );
     }

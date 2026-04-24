@@ -63,6 +63,20 @@ export const AuthProvider = ({ children }) => {
             });
         }
 
+        // Verificar se há URL de retorno salva (ex: /acoes após login pelo celular)
+        if (isInitial) {
+            const returnTo = sessionStorage.getItem('auth_return_to');
+            if (returnTo) {
+                sessionStorage.removeItem('auth_return_to');
+                // Validação de segurança: só aceitar paths internos (começa com /)
+                // e bloquear URLs externas para evitar open redirect
+                if (returnTo.startsWith('/') && !returnTo.startsWith('//') && !returnTo.includes('://')) {
+                    window.location.replace(returnTo);
+                    return; // Não finalizar loading para evitar flash
+                }
+            }
+        }
+
         if (isInitial) setLoading(false);
         isInitialLoad.current = false;
     };

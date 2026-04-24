@@ -73,11 +73,11 @@ const ResponsibleActions = () => {
     // Determinar se o usuário logado é o dono do link
     useEffect(() => {
         if (authChecked && responsible) {
+            // Só permite edição se o usuário estiver logado E for o mesmo responsável
             if (loggedResponsible) {
                 setIsOwner(loggedResponsible.id === responsible.id);
             } else {
-                // Sem responsável logado: se o responsável do link não tem e-mail, permitir
-                setIsOwner(!responsible.email);
+                setIsOwner(false);
             }
         }
     }, [authChecked, responsible, loggedResponsible]);
@@ -181,15 +181,25 @@ const ResponsibleActions = () => {
                     <div className={styles.readOnlyContent}>
                         <ShieldAlert size={20} />
                         <span>
-                            Estas atividades não pertencem a você{loggedResponsible ? `, ${loggedResponsible.name}` : ''}. Acesso apenas de leitura.
+                            {loggedResponsible
+                                ? `Estas atividades não pertencem a você, ${loggedResponsible.name}. Acesso apenas de leitura.`
+                                : 'Você está visualizando ações de outra pessoa. Faça login para acessar suas próprias ações.'
+                            }
                         </span>
                     </div>
-                    {loggedResponsible && (
+                    {loggedResponsible ? (
                         <a
                             href={`${window.location.origin}/acoes/${loggedResponsible.id}`}
                             className={styles.readOnlyBtn}
                         >
                             Abra suas tarefas
+                        </a>
+                    ) : (
+                        <a
+                            href={`/login?returnTo=/acoes`}
+                            className={styles.readOnlyBtn}
+                        >
+                            Fazer login
                         </a>
                     )}
                 </div>

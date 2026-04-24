@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import styles from './Auth.module.css';
 
 const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [searchParams] = useSearchParams();
 
     const handleLogin = async () => {
         try {
             setLoading(true);
             setError(null);
+
+            // Salvar URL de retorno em sessionStorage antes do redirect OAuth
+            const returnTo = searchParams.get('returnTo');
+            if (returnTo) {
+                sessionStorage.setItem('auth_return_to', returnTo);
+            }
 
             const redirectUrl = import.meta.env.VITE_APP_URL || window.location.origin;
             console.log('Login Redirect URL:', redirectUrl);
