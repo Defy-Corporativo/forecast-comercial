@@ -1267,3 +1267,12 @@
         padding: 4px 10px;
     }
 }
+
+.typeFilter { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; }
+.typeFilter select { min-height: 42px; max-width: 165px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); background: white; color: var(--text-primary); font: inherit; }
+.filterResultCount { margin: 10px 0 0; color: var(--text-secondary); font-size: 0.85rem; }
+.typeFilter select:focus-visible, .filtersContainer button:focus-visible, .filtersContainer input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+@media (max-width: 768px) { .typeFilter { flex: 1 1 145px; justify-content: space-between; } .typeFilter select { min-width: 0; } .clearFiltersText { display: inline; } }
+
+.reportControls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--text-secondary); font-size: 0.85rem; }
+.reportControls select { min-height: 42px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); background: white; color: var(--text-primary); }

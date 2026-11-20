@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, List, Grid3x3, Layers, LayoutList } from 'lucide-react';
+import { Plus, List, Grid3x3, Layers, LayoutList, Download } from 'lucide-react';
 import { Button } from '@iadefysolutions/design-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { opportunityService } from '../../services/opportunityService';
@@ -15,6 +15,7 @@ const Opportunities = () => {
     const [opportunities, setOpportunities] = useState([]);
     const [filteredOpportunities, setFilteredOpportunities] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [reportFormat, setReportFormat] = useState('txt');
     const [viewMode, setViewMode] = useState('list'); // 'list' or 'cards'
     const [groupMode, setGroupMode] = useState('grouped'); // 'grouped' or 'flat'
     const [showModal, setShowModal] = useState(false);
@@ -98,6 +99,72 @@ const Opportunities = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleReport = () => {
+        const items = new Map();
+        filteredOpportunities.forEach((row) => {
+            if (!items.has(row.id)) items.set(row.id, { ...row, reportValue: 0 });
+            items.get(row.id).reportValue += Number(groupMode === 'flat' ? row.estimated_value || 0 : row.total_value || 0);
+        });
+        const list = [...items.values()];
+        const money = value => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const total = goal => list.filter(item => Boolean(item.is_goal) === goal)
+            .reduce((sum, item) => sum + item.reportValue, 0);
+        const lines = [
+            'DEFY SOLUTIONS', 'RESUMO DE OPORTUNIDADES',
+            `Gerado em: ${new Date().toLocaleString('pt-BR')}`,
+            'Dados conforme filtros aplicados na lista.',
+            groupMode === 'flat' ? 'Valores correspondem às previsões exibidas.' : 'Valores correspondem ao total de previsões de cada oportunidade.',
+            '', 'RESUMO', '======',
+            `Oportunidades: ${list.filter(item => !item.is_goal).length}`,
+            `Valor previsto das oportunidades: ${money(total(false))}`,
+            `Metas: ${list.filter(item => item.is_goal).length}`,
+            `Valor previsto das metas: ${money(total(true))}`,
+            '', 'OPORTUNIDADES E METAS', '======================',
+        ];
+        if (!list.length) lines.push('Nenhum resultado para os filtros aplicados.');
+        list.forEach((item, index) => lines.push(
+            '', `${index + 1}. ${item.title || 'Sem título'}${item.opportunity_number ? ` (#${item.opportunity_number})` : ''}`,
+            `   Tipo: ${item.is_goal ? 'Meta' : 'Oportunidade'}${item.is_potential ? ' · Potencial' : ''}`,
+            `   Cliente: ${item.client?.name || item.client_name || 'Não informado'}`,
+            `   Estágio: ${item.stage || 'Não informado'}`,
+            `   Responsável: ${item.responsible || 'Não informado'}`,
+            `   Valor previsto: ${money(item.reportValue)}`
+        ));
+        if (reportFormat === 'pdf') {
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                window.alert('Permita pop-ups para gerar o PDF.');
+                return;
+            }
+            printWindow.document.title = 'Resumo de oportunidades';
+            const content = printWindow.document.createElement('pre');
+            content.style.cssText = 'font: 11pt/1.5 Arial, sans-serif; white-space: pre-wrap; overflow-wrap: anywhere';
+            content.textContent = lines.join('\n');
+            printWindow.document.body.appendChild(content);
+            printWindow.focus();
+            printWindow.print();
+            return;
+        }
+        const csvCell = value => {
+            const text = String(value ?? '');
+            return `"${(/^[\s]*[=+@\-\t\r]/.test(text) ? "'" + text : text).replace(/"/g, '""')}"`;
+        };
+        const csvRows = [
+            ['Número', 'Título', 'Tipo', 'Potencial', 'Cliente', 'Estágio', 'Responsável', 'Valor previsto (R$)'],
+            ...list.map(item => [item.opportunity_number, item.title, item.is_goal ? 'Meta' : 'Oportunidade', item.is_potential ? 'Sim' : 'Não', item.client?.name || item.client_name, item.stage, item.responsible, item.reportValue.toFixed(2).replace('.', ',')])
+        ];
+        const isCsv = reportFormat === 'csv';
+        const content = isCsv ? csvRows.map(row => row.map(csvCell).join(';')).join('\r\n') : lines.join('\n');
+        const url = URL.createObjectURL(new Blob(['\uFEFF', content], { type: isCsv ? 'text/csv;charset=utf-8' : 'text/plain;charset=utf-8' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `resumo_oportunidades_${new Date().toISOString().slice(0, 10)}.${reportFormat}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
     };
 
     const handleCreate = () => {
@@ -271,10 +338,21 @@ const Opportunities = () => {
                             Nova Oportunidade
                         </Button>
 
+                        <div className={styles.reportControls}>
+                            <label htmlFor="report-format">Formato do resumo</label>
+                            <select id="report-format" value={reportFormat} onChange={e => setReportFormat(e.target.value)}>
+                                <option value="txt">TXT</option>
+                                <option value="csv">CSV (Excel)</option>
+                                <option value="pdf">PDF (imprimir)</option>
+                            </select>
+                            <Button icon={Download} onClick={handleReport}>Exportar resumo</Button>
+                        </div>
+
                         {/* Row 4: Filters */}
                         <OpportunityFilters
                             opportunities={opportunitiesForFilters}
                             onFilterChange={setFilteredOpportunities}
+                            resultCount={filteredOpportunities.length}
                             metaState={metaState}
                             potencialState={potencialState}
                             onMetaStateChange={setMetaState}

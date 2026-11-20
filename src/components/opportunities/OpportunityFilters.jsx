@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, X, Target, Lightbulb, Tag, TrendingUp } from 'lucide-react';
-import { Button } from '@iadefysolutions/design-system';
+import { Filter, X, Tag, TrendingUp } from 'lucide-react';
 import styles from './Opportunities.module.css';
 
 const BILLING_PROBABILITIES = [
@@ -11,7 +10,7 @@ const BILLING_PROBABILITIES = [
 
 const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost', 'Meta', 'Potencial'];
 
-const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencialState, onMetaStateChange, onPotencialStateChange }) => {
+const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencialState, onMetaStateChange, onPotencialStateChange, resultCount }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
@@ -74,7 +73,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
             filtered = filtered.filter(opp =>
                 opp.client?.name?.toLowerCase().includes(search) ||
                 opp.client_name?.toLowerCase().includes(search) ||
-                opp.opportunity_number?.toLowerCase().includes(search) ||
+                String(opp.opportunity_number ?? '').toLowerCase().includes(search) ||
                 opp.responsible?.toLowerCase().includes(search) ||
                 opp.title?.toLowerCase().includes(search) ||
                 (typeof opp.notes === 'string' && opp.notes.toLowerCase().includes(search)) ||
@@ -220,13 +219,15 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                     <input
                         type="text"
                         className={styles.searchInput}
-                        placeholder="Buscar por cliente, número, responsável, título..."
+                        aria-label="Buscar oportunidades"
+                        placeholder="Buscar cliente, número, responsável ou título"
                         value={searchTerm}
                         onChange={(e) => handleSearchChange(e.target.value)}
                     />
                     {searchTerm && (
                         <button
                             className={styles.clearSearchBtn}
+                            aria-label="Limpar busca"
                             onClick={() => handleSearchChange('')}
                         >
                             <X size={16} />
@@ -235,59 +236,21 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                 </div>
                 {/* Filter buttons - wrapped for mobile horizontal scroll */}
                 <div className={styles.filterButtonsRow}>
-                    {/* Botão Meta - 3 estados: 0=oculto, 1=listar, 2=filtrar */}
-                    <button
-                        className={`${styles.filterToggleBtn}`}
-                        onClick={() => onMetaStateChange && onMetaStateChange((metaState + 1) % 3)}
-                        title={metaState === 0 ? 'Clique para mostrar Metas' : metaState === 1 ? 'Clique para filtrar apenas Metas' : 'Clique para ocultar Metas'}
-                        style={{
-                            background: metaState === 2 ? '#f59e0b' : metaState === 1 ? '#f59e0b15' : 'var(--bg-main)',
-                            borderColor: metaState > 0 ? '#f59e0b' : 'var(--border-color)',
-                            opacity: metaState === 0 ? 0.6 : 1,
-                            gap: '6px',
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        <Target size={16} style={{ color: metaState === 2 ? 'white' : metaState === 1 ? '#f59e0b' : 'var(--text-tertiary)' }} />
-                        <span style={{
-                            fontSize: '0.85rem',
-                            color: metaState === 2 ? 'white' : metaState === 1 ? '#f59e0b' : 'var(--text-tertiary)',
-                            fontWeight: metaState > 0 ? 600 : 400
-                        }}>
-                            Meta
-                        </span>
-                        {metaState === 2 && (
-                            <span style={{ fontSize: '0.7rem', color: 'white', opacity: 0.8 }}>somente</span>
-                        )}
-                    </button>
-
-                    <button
-                        className={`${styles.filterToggleBtn}`}
-                        onClick={() => onPotencialStateChange && onPotencialStateChange((potencialState + 1) % 3)}
-                        title={potencialState === 0 ? 'Clique para mostrar Potenciais' : potencialState === 1 ? 'Clique para filtrar apenas Potenciais' : 'Clique para ocultar Potenciais'}
-                        style={{
-                            background: potencialState === 2 ? '#7c6fcd' : potencialState === 1 ? '#7c6fcd15' : 'var(--bg-main)',
-                            borderColor: potencialState > 0 ? '#7c6fcd' : 'var(--border-color)',
-                            opacity: potencialState === 0 ? 0.6 : 1,
-                            gap: '6px',
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        <Lightbulb size={16} style={{ color: potencialState === 2 ? 'white' : potencialState === 1 ? '#7c6fcd' : 'var(--text-tertiary)' }} />
-                        <span style={{
-                            fontSize: '0.85rem',
-                            color: potencialState === 2 ? 'white' : potencialState === 1 ? '#7c6fcd' : 'var(--text-tertiary)',
-                            fontWeight: potencialState > 0 ? 600 : 400
-                        }}>
-                            Potencial
-                        </span>
-                        {potencialState === 2 && (
-                            <span style={{ fontSize: '0.7rem', color: 'white', opacity: 0.8 }}>somente</span>
-                        )}
-                    </button>
+                    <label className={styles.typeFilter}>Metas
+                        <select value={metaState} onChange={e => { const value = Number(e.target.value); if (value === 2 && potencialState === 2) onPotencialStateChange(1); onMetaStateChange(value); }}>
+                            <option value={0}>Ocultas</option><option value={1}>Incluídas</option><option value={2}>Somente metas</option>
+                        </select>
+                    </label>
+                    <label className={styles.typeFilter}>Potenciais
+                        <select value={potencialState} onChange={e => { const value = Number(e.target.value); if (value === 2 && metaState === 2) onMetaStateChange(1); onPotencialStateChange(value); }}>
+                            <option value={0}>Ocultos</option><option value={1}>Incluídos</option><option value={2}>Somente potenciais</option>
+                        </select>
+                    </label>
                     <button
                         className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''} ${activeFilterCount > 0 ? styles.hasFilters : ''}`}
                         onClick={() => setShowFilters(!showFilters)}
+                        aria-expanded={showFilters}
+                        aria-controls="opportunity-filters-panel"
                     >
                         <Filter size={18} />
                         <span>Filtros</span>
@@ -309,12 +272,14 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                 </div>
             </div>
 
+            <p className={styles.filterResultCount} aria-live="polite">{resultCount} {resultCount === 1 ? 'resultado' : 'resultados'}</p>
+
             {showFilters && (
-                <div className={styles.filtersPanel}>
+                <div id="opportunity-filters-panel" className={styles.filtersPanel}>
                     {/* Estágio - Full width */}
                     <div style={{ marginBottom: '16px' }}>
                         <label className="label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <span>Estágio</span>
+                            <span>Estágio <small>(nenhum selecionado = todos)</small></span>
                             <span style={{ display: 'flex', gap: '8px' }}>
                                 <button
                                     type="button"
@@ -342,7 +307,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                             background: 'var(--bg-main)'
                         }}>
                             {STAGES.map(stage => {
-                                const isSelected = filters.stages.length === 0 || filters.stages.includes(stage);
+                                const isSelected = filters.stages.includes(stage);
                                 return (
                                     <label
                                         key={stage}
@@ -365,7 +330,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                                             type="checkbox"
                                             checked={isSelected}
                                             onChange={() => toggleStage(stage)}
-                                            style={{ display: 'none' }}
+                                            style={{ accentColor: 'var(--color-primary)' }}
                                         />
                                         {stage}
                                     </label>
@@ -416,7 +381,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                                                 type="checkbox"
                                                 checked={isSelected}
                                                 onChange={() => toggleTag(tagName)}
-                                                style={{ display: 'none' }}
+                                                style={{ accentColor: 'var(--color-primary)' }}
                                             />
                                             {tagName}
                                         </label>
@@ -431,7 +396,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         <label className="label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <TrendingUp size={14} />
-                                Possibilidade de Faturamento
+                                Possibilidade de Faturamento <small>(nenhuma selecionada = todas)</small>
                             </span>
                             <button
                                 type="button"
@@ -458,7 +423,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                             background: 'var(--bg-main)'
                         }}>
                             {BILLING_PROBABILITIES.map(prob => {
-                                const isSelected = filters.billingProbabilities.length === 0 || filters.billingProbabilities.includes(prob.value);
+                                const isSelected = filters.billingProbabilities.includes(prob.value);
                                 return (
                                     <label
                                         key={prob.value}
@@ -481,7 +446,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                                             type="checkbox"
                                             checked={isSelected}
                                             onChange={() => toggleBillingProbability(prob.value)}
-                                            style={{ display: 'none' }}
+                                            style={{ accentColor: 'var(--color-primary)' }}
                                         />
                                         {prob.label}
                                     </label>
@@ -506,9 +471,10 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         </div>
                         {/* Responsável */}
                         <div className="input-group" style={{ marginBottom: 0 }}>
-                            <label className="label">Responsável</label>
+                            <label className="label" htmlFor="filter-responsible">Responsável</label>
                             <input
                                 type="text"
+                                id="filter-responsible"
                                 className="input"
                                 value={filters.responsible}
                                 onChange={(e) => handleFilterChange('responsible', e.target.value)}
@@ -522,9 +488,10 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                             gap: '12px',
                             gridColumn: 'span 1'
                         }}>
-                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-                                <label className="label">Valor Mín. (R$)</label>
+                            <div className="input-group" style={{ flex: 1, minWidth: 0, marginBottom: 0 }}>
+                                <label className="label" htmlFor="filter-min">Valor Mín. (R$)</label>
                                 <input
+                                    id="filter-min"
                                     type="number"
                                     className="input"
                                     value={filters.minValue}
@@ -533,9 +500,10 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                                     step="0.01"
                                 />
                             </div>
-                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-                                <label className="label">Valor Máx. (R$)</label>
+                            <div className="input-group" style={{ flex: 1, minWidth: 0, marginBottom: 0 }}>
+                                <label className="label" htmlFor="filter-max">Valor Máx. (R$)</label>
                                 <input
+                                    id="filter-max"
                                     type="number"
                                     className="input"
                                     value={filters.maxValue}
@@ -552,18 +520,20 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                             gap: '12px',
                             gridColumn: 'span 1'
                         }}>
-                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-                                <label className="label">Data De</label>
+                            <div className="input-group" style={{ flex: 1, minWidth: 0, marginBottom: 0 }}>
+                                <label className="label" htmlFor="filter-from">Data De</label>
                                 <input
+                                    id="filter-from"
                                     type="date"
                                     className="input"
                                     value={filters.dateFrom}
                                     onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
                                 />
                             </div>
-                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-                                <label className="label">Data Até</label>
+                            <div className="input-group" style={{ flex: 1, minWidth: 0, marginBottom: 0 }}>
+                                <label className="label" htmlFor="filter-to">Data Até</label>
                                 <input
+                                    id="filter-to"
                                     type="date"
                                     className="input"
                                     value={filters.dateTo}
