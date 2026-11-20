@@ -510,6 +510,11 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (!formData.custom_data?.company?.trim()) {
+            alert('Por favor, informe a empresa responsável.');
+            return;
+        }
+
         // Only require client for real opportunities (not goal or potential)
         if (!formData.is_goal && !formData.is_potential && (!formData.client_id || !formData.client_name)) {
             alert('Por favor, selecione um cliente da lista.');
@@ -533,6 +538,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
         try {
             const opportunityData = {
                 ...formData,
+                custom_data: { ...formData.custom_data, company: formData.custom_data.company.trim() },
                 // For goals and potentials, set special values
                 client_id: (formData.is_goal || formData.is_potential) ? null : formData.client_id,
                 client_name: formData.is_goal ? 'META' : (formData.is_potential ? 'POTENCIAL' : formData.client_name),
@@ -720,6 +726,15 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                     {getCurrentType() === 'meta' ? '✓ Oportunidade Meta (Receita Planejada) — selecionada' : 'Cadastrar como Oportunidade Meta (Receita Planejada)'}
                                 </button>
                             </div>
+                        </div>
+
+                        <div className="input-group" style={{ marginBottom: '1rem' }}>
+                            <label className="label" htmlFor="opportunity-company">Empresa responsável *</label>
+                            <input id="opportunity-company" className="input" type="text" list="opportunity-companies"
+                                value={formData.custom_data?.company || ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, custom_data: { ...prev.custom_data, company: e.target.value } }))}
+                                placeholder="Ex: Defy ou Austera" required />
+                            <datalist id="opportunity-companies"><option value="Defy" /><option value="Austera" /></datalist>
                         </div>
 
                         {/* Fixed Fields */}

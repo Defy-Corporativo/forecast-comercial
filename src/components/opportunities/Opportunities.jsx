@@ -85,7 +85,6 @@ const Opportunities = () => {
 
     const loadOpportunities = async () => {
         try {
-            setLoading(true);
             let data;
             if (groupMode === 'flat') {
                 data = await opportunityService.getOpportunitiesFlat(user.id);

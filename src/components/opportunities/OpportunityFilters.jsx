@@ -21,6 +21,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
         minValue: '',
         maxValue: '',
         responsible: '',
+        company: '',
         dateFrom: '',
         dateTo: ''
     });
@@ -76,7 +77,8 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                 opp.opportunity_number?.toLowerCase().includes(search) ||
                 opp.responsible?.toLowerCase().includes(search) ||
                 opp.title?.toLowerCase().includes(search) ||
-                opp.notes?.toLowerCase().includes(search) ||
+                (typeof opp.notes === 'string' && opp.notes.toLowerCase().includes(search)) ||
+                opp.custom_data?.company?.toLowerCase().includes(search) ||
                 opp.stage?.toLowerCase().includes(search)
             );
         }
@@ -125,34 +127,22 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
             );
         }
 
-        // Filtro por período (de) - using period_end from forecasts
-        if (filterData.dateFrom) {
+        // Na visão por previsão, cada linha deve corresponder ao período selecionado.
+        if (filterData.dateFrom || filterData.dateTo) {
             filtered = filtered.filter(opp => {
-                // Check forecasts for period_end within range
-                if (opp.forecasts && opp.forecasts.length > 0) {
-                    return opp.forecasts.some(f => {
-                        const dateToCheck = f.period_end || f.period_start;
-                        if (!dateToCheck) return false;
-                        return new Date(dateToCheck) >= new Date(filterData.dateFrom);
-                    });
-                }
-                return false;
+                const forecasts = opp.forecast_id ? [opp] : (opp.forecasts || []);
+                return forecasts.some(f => {
+                    const date = f.period_end || f.period_start;
+                    return date && (!filterData.dateFrom || date >= filterData.dateFrom)
+                        && (!filterData.dateTo || date <= filterData.dateTo);
+                });
             });
         }
 
-        // Filtro por período (até) - using period_end from forecasts
-        if (filterData.dateTo) {
-            filtered = filtered.filter(opp => {
-                // Check forecasts for period_end within range
-                if (opp.forecasts && opp.forecasts.length > 0) {
-                    return opp.forecasts.some(f => {
-                        const dateToCheck = f.period_end || f.period_start;
-                        if (!dateToCheck) return false;
-                        return new Date(dateToCheck) <= new Date(filterData.dateTo);
-                    });
-                }
-                return false;
-            });
+        if (filterData.company) {
+            filtered = filtered.filter(opp => filterData.company === '__without_company__'
+                ? !opp.custom_data?.company?.trim()
+                : opp.custom_data?.company === filterData.company);
         }
 
         onFilterChange(filtered);
@@ -167,6 +157,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
             minValue: '',
             maxValue: '',
             responsible: '',
+            company: '',
             dateFrom: '',
             dateTo: ''
         });
@@ -184,6 +175,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
         if (filters.minValue) count++;
         if (filters.maxValue) count++;
         if (filters.responsible) count++;
+        if (filters.company) count++;
         if (filters.dateFrom) count++;
         if (filters.dateTo) count++;
         return count;
@@ -504,6 +496,14 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                         gap: '16px'
                     }}>
+                        <div className="input-group" style={{ marginBottom: 0 }}>
+                            <label className="label" htmlFor="company-filter">Empresa</label>
+                            <select id="company-filter" className="input" value={filters.company} onChange={(e) => handleFilterChange('company', e.target.value)}>
+                                <option value="">Todas as empresas</option>
+                                <option value="__without_company__">Sem empresa</option>
+                                {[...new Set(opportunities.map(opp => opp.custom_data?.company).filter(Boolean))].sort().map(company => <option key={company} value={company}>{company}</option>)}
+                            </select>
+                        </div>
                         {/* Responsável */}
                         <div className="input-group" style={{ marginBottom: 0 }}>
                             <label className="label">Responsável</label>

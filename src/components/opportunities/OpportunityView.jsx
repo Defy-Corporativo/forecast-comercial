@@ -542,12 +542,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
             {/* Campos principais - modo visualização compacto */}
             <div className={styles.viewGrid}>
                 <div className={styles.viewItem}>
-                    <span className={styles.viewLabel}>Cliente / Empresa</span>
+                    <span className={styles.viewLabel}>Cliente</span>
                     <span className={styles.viewValue}>
                         {currentOpportunity.client?.name || currentOpportunity.client_name}
                     </span>
                 </div>
 
+                <div className={styles.viewItem}><span className={styles.viewLabel}>Empresa responsável</span><span className={styles.viewValue}>{currentOpportunity.custom_data?.company || 'Não informada'}</span></div>
                 <div className={styles.viewItem}>
                     <span className={styles.viewLabel}>Valor Total</span>
                     <span className={styles.viewValue} style={{ color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -992,12 +993,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                     {/* Campos principais - modo visualização compacto */}
                     <div className={styles.viewGrid}>
                         <div className={styles.viewItem}>
-                            <span className={styles.viewLabel}>Cliente / Empresa</span>
+                            <span className={styles.viewLabel}>Cliente</span>
                             <span className={styles.viewValue}>
                                 {currentOpportunity.client?.name || currentOpportunity.client_name}
                             </span>
                         </div>
 
+                        <div className={styles.viewItem}><span className={styles.viewLabel}>Empresa responsável</span><span className={styles.viewValue}>{currentOpportunity.custom_data?.company || 'Não informada'}</span></div>
                         <div className={styles.viewItem}>
                             <span className={styles.viewLabel}>Valor Total</span>
                             <span className={styles.viewValue} style={{ color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
