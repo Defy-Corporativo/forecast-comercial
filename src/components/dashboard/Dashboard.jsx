@@ -98,11 +98,13 @@ const Dashboard = () => {
     const loadDashboardData = async () => {
         try {
             setError('');
-            const [oppData, fieldsData, chartsData] = await Promise.all([
+            const [allOppData, fieldsData, chartsData] = await Promise.all([
                 opportunityService.getOpportunities(user.id),
                 settingsService.getCustomFields(),
                 chartService.getCharts(user.id)
             ]);
+            // Oportunidades arquivadas não entram nos números do painel
+            const oppData = (allOppData || []).filter(opp => !opp.custom_data?.archived_at);
             logDebug('Dashboard: opportunities loaded', { count: oppData.length });
             setOpportunities(oppData);
             setCustomFields(fieldsData || []);
