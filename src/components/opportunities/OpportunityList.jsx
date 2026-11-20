@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Edit2, Trash2, ChevronDown, ChevronRight, Calendar, Tag, GripVertical } from 'lucide-react';
+import { Edit2, Trash2, ChevronDown, ChevronRight, Calendar, Tag, GripVertical, Archive, ArchiveRestore } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useStageContext } from '../../contexts/StageContext';
 import { settingsService } from '../../services/settingsService';
 import { opportunityService } from '../../services/opportunityService';
 import styles from './Opportunities.module.css';
+import OpportunityExpandedTabs from './OpportunityExpandedTabs';
 
-const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit, onDelete, onReorder }) => {
+const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit, onDelete, onArchive, onReorder }) => {
     const { stages } = useStageContext();
     const [visibleColumns, setVisibleColumns] = useState([]);
     const [customFields, setCustomFields] = useState([]);
@@ -558,9 +559,11 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                                 <GripVertical size={14} />
                             </span>
                         )}
-                        {(opp.forecasts?.length || 0) > 0 && (
-                            <button
+                        <button
                                 onClick={(e) => { e.stopPropagation(); toggleExpanded(opp.id); }}
+                                aria-expanded={expandedRows.has(opp.id)}
+                                aria-label={expandedRows.has(opp.id) ? 'Recolher detalhes' : 'Expandir notas, ações e previsões'}
+                                title={expandedRows.has(opp.id) ? 'Recolher' : 'Ver notas, ações e previsões'}
                                 style={{
                                     background: 'none',
                                     border: 'none',
@@ -575,7 +578,6 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                                     <ChevronRight size={16} />
                                 )}
                             </button>
-                        )}
                     </div>
                     <div className={styles.groupCardBody}>
                         {firstCol && (
@@ -597,14 +599,23 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                         <button className={styles.actionBtn} onClick={() => onEdit(opp)} title="Editar">
                             <Edit2 size={16} />
                         </button>
+                        {onArchive && (
+                            <button className={styles.actionBtn} onClick={() => onArchive(opp)} title={opp.custom_data?.archived_at ? 'Desarquivar' : 'Arquivar'} aria-label={opp.custom_data?.archived_at ? 'Desarquivar' : 'Arquivar'}>
+                                {opp.custom_data?.archived_at ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                            </button>
+                        )}
                         <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => onDelete(opp.id)} title="Excluir">
                             <Trash2 size={16} />
                         </button>
                     </div>
                 </div>
                 {expandedRows.has(opp.id) && (
-                    <div className={styles.groupCardForecasts}>
-                        {renderForecastsContent(opp)}
+                    <div className={styles.groupCardForecasts} onClick={(e) => e.stopPropagation()}>
+                        <OpportunityExpandedTabs
+                            opportunity={opp}
+                            renderForecasts={renderForecastsContent}
+                            onOpen={() => onView(opp)}
+                        />
                     </div>
                 )}
             </div>
@@ -720,7 +731,12 @@ const OpportunityList = ({ opportunities, groupMode = 'grouped', onView, onEdit,
                             <button className={styles.actionBtn} onClick={() => onEdit(opp)} title="Editar">
                                 <Edit2 size={16} />
                             </button>
-                            <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => onDelete(opp.id)} title="Excluir">
+                            {onArchive && (
+                            <button className={styles.actionBtn} onClick={() => onArchive(opp)} title={opp.custom_data?.archived_at ? 'Desarquivar' : 'Arquivar'} aria-label={opp.custom_data?.archived_at ? 'Desarquivar' : 'Arquivar'}>
+                                {opp.custom_data?.archived_at ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                            </button>
+                        )}
+                        <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => onDelete(opp.id)} title="Excluir">
                                 <Trash2 size={16} />
                             </button>
                         </div>

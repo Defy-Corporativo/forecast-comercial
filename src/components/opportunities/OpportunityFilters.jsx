@@ -1,29 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { Filter, X, Tag, TrendingUp } from 'lucide-react';
+import { Filter, X, Target, Lightbulb, Tag, TrendingUp, Check, Archive, Building2 } from 'lucide-react';
 import styles from './Opportunities.module.css';
 
 const BILLING_PROBABILITIES = [
     { value: 'alta', label: 'Alta', color: '#10b981' },
-    { value: 'media', label: 'Média', color: '#f59e0b' },
+    { value: 'media', label: 'Média', color: '#d97706' },
     { value: 'baixa', label: 'Baixa', color: '#ef4444' }
 ];
 
 const STAGES = ['Pipeline', 'Strong Upside', 'Committed', 'Deal', 'Lost', 'Meta', 'Potencial'];
 
-const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencialState, onMetaStateChange, onPotencialStateChange, resultCount }) => {
+const WITHOUT_COMPANY = '__without_company__';
+
+const EMPTY_FILTERS = {
+    stages: [], // Empty array = all stages (no filter)
+    tags: [], // Empty array = all tags (no filter)
+    billingProbabilities: [], // Empty array = all probabilities (no filter)
+    minValue: '',
+    maxValue: '',
+    responsible: '',
+    company: '',
+    dateFrom: '',
+    dateTo: ''
+};
+
+const formatMoney = (value) => Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const formatDate = (value) => value ? value.split('-').reverse().join('/') : '';
+
+// Chip de seleção (botão com aria-pressed, acessível por teclado)
+const FilterChip = ({ selected, onClick, color, children }) => (
+    <button
+        type="button"
+        className={`${styles.filterChip} ${selected ? styles.filterChipSelected : ''}`}
+        style={color ? { '--chip-color': color } : undefined}
+        aria-pressed={selected}
+        onClick={onClick}
+    >
+        {selected && <Check size={12} strokeWidth={3} aria-hidden="true" />}
+        {children}
+    </button>
+);
+
+const OpportunityFilters = ({
+    opportunities,
+    onFilterChange,
+    metaState,
+    potencialState,
+    onMetaStateChange,
+    onPotencialStateChange,
+    resultCount,
+    showArchived = false,
+    archivedCount = 0,
+    onShowArchivedChange
+}) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showFilters, setShowFilters] = useState(false);
-    const [filters, setFilters] = useState({
-        stages: [], // Empty array = all stages (no filter)
-        tags: [], // Empty array = all tags (no filter)
-        billingProbabilities: [], // Empty array = all probabilities (no filter)
-        minValue: '',
-        maxValue: '',
-        responsible: '',
-        company: '',
-        dateFrom: '',
-        dateTo: ''
-    });
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
 
     const [availableTags, setAvailableTags] = useState([]);
 
@@ -52,6 +84,14 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [opportunities]);
+
+    const availableCompanies = [...new Set((opportunities || [])
+        .map(opp => opp.custom_data?.company?.trim())
+        .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+    const availableResponsibles = [...new Set((opportunities || [])
+        .map(opp => opp.responsible?.trim())
+        .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
     const handleSearchChange = (value) => {
         setSearchTerm(value);
@@ -139,9 +179,9 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
         }
 
         if (filterData.company) {
-            filtered = filtered.filter(opp => filterData.company === '__without_company__'
+            filtered = filtered.filter(opp => filterData.company === WITHOUT_COMPANY
                 ? !opp.custom_data?.company?.trim()
-                : opp.custom_data?.company === filterData.company);
+                : opp.custom_data?.company?.trim() === filterData.company);
         }
 
         onFilterChange(filtered);
@@ -149,68 +189,60 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
 
     const clearFilters = () => {
         setSearchTerm('');
-        setFilters({
-            stages: [],
-            tags: [],
-            billingProbabilities: [],
-            minValue: '',
-            maxValue: '',
-            responsible: '',
-            company: '',
-            dateFrom: '',
-            dateTo: ''
-        });
+        setFilters(EMPTY_FILTERS);
         if (opportunities) {
             onFilterChange([...opportunities]);
         }
     };
 
     // Conta filtros ativos (excluindo busca global)
+    // Badge de "Mais filtros": conta só os filtros do painel (empresa e faturamento ficam visíveis fora)
     const countActiveFilters = () => {
         let count = 0;
         if (filters.stages.length > 0) count++;
         if (filters.tags.length > 0) count++;
-        if (filters.billingProbabilities.length > 0) count++;
         if (filters.minValue) count++;
         if (filters.maxValue) count++;
         if (filters.responsible) count++;
-        if (filters.company) count++;
         if (filters.dateFrom) count++;
         if (filters.dateTo) count++;
         return count;
     };
 
     const activeFilterCount = countActiveFilters();
-    const hasActiveFilters = searchTerm || activeFilterCount > 0;
+    const hasActiveFilters = searchTerm || activeFilterCount > 0 || filters.company || filters.billingProbabilities.length > 0;
 
-    const toggleStage = (stage) => {
-        const newStages = filters.stages.includes(stage)
-            ? filters.stages.filter(s => s !== stage)
-            : [...filters.stages, stage];
-        handleFilterChange('stages', newStages);
+    const toggleInList = (key, value) => {
+        const list = filters[key];
+        handleFilterChange(key, list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
     };
 
-    const selectAllStages = () => {
-        handleFilterChange('stages', []);
-    };
+    // Resumo dos filtros aplicados — cada item remove só o próprio filtro
+    const activeSummary = [];
+    if (searchTerm) activeSummary.push({ key: 'search', label: `Busca: “${searchTerm}”`, onRemove: () => handleSearchChange('') });
+    if (filters.stages.length) activeSummary.push({ key: 'stages', label: `Estágio: ${filters.stages.join(', ')}`, onRemove: () => handleFilterChange('stages', []) });
+    if (filters.tags.length) activeSummary.push({ key: 'tags', label: `Tags: ${filters.tags.join(', ')}`, onRemove: () => handleFilterChange('tags', []) });
+    if (filters.responsible) activeSummary.push({ key: 'responsible', label: `Responsável: ${filters.responsible}`, onRemove: () => handleFilterChange('responsible', '') });
+    if (filters.minValue || filters.maxValue) activeSummary.push({
+        key: 'value',
+        label: `Valor: ${filters.minValue ? formatMoney(filters.minValue) : 'R$ 0'} – ${filters.maxValue ? formatMoney(filters.maxValue) : 'sem limite'}`,
+        onRemove: () => {
+            const next = { ...filters, minValue: '', maxValue: '' };
+            setFilters(next);
+            applyFilters({ ...next, search: searchTerm });
+        }
+    });
+    if (filters.dateFrom || filters.dateTo) activeSummary.push({
+        key: 'date',
+        label: `Previsão: ${filters.dateFrom ? formatDate(filters.dateFrom) : 'início'} – ${filters.dateTo ? formatDate(filters.dateTo) : 'sem fim'}`,
+        onRemove: () => {
+            const next = { ...filters, dateFrom: '', dateTo: '' };
+            setFilters(next);
+            applyFilters({ ...next, search: searchTerm });
+        }
+    });
 
-    const toggleTag = (tag) => {
-        const newTags = filters.tags.includes(tag)
-            ? filters.tags.filter(t => t !== tag)
-            : [...filters.tags, tag];
-        handleFilterChange('tags', newTags);
-    };
-
-    const toggleBillingProbability = (prob) => {
-        const newProbs = filters.billingProbabilities.includes(prob)
-            ? filters.billingProbabilities.filter(p => p !== prob)
-            : [...filters.billingProbabilities, prob];
-        handleFilterChange('billingProbabilities', newProbs);
-    };
-
-    const selectAllBillingProbabilities = () => {
-        handleFilterChange('billingProbabilities', []);
-    };
+    const typeStateLabel = (state, plural) => state === 0 ? `${plural} ocultas` : state === 1 ? `${plural} incluídas na lista` : `Somente ${plural.toLowerCase()}`;
 
     return (
         <div className={styles.filtersContainer}>
@@ -220,7 +252,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         type="text"
                         className={styles.searchInput}
                         aria-label="Buscar oportunidades"
-                        placeholder="Buscar cliente, número, responsável ou título"
+                        placeholder="Buscar por cliente, número, responsável, título..."
                         value={searchTerm}
                         onChange={(e) => handleSearchChange(e.target.value)}
                     />
@@ -236,16 +268,60 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                 </div>
                 {/* Filter buttons - wrapped for mobile horizontal scroll */}
                 <div className={styles.filterButtonsRow}>
-                    <label className={styles.typeFilter}>Metas
-                        <select value={metaState} onChange={e => { const value = Number(e.target.value); if (value === 2 && potencialState === 2) onPotencialStateChange(1); onMetaStateChange(value); }}>
-                            <option value={0}>Ocultas</option><option value={1}>Incluídas</option><option value={2}>Somente metas</option>
-                        </select>
-                    </label>
-                    <label className={styles.typeFilter}>Potenciais
-                        <select value={potencialState} onChange={e => { const value = Number(e.target.value); if (value === 2 && metaState === 2) onMetaStateChange(1); onPotencialStateChange(value); }}>
-                            <option value={0}>Ocultos</option><option value={1}>Incluídos</option><option value={2}>Somente potenciais</option>
-                        </select>
-                    </label>
+                    {/* Botão Meta - 3 estados: 0=oculto, 1=listar, 2=filtrar */}
+                    <button
+                        className={`${styles.filterToggleBtn}`}
+                        onClick={() => onMetaStateChange && onMetaStateChange((metaState + 1) % 3)}
+                        title={metaState === 0 ? 'Clique para mostrar Metas' : metaState === 1 ? 'Clique para filtrar apenas Metas' : 'Clique para ocultar Metas'}
+                        aria-label={`${typeStateLabel(metaState, 'Metas')}. Clique para alternar.`}
+                        disabled={showArchived}
+                        style={{
+                            background: metaState === 2 ? '#d97706' : metaState === 1 ? '#f59e0b15' : 'var(--bg-main)',
+                            borderColor: metaState > 0 ? '#d97706' : 'var(--border-color)',
+                            opacity: showArchived ? 0.4 : metaState === 0 ? 0.6 : 1,
+                            gap: '6px',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <Target size={16} style={{ color: metaState === 2 ? 'white' : metaState === 1 ? '#d97706' : 'var(--text-tertiary)' }} />
+                        <span style={{
+                            fontSize: '0.85rem',
+                            color: metaState === 2 ? 'white' : metaState === 1 ? '#b45309' : 'var(--text-tertiary)',
+                            fontWeight: metaState > 0 ? 600 : 400
+                        }}>
+                            Meta
+                        </span>
+                        {metaState === 2 && (
+                            <span style={{ fontSize: '0.7rem', color: 'white', opacity: 0.9 }}>somente</span>
+                        )}
+                    </button>
+
+                    <button
+                        className={`${styles.filterToggleBtn}`}
+                        onClick={() => onPotencialStateChange && onPotencialStateChange((potencialState + 1) % 3)}
+                        title={potencialState === 0 ? 'Clique para mostrar Potenciais' : potencialState === 1 ? 'Clique para filtrar apenas Potenciais' : 'Clique para ocultar Potenciais'}
+                        aria-label={`${typeStateLabel(potencialState, 'Potenciais')}. Clique para alternar.`}
+                        disabled={showArchived}
+                        style={{
+                            background: potencialState === 2 ? '#7c6fcd' : potencialState === 1 ? '#7c6fcd15' : 'var(--bg-main)',
+                            borderColor: potencialState > 0 ? '#7c6fcd' : 'var(--border-color)',
+                            opacity: showArchived ? 0.4 : potencialState === 0 ? 0.6 : 1,
+                            gap: '6px',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <Lightbulb size={16} style={{ color: potencialState === 2 ? 'white' : potencialState === 1 ? '#7c6fcd' : 'var(--text-tertiary)' }} />
+                        <span style={{
+                            fontSize: '0.85rem',
+                            color: potencialState === 2 ? 'white' : potencialState === 1 ? '#6354b8' : 'var(--text-tertiary)',
+                            fontWeight: potencialState > 0 ? 600 : 400
+                        }}>
+                            Potencial
+                        </span>
+                        {potencialState === 2 && (
+                            <span style={{ fontSize: '0.7rem', color: 'white', opacity: 0.9 }}>somente</span>
+                        )}
+                    </button>
                     <button
                         className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''} ${activeFilterCount > 0 ? styles.hasFilters : ''}`}
                         onClick={() => setShowFilters(!showFilters)}
@@ -253,11 +329,25 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         aria-controls="opportunity-filters-panel"
                     >
                         <Filter size={18} />
-                        <span>Filtros</span>
+                        <span>Mais filtros</span>
                         {activeFilterCount > 0 && (
                             <span className={styles.filterBadge}>{activeFilterCount}</span>
                         )}
                     </button>
+                    {onShowArchivedChange && (
+                        <button
+                            className={`${styles.filterToggleBtn} ${showArchived ? styles.archivedActive : ''}`}
+                            onClick={() => onShowArchivedChange(!showArchived)}
+                            aria-pressed={showArchived}
+                            title={showArchived ? 'Voltar para a lista principal' : 'Ver oportunidades arquivadas'}
+                        >
+                            <Archive size={16} />
+                            <span>Arquivadas</span>
+                            {archivedCount > 0 && (
+                                <span className={styles.archivedCount}>{archivedCount}</span>
+                            )}
+                        </button>
+                    )}
                     {/* Botão limpar filtros - sempre visível quando há filtros ativos */}
                     {hasActiveFilters && (
                         <button
@@ -272,222 +362,143 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                 </div>
             </div>
 
-            <p className={styles.filterResultCount} aria-live="polite">{resultCount} {resultCount === 1 ? 'resultado' : 'resultados'}</p>
+            {/* Filtros rápidos: sempre visíveis, um clique */}
+            <div className={styles.quickFilters}>
+                <div className={styles.quickFilterGroup} role="group" aria-label="Filtrar por empresa">
+                    <span className={styles.quickFilterLabel}><Building2 size={14} /> Empresa</span>
+                    <div className={styles.segmented}>
+                        <button type="button" aria-pressed={!filters.company} className={!filters.company ? styles.segmentedActive : ''} onClick={() => handleFilterChange('company', '')}>
+                            Todas
+                        </button>
+                        {availableCompanies.map(company => (
+                            <button
+                                key={company}
+                                type="button"
+                                aria-pressed={filters.company === company}
+                                className={filters.company === company ? styles.segmentedActive : ''}
+                                onClick={() => handleFilterChange('company', filters.company === company ? '' : company)}
+                            >
+                                {company}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            aria-pressed={filters.company === WITHOUT_COMPANY}
+                            className={filters.company === WITHOUT_COMPANY ? styles.segmentedActive : ''}
+                            onClick={() => handleFilterChange('company', filters.company === WITHOUT_COMPANY ? '' : WITHOUT_COMPANY)}
+                            title="Oportunidades sem empresa responsável"
+                        >
+                            Sem empresa
+                        </button>
+                    </div>
+                </div>
+
+                <div className={styles.quickFilterGroup} role="group" aria-label="Filtrar por possibilidade de faturamento">
+                    <span className={styles.quickFilterLabel}><TrendingUp size={14} /> Faturamento</span>
+                    <div className={styles.segmented}>
+                        <button
+                            type="button"
+                            aria-pressed={filters.billingProbabilities.length === 0}
+                            className={filters.billingProbabilities.length === 0 ? styles.segmentedActive : ''}
+                            onClick={() => handleFilterChange('billingProbabilities', [])}
+                        >
+                            Todas
+                        </button>
+                        {BILLING_PROBABILITIES.map(prob => {
+                            const selected = filters.billingProbabilities.includes(prob.value);
+                            return (
+                                <button
+                                    key={prob.value}
+                                    type="button"
+                                    aria-pressed={selected}
+                                    className={selected ? styles.segmentedActive : ''}
+                                    onClick={() => toggleInList('billingProbabilities', prob.value)}
+                                >
+                                    <span className={styles.probDot} style={{ background: prob.color }} aria-hidden="true" />
+                                    {prob.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Filtros aplicados: visíveis mesmo com o painel fechado */}
+            {activeSummary.length > 0 && (
+                <div className={styles.activeFilters} aria-live="polite">
+                    <span className={styles.activeFiltersCount}>
+                        {resultCount ?? 0} {resultCount === 1 ? 'resultado' : 'resultados'}
+                    </span>
+                    {activeSummary.map(item => (
+                        <span key={item.key} className={styles.activeFilterPill}>
+                            <span className={styles.activeFilterLabel}>{item.label}</span>
+                            <button type="button" onClick={item.onRemove} aria-label={`Remover filtro ${item.label}`}>
+                                <X size={12} strokeWidth={2.5} />
+                            </button>
+                        </span>
+                    ))}
+                </div>
+            )}
 
             {showFilters && (
                 <div id="opportunity-filters-panel" className={styles.filtersPanel}>
-                    {/* Estágio - Full width */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <label className="label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <span>Estágio <small>(nenhum selecionado = todos)</small></span>
-                            <span style={{ display: 'flex', gap: '8px' }}>
-                                <button
-                                    type="button"
-                                    onClick={selectAllStages}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: 'var(--color-primary)',
-                                        cursor: 'pointer',
-                                        fontSize: '0.75rem',
-                                        padding: 0
-                                    }}
-                                >
-                                    Todos
-                                </button>
-                            </span>
-                        </label>
-                        <div style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '6px',
-                            padding: '8px',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--border-radius-sm)',
-                            background: 'var(--bg-main)'
-                        }}>
-                            {STAGES.map(stage => {
-                                const isSelected = filters.stages.includes(stage);
-                                return (
-                                    <label
-                                        key={stage}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '4px 10px',
-                                            borderRadius: '12px',
-                                            background: isSelected ? 'var(--color-primary)' : 'white',
-                                            color: isSelected ? 'white' : 'var(--text-secondary)',
-                                            cursor: 'pointer',
-                                            fontSize: '0.8rem',
-                                            fontWeight: 500,
-                                            border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--border-color)'}`,
-                                            transition: 'all 0.15s'
-                                        }}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => toggleStage(stage)}
-                                            style={{ accentColor: 'var(--color-primary)' }}
-                                        />
-                                        {stage}
-                                    </label>
-                                );
-                            })}
+                    {/* Estágio */}
+                    <div className={styles.filterGroup}>
+                        <span className={styles.filterGroupLabel}>Estágio</span>
+                        <div className={styles.filterChips}>
+                            <FilterChip selected={filters.stages.length === 0} onClick={() => handleFilterChange('stages', [])}>
+                                Todos
+                            </FilterChip>
+                            {STAGES.map(stage => (
+                                <FilterChip key={stage} selected={filters.stages.includes(stage)} onClick={() => toggleInList('stages', stage)}>
+                                    {stage}
+                                </FilterChip>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Tags - Full width if available */}
+                    {/* Tags */}
                     {availableTags.length > 0 && (
-                        <div style={{ marginBottom: '16px' }}>
-                            <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                                <Tag size={14} />
-                                <span>Tags</span>
-                            </label>
-                            <div style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: '6px',
-                                padding: '8px',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: 'var(--border-radius-sm)',
-                                background: 'var(--bg-main)'
-                            }}>
+                        <div className={styles.filterGroup}>
+                            <span className={styles.filterGroupLabel}><Tag size={14} /> Tags</span>
+                            <div className={styles.filterChips}>
+                                <FilterChip selected={filters.tags.length === 0} onClick={() => handleFilterChange('tags', [])}>
+                                    Todas
+                                </FilterChip>
                                 {availableTags.map(tag => {
                                     // Ensure tag is always a string for rendering
                                     const tagName = typeof tag === 'string' ? tag : (tag?.tag || tag?.name || String(tag));
-                                    const isSelected = filters.tags.includes(tagName);
                                     return (
-                                        <label
-                                            key={tagName}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                padding: '4px 10px',
-                                                borderRadius: '12px',
-                                                background: isSelected ? 'var(--color-primary)' : 'white',
-                                                color: isSelected ? 'white' : 'var(--text-secondary)',
-                                                cursor: 'pointer',
-                                                fontSize: '0.8rem',
-                                                fontWeight: 500,
-                                                border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--border-color)'}`,
-                                                transition: 'all 0.15s'
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={isSelected}
-                                                onChange={() => toggleTag(tagName)}
-                                                style={{ accentColor: 'var(--color-primary)' }}
-                                            />
+                                        <FilterChip key={tagName} selected={filters.tags.includes(tagName)} onClick={() => toggleInList('tags', tagName)}>
                                             {tagName}
-                                        </label>
+                                        </FilterChip>
                                     );
                                 })}
                             </div>
                         </div>
                     )}
 
-                    {/* Possibilidade de Faturamento */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <label className="label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <TrendingUp size={14} />
-                                Possibilidade de Faturamento <small>(nenhuma selecionada = todas)</small>
-                            </span>
-                            <button
-                                type="button"
-                                onClick={selectAllBillingProbabilities}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: 'var(--color-primary)',
-                                    cursor: 'pointer',
-                                    fontSize: '0.75rem',
-                                    padding: 0
-                                }}
-                            >
-                                Todas
-                            </button>
-                        </label>
-                        <div style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '6px',
-                            padding: '8px',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--border-radius-sm)',
-                            background: 'var(--bg-main)'
-                        }}>
-                            {BILLING_PROBABILITIES.map(prob => {
-                                const isSelected = filters.billingProbabilities.includes(prob.value);
-                                return (
-                                    <label
-                                        key={prob.value}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '4px 10px',
-                                            borderRadius: '12px',
-                                            background: isSelected ? prob.color : 'white',
-                                            color: isSelected ? 'white' : 'var(--text-secondary)',
-                                            cursor: 'pointer',
-                                            fontSize: '0.8rem',
-                                            fontWeight: 500,
-                                            border: `1px solid ${isSelected ? prob.color : 'var(--border-color)'}`,
-                                            transition: 'all 0.15s'
-                                        }}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => toggleBillingProbability(prob.value)}
-                                            style={{ accentColor: 'var(--color-primary)' }}
-                                        />
-                                        {prob.label}
-                                    </label>
-                                );
-                            })}
-                        </div>
-                    </div>
-
                     {/* Grid responsivo para os outros campos */}
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                        gap: '16px'
-                    }}>
-                        <div className="input-group" style={{ marginBottom: 0 }}>
-                            <label className="label" htmlFor="company-filter">Empresa</label>
-                            <select id="company-filter" className="input" value={filters.company} onChange={(e) => handleFilterChange('company', e.target.value)}>
-                                <option value="">Todas as empresas</option>
-                                <option value="__without_company__">Sem empresa</option>
-                                {[...new Set(opportunities.map(opp => opp.custom_data?.company).filter(Boolean))].sort().map(company => <option key={company} value={company}>{company}</option>)}
-                            </select>
-                        </div>
+                    <div className={styles.filterFieldsGrid}>
                         {/* Responsável */}
                         <div className="input-group" style={{ marginBottom: 0 }}>
                             <label className="label" htmlFor="filter-responsible">Responsável</label>
                             <input
-                                type="text"
                                 id="filter-responsible"
+                                type="text"
                                 className="input"
+                                list="filter-responsible-options"
                                 value={filters.responsible}
                                 onChange={(e) => handleFilterChange('responsible', e.target.value)}
                                 placeholder="Nome do responsável"
                             />
+                            <datalist id="filter-responsible-options">
+                                {availableResponsibles.map(name => <option key={name} value={name} />)}
+                            </datalist>
                         </div>
 
                         {/* Grupo de Valores */}
-                        <div style={{
-                            display: 'flex',
-                            gap: '12px',
-                            gridColumn: 'span 1'
-                        }}>
+                        <div style={{ display: 'flex', gap: '12px' }}>
                             <div className="input-group" style={{ flex: 1, minWidth: 0, marginBottom: 0 }}>
                                 <label className="label" htmlFor="filter-min">Valor Mín. (R$)</label>
                                 <input
@@ -515,13 +526,9 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                         </div>
 
                         {/* Grupo de Datas */}
-                        <div style={{
-                            display: 'flex',
-                            gap: '12px',
-                            gridColumn: 'span 1'
-                        }}>
+                        <div style={{ display: 'flex', gap: '12px' }}>
                             <div className="input-group" style={{ flex: 1, minWidth: 0, marginBottom: 0 }}>
-                                <label className="label" htmlFor="filter-from">Data De</label>
+                                <label className="label" htmlFor="filter-from">Previsão de</label>
                                 <input
                                     id="filter-from"
                                     type="date"
@@ -531,7 +538,7 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                                 />
                             </div>
                             <div className="input-group" style={{ flex: 1, minWidth: 0, marginBottom: 0 }}>
-                                <label className="label" htmlFor="filter-to">Data Até</label>
+                                <label className="label" htmlFor="filter-to">Previsão até</label>
                                 <input
                                     id="filter-to"
                                     type="date"
@@ -542,7 +549,6 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
                             </div>
                         </div>
                     </div>
-
                 </div>
             )}
         </div>
@@ -550,4 +556,3 @@ const OpportunityFilters = ({ opportunities, onFilterChange, metaState, potencia
 };
 
 export default OpportunityFilters;
-

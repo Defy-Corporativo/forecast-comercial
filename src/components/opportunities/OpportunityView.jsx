@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit2, Trash2, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle, DollarSign, Layers, ChevronLeft, ChevronRight, CheckSquare, Clock, AlertCircle, User } from 'lucide-react';
+import { X, Edit2, Trash2, Archive, ArchiveRestore, Plus, Search, Calendar, MessageSquare, CheckCircle, Circle, Trash, Save, XCircle, DollarSign, Layers, ChevronLeft, ChevronRight, CheckSquare, Clock, AlertCircle, User } from 'lucide-react';
 import { Checkbox } from '@iadefysolutions/design-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStageContext } from '../../contexts/StageContext';
@@ -11,7 +11,7 @@ import { opportunityService } from '../../services/opportunityService';
 import ConfirmModal from '../common/ConfirmModal';
 import styles from './Opportunities.module.css';
 
-const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, fullscreen = false }) => {
+const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onArchive, onUpdate, fullscreen = false }) => {
     const { user } = useAuth();
     const { stages } = useStageContext();
     const [customFields, setCustomFields] = useState([]);
@@ -51,7 +51,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
     });
 
     // Estado para tabs (notas vs ações vs previsões)
-    const [activeTab, setActiveTab] = useState('forecasts');
+    const [activeTab, setActiveTab] = useState('notes');
 
     // Estado para ações
     const [actions, setActions] = useState([]);
@@ -448,6 +448,13 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
         onClose();
     };
 
+    const isArchived = Boolean(currentOpportunity?.custom_data?.archived_at);
+    const handleArchiveToggle = () => {
+        if (!onArchive) return;
+        onArchive(currentOpportunity, !isArchived);
+        onClose();
+    };
+
     const handleDelete = () => {
         setConfirmModal({
             isOpen: true,
@@ -780,6 +787,11 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                     gap: '12px',
                     flexShrink: 0
                 }}>
+                    {onArchive && (
+                        <button className="btn btn-secondary" onClick={handleArchiveToggle}>
+                            {isArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />} {isArchived ? 'Desarquivar' : 'Arquivar'}
+                        </button>
+                    )}
                     <button className="btn btn-secondary" onClick={handleEdit}>
                         <Edit2 size={16} /> Editar
                     </button>
@@ -1100,50 +1112,50 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                 padding: '8px 8px 0 8px',
                                 borderBottom: '2px solid var(--border-color)'
                             }}>
-                                {/* Tab de Previsões */}
+                                {/* Tab de Notas */}
                                 <button
-                                    onClick={() => setActiveTab('forecasts')}
+                                    onClick={() => setActiveTab('notes')}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '8px',
                                         padding: '14px 72px',
-                                        background: activeTab === 'forecasts' ? 'white' : '#e8eaed',
-                                        color: activeTab === 'forecasts' ? 'var(--color-primary)' : '#8a93a2',
-                                        border: activeTab === 'forecasts'
+                                        background: activeTab === 'notes' ? 'white' : '#e8eaed',
+                                        color: activeTab === 'notes' ? 'var(--color-primary)' : '#8a93a2',
+                                        border: activeTab === 'notes'
                                             ? '2px solid var(--border-color)'
                                             : '2px solid transparent',
-                                        borderBottom: activeTab === 'forecasts' ? '2px solid white' : '2px solid var(--border-color)',
+                                        borderBottom: activeTab === 'notes' ? '2px solid white' : '2px solid var(--border-color)',
                                         borderRadius: '8px 8px 0 0',
-                                        marginTop: activeTab === 'forecasts' ? '0' : '6px',
-                                        marginBottom: activeTab === 'forecasts' ? '-2px' : '0',
+                                        marginTop: activeTab === 'notes' ? '0' : '6px',
+                                        marginBottom: activeTab === 'notes' ? '-2px' : '0',
                                         cursor: 'pointer',
                                         fontSize: '14px',
                                         fontWeight: 600,
                                         transition: 'all 0.2s',
-                                        boxShadow: activeTab === 'forecasts' ? '0 -2px 8px rgba(0,0,0,0.06)' : 'none',
+                                        boxShadow: activeTab === 'notes' ? '0 -2px 8px rgba(0,0,0,0.06)' : 'none',
                                         whiteSpace: 'nowrap',
                                         position: 'relative',
                                         outline: 'none'
                                     }}
                                     onMouseEnter={(e) => {
-                                        if (activeTab !== 'forecasts') {
+                                        if (activeTab !== 'notes') {
                                             e.currentTarget.style.background = 'rgba(255,255,255,0.8)';
                                             e.currentTarget.style.color = 'var(--text-primary)';
                                         }
                                     }}
                                     onMouseLeave={(e) => {
-                                        if (activeTab !== 'forecasts') {
+                                        if (activeTab !== 'notes') {
                                             e.currentTarget.style.background = '#f0f2f5';
                                             e.currentTarget.style.color = '#8a93a2';
                                         }
                                     }}
                                 >
-                                    <Calendar size={16} />
-                                    Previsões financeiras
+                                    <MessageSquare size={16} />
+                                    Notas de atualização
                                     <span style={{
-                                        background: activeTab === 'forecasts' ? 'var(--color-primary)' : 'var(--border-color)',
-                                        color: activeTab === 'forecasts' ? 'white' : 'var(--text-secondary)',
+                                        background: activeTab === 'notes' ? 'var(--color-primary)' : 'var(--border-color)',
+                                        color: activeTab === 'notes' ? 'white' : 'var(--text-secondary)',
                                         padding: '2px 8px',
                                         borderRadius: '10px',
                                         fontSize: '12px',
@@ -1151,7 +1163,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                         minWidth: '22px',
                                         textAlign: 'center'
                                     }}>
-                                        {currentOpportunity.forecasts?.length || 0}
+                                        {notes.length}
                                     </span>
                                 </button>
 
@@ -1212,50 +1224,50 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                     </button>
                                 )}
 
-                                {/* Tab de Notas */}
+                                {/* Tab de Previsões */}
                                 <button
-                                    onClick={() => setActiveTab('notes')}
+                                    onClick={() => setActiveTab('forecasts')}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '8px',
                                         padding: '14px 72px',
-                                        background: activeTab === 'notes' ? 'white' : '#e8eaed',
-                                        color: activeTab === 'notes' ? 'var(--color-primary)' : '#8a93a2',
-                                        border: activeTab === 'notes'
+                                        background: activeTab === 'forecasts' ? 'white' : '#e8eaed',
+                                        color: activeTab === 'forecasts' ? 'var(--color-primary)' : '#8a93a2',
+                                        border: activeTab === 'forecasts'
                                             ? '2px solid var(--border-color)'
                                             : '2px solid transparent',
-                                        borderBottom: activeTab === 'notes' ? '2px solid white' : '2px solid var(--border-color)',
+                                        borderBottom: activeTab === 'forecasts' ? '2px solid white' : '2px solid var(--border-color)',
                                         borderRadius: '8px 8px 0 0',
-                                        marginTop: activeTab === 'notes' ? '0' : '6px',
-                                        marginBottom: activeTab === 'notes' ? '-2px' : '0',
+                                        marginTop: activeTab === 'forecasts' ? '0' : '6px',
+                                        marginBottom: activeTab === 'forecasts' ? '-2px' : '0',
                                         cursor: 'pointer',
                                         fontSize: '14px',
                                         fontWeight: 600,
                                         transition: 'all 0.2s',
-                                        boxShadow: activeTab === 'notes' ? '0 -2px 8px rgba(0,0,0,0.06)' : 'none',
+                                        boxShadow: activeTab === 'forecasts' ? '0 -2px 8px rgba(0,0,0,0.06)' : 'none',
                                         whiteSpace: 'nowrap',
                                         position: 'relative',
                                         outline: 'none'
                                     }}
                                     onMouseEnter={(e) => {
-                                        if (activeTab !== 'notes') {
+                                        if (activeTab !== 'forecasts') {
                                             e.currentTarget.style.background = 'rgba(255,255,255,0.8)';
                                             e.currentTarget.style.color = 'var(--text-primary)';
                                         }
                                     }}
                                     onMouseLeave={(e) => {
-                                        if (activeTab !== 'notes') {
+                                        if (activeTab !== 'forecasts') {
                                             e.currentTarget.style.background = '#f0f2f5';
                                             e.currentTarget.style.color = '#8a93a2';
                                         }
                                     }}
                                 >
-                                    <MessageSquare size={16} />
-                                    Notas de atualização
+                                    <Calendar size={16} />
+                                    Previsões financeiras
                                     <span style={{
-                                        background: activeTab === 'notes' ? 'var(--color-primary)' : 'var(--border-color)',
-                                        color: activeTab === 'notes' ? 'white' : 'var(--text-secondary)',
+                                        background: activeTab === 'forecasts' ? 'var(--color-primary)' : 'var(--border-color)',
+                                        color: activeTab === 'forecasts' ? 'white' : 'var(--text-secondary)',
                                         padding: '2px 8px',
                                         borderRadius: '10px',
                                         fontSize: '12px',
@@ -1263,7 +1275,7 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                                         minWidth: '22px',
                                         textAlign: 'center'
                                     }}>
-                                        {notes.length}
+                                        {currentOpportunity.forecasts?.length || 0}
                                     </span>
                                 </button>
                             </div>
@@ -2003,6 +2015,12 @@ const OpportunityView = ({ opportunity, onClose, onEdit, onDelete, onUpdate, ful
                         Excluir
                     </button>
                     <div style={{ display: 'flex', gap: '8px' }}>
+                        {onArchive && (
+                            <button type="button" className="btn btn-secondary" onClick={handleArchiveToggle}>
+                                {isArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                                {isArchived ? 'Desarquivar' : 'Arquivar'}
+                            </button>
+                        )}
                         <button type="button" className="btn btn-secondary" onClick={handleEdit}>
                             <Edit2 size={16} />
                             Editar

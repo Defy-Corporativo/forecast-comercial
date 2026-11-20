@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, List, Grid3x3, Layers, LayoutList, Download } from 'lucide-react';
-import { Button } from '@iadefysolutions/design-system';
+import { Plus, List, Grid3x3, Layers, LayoutList, Download, Archive, ArrowLeft, ChevronDown, FileText, Sheet, Printer } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { opportunityService } from '../../services/opportunityService';
 import OpportunityList from './OpportunityList';
@@ -15,7 +14,8 @@ const Opportunities = () => {
     const [opportunities, setOpportunities] = useState([]);
     const [filteredOpportunities, setFilteredOpportunities] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [reportFormat, setReportFormat] = useState('txt');
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const exportMenuRef = useRef(null);
     const [viewMode, setViewMode] = useState('list'); // 'list' or 'cards'
     const [groupMode, setGroupMode] = useState('grouped'); // 'grouped' or 'flat'
     const [showModal, setShowModal] = useState(false);
@@ -25,6 +25,10 @@ const Opportunities = () => {
     // Meta e Potencial states: 0=oculto, 1=listar junto, 2=filtrar somente
     const [metaState, setMetaState] = useState(0);
     const [potencialState, setPotencialState] = useState(1); // Padrão: listar junto (1 clique)
+    // Arquivadas: ficam fora da lista principal e aparecem só nesta visão
+    const [showArchived, setShowArchived] = useState(false);
+    const [archiveToast, setArchiveToast] = useState(null);
+    const archiveToastTimer = useRef(null);
 
     // Mobile detection
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -101,7 +105,22 @@ const Opportunities = () => {
         }
     };
 
-    const handleReport = () => {
+    useEffect(() => {
+        if (!showExportMenu) return undefined;
+        const close = (event) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) setShowExportMenu(false);
+        };
+        const onKey = (event) => { if (event.key === 'Escape') setShowExportMenu(false); };
+        document.addEventListener('mousedown', close);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', close);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [showExportMenu]);
+
+    const handleReport = (reportFormat) => {
+        setShowExportMenu(false);
         const items = new Map();
         filteredOpportunities.forEach((row) => {
             if (!items.has(row.id)) items.set(row.id, { ...row, reportValue: 0 });
@@ -210,6 +229,42 @@ const Opportunities = () => {
         }
     };
 
+    const isArchived = (opp) => Boolean(opp?.custom_data?.archived_at);
+
+    const handleArchive = async (opportunity, archived = !isArchived(opportunity), { silent = false } = {}) => {
+        const id = opportunity.id;
+        const applyLocal = (customData) => setOpportunities(prev => prev.map(opp =>
+            opp.id === id ? { ...opp, custom_data: customData } : opp
+        ));
+        const previous = opportunity.custom_data || {};
+        const { archived_at: _old, ...rest } = previous;
+        // Atualização otimista: a linha some da lista na hora
+        applyLocal(archived ? { ...rest, archived_at: new Date().toISOString() } : rest);
+        try {
+            const saved = await opportunityService.setArchived(id, archived);
+            applyLocal(saved);
+            if (!silent) {
+                clearTimeout(archiveToastTimer.current);
+                setArchiveToast({ opportunity: { ...opportunity, custom_data: saved }, archived });
+                archiveToastTimer.current = setTimeout(() => setArchiveToast(null), 6000);
+            }
+        } catch (error) {
+            console.error('Erro ao arquivar oportunidade:', error);
+            applyLocal(previous);
+            window.alert('Não foi possível ' + (archived ? 'arquivar' : 'desarquivar') + ' a oportunidade. Tente novamente.');
+        }
+    };
+
+    const undoArchive = () => {
+        if (!archiveToast) return;
+        const { opportunity, archived } = archiveToast;
+        clearTimeout(archiveToastTimer.current);
+        setArchiveToast(null);
+        handleArchive(opportunity, !archived, { silent: true });
+    };
+
+    useEffect(() => () => clearTimeout(archiveToastTimer.current), []);
+
     const handleReorder = async (updates) => {
         try {
             // Optimistic update: apply changes locally immediately
@@ -231,8 +286,18 @@ const Opportunities = () => {
     // }, []);
 
     // Filtrar oportunidades baseado nos estados de Meta e Potencial
+    const archivedCount = React.useMemo(
+        () => new Set(opportunities.filter(isArchived).map(opp => opp.id)).size,
+        [opportunities]
+    );
+
     const opportunitiesForFilters = React.useMemo(() => {
-        let filtered = [...opportunities];
+        // Visão de arquivadas: mostra todas as arquivadas, sem o filtro de Meta/Potencial
+        if (showArchived) {
+            return opportunities.filter(isArchived);
+        }
+
+        let filtered = opportunities.filter(opp => !isArchived(opp));
 
         // Estado 2 = filtrar somente (exclui tudo exceto o tipo)
         if (metaState === 2) {
@@ -251,7 +316,7 @@ const Opportunities = () => {
         }
 
         return filtered;
-    }, [opportunities, metaState, potencialState]);
+    }, [opportunities, metaState, potencialState, showArchived]);
 
     if (loading) {
         return (
@@ -289,8 +354,49 @@ const Opportunities = () => {
             <div style={{ flexShrink: 0, zIndex: 10 }}>
                 <div className="container">
                     <div className={styles.opportunitiesHeader}>
-                        {/* Row 1: Page Title */}
-                        <h1 className="page-title" style={{ margin: 0 }}>Oportunidades</h1>
+                        {/* Row 1: título + ações principais */}
+                        <div className={styles.headerTop}>
+                            <h1 className="page-title" style={{ margin: 0 }}>Oportunidades</h1>
+                            <div className={styles.headerActions}>
+                                <div className={styles.exportMenuWrapper} ref={exportMenuRef}>
+                                    <button
+                                        type="button"
+                                        className={styles.secondaryAction}
+                                        onClick={() => setShowExportMenu(open => !open)}
+                                        aria-haspopup="menu"
+                                        aria-expanded={showExportMenu}
+                                        title="Exportar a lista com os filtros aplicados"
+                                    >
+                                        <Download size={16} />
+                                        <span className={styles.btnLabel}>Exportar</span>
+                                        <ChevronDown size={14} className={styles.exportCaret} />
+                                    </button>
+                                    {showExportMenu && (
+                                        <div className={styles.exportMenu} role="menu">
+                                            <span className={styles.exportMenuHint}>
+                                                {filteredOpportunities.length} {filteredOpportunities.length === 1 ? 'item' : 'itens'} com os filtros atuais
+                                            </span>
+                                            <button type="button" role="menuitem" onClick={() => handleReport('csv')}>
+                                                <Sheet size={16} />
+                                                <span><strong>Planilha</strong><small>CSV para Excel</small></span>
+                                            </button>
+                                            <button type="button" role="menuitem" onClick={() => handleReport('pdf')}>
+                                                <Printer size={16} />
+                                                <span><strong>PDF</strong><small>Abre a impressão</small></span>
+                                            </button>
+                                            <button type="button" role="menuitem" onClick={() => handleReport('txt')}>
+                                                <FileText size={16} />
+                                                <span><strong>Texto</strong><small>Resumo em TXT</small></span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                <button type="button" className={styles.primaryAction} onClick={handleCreate}>
+                                    <Plus size={18} strokeWidth={2.5} />
+                                    Nova oportunidade
+                                </button>
+                            </div>
+                        </div>
 
                         {/* Row 2: Group Mode + View Mode (desktop only) */}
                         <div className={styles.headerControls}>
@@ -333,21 +439,6 @@ const Opportunities = () => {
                             )}
                         </div>
 
-                        {/* Row 3: New Opportunity Button */}
-                        <Button icon={Plus} onClick={handleCreate} className={styles.newOpportunityBtn}>
-                            Nova Oportunidade
-                        </Button>
-
-                        <div className={styles.reportControls}>
-                            <label htmlFor="report-format">Formato do resumo</label>
-                            <select id="report-format" value={reportFormat} onChange={e => setReportFormat(e.target.value)}>
-                                <option value="txt">TXT</option>
-                                <option value="csv">CSV (Excel)</option>
-                                <option value="pdf">PDF (imprimir)</option>
-                            </select>
-                            <Button icon={Download} onClick={handleReport}>Exportar resumo</Button>
-                        </div>
-
                         {/* Row 4: Filters */}
                         <OpportunityFilters
                             opportunities={opportunitiesForFilters}
@@ -357,6 +448,9 @@ const Opportunities = () => {
                             potencialState={potencialState}
                             onMetaStateChange={setMetaState}
                             onPotencialStateChange={setPotencialState}
+                            showArchived={showArchived}
+                            archivedCount={archivedCount}
+                            onShowArchivedChange={setShowArchived}
                         />
                     </div>
                 </div>
@@ -365,6 +459,17 @@ const Opportunities = () => {
             {/* Conteúdo com scroll */}
             <div style={{ flex: 1, overflow: 'auto', backgroundColor: 'var(--bg-main)' }}>
                 <div className="container">
+                    {showArchived && (
+                        <div className={styles.archivedBanner}>
+                            <Archive size={16} aria-hidden="true" />
+                            <span>
+                                <strong>Oportunidades arquivadas.</strong> Elas não aparecem na lista principal. Use o botão de desarquivar para trazer uma de volta.
+                            </span>
+                            <button type="button" onClick={() => setShowArchived(false)}>
+                                <ArrowLeft size={14} /> Voltar para a lista
+                            </button>
+                        </div>
+                    )}
                     {/* Force cards view on mobile, otherwise respect viewMode */}
                     {(isMobile || viewMode === 'cards') ? (
                         <OpportunityCards
@@ -373,6 +478,7 @@ const Opportunities = () => {
                             onView={handleView}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
+                            onArchive={handleArchive}
                         />
                     ) : (
                         <OpportunityList
@@ -381,7 +487,8 @@ const Opportunities = () => {
                             onView={handleView}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
-                            onReorder={groupMode === 'grouped' ? handleReorder : undefined}
+                            onArchive={handleArchive}
+                            onReorder={groupMode === 'grouped' && !showArchived ? handleReorder : undefined}
                         />
                     )}
                 </div>
@@ -411,6 +518,7 @@ const Opportunities = () => {
                     }}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    onArchive={(opp, archived) => handleArchive(opp, archived)}
                     onUpdate={() => {
                         // Silent refresh
                         (async () => {
@@ -439,6 +547,16 @@ const Opportunities = () => {
                     }}
                     onSave={loadOpportunities}
                 />
+            )}
+
+            {archiveToast && (
+                <div className={styles.archiveToast} role="status">
+                    <span>
+                        {archiveToast.archived ? 'Oportunidade arquivada' : 'Oportunidade desarquivada'}
+                        {archiveToast.opportunity.title ? <> · <strong>{archiveToast.opportunity.title}</strong></> : null}
+                    </span>
+                    <button type="button" onClick={undoArchive}>Desfazer</button>
+                </div>
             )}
         </div>
     );

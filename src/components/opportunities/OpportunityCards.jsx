@@ -1,9 +1,9 @@
 import React from 'react';
-import { Edit2, Trash2, Calendar, User, DollarSign, Layers } from 'lucide-react';
+import { Edit2, Trash2, Calendar, User, DollarSign, Layers, Archive, ArchiveRestore } from 'lucide-react';
 import { useStageContext } from '../../contexts/StageContext';
 import styles from './Opportunities.module.css';
 
-const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit, onDelete }) => {
+const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit, onDelete, onArchive }) => {
     const { stages } = useStageContext();
 
     const formatCurrency = (value) => {
@@ -190,6 +190,16 @@ const OpportunityCards = ({ opportunities, groupMode = 'grouped', onView, onEdit
                         >
                             <Edit2 size={16} />
                         </button>
+                        {onArchive && (
+                            <button
+                                className={styles.cardActionBtn}
+                                onClick={() => onArchive(opp)}
+                                title={opp.custom_data?.archived_at ? 'Desarquivar' : 'Arquivar'}
+                                aria-label={opp.custom_data?.archived_at ? 'Desarquivar' : 'Arquivar'}
+                            >
+                                {opp.custom_data?.archived_at ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                            </button>
+                        )}
                         <button
                             className={`${styles.cardActionBtn} ${styles.danger}`}
                             onClick={() => onDelete(opp.id)}

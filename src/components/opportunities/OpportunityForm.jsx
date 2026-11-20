@@ -8,6 +8,7 @@ import { clientService } from '../../services/clientService';
 import { tagService } from '../../services/tagService';
 import { responsiblesService } from '../../services/responsiblesService';
 import ClientForm from '../clients/ClientForm';
+import CompanyPicker from './CompanyPicker';
 import styles from './Opportunities.module.css';
 
 // Storage key for draft persistence
@@ -592,110 +593,31 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                             <label className="label" style={{ marginBottom: '10px' }}>Tipo de Oportunidade *</label>
 
                             {/* Cards principais: Real e Potencial */}
-                            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                                {/* Real */}
-                                <button
-                                    type="button"
-                                    onClick={() => handleTypeChange('real')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '14px 12px',
-                                        border: getCurrentType() === 'real' ? '2px solid #3b82f6' : '2px solid var(--border-color)',
-                                        borderRadius: '10px',
-                                        background: getCurrentType() === 'real' ? '#eff6ff' : 'var(--bg-secondary)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        position: 'relative',
-                                        transition: 'all 0.2s ease',
-                                        boxShadow: getCurrentType() === 'real' ? '0 0 0 3px rgba(59,130,246,0.12)' : 'none'
-                                    }}
-                                >
-                                    {getCurrentType() === 'real' && (
-                                        <span style={{
-                                            position: 'absolute', top: '7px', right: '7px',
-                                            width: '18px', height: '18px', borderRadius: '50%',
-                                            background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                        }}>
-                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                                <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
-                                        </span>
-                                    )}
-                                    <span style={{
-                                        width: '38px', height: '38px', borderRadius: '50%',
-                                        background: getCurrentType() === 'real' ? '#3b82f6' : '#e2e8f0',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: getCurrentType() === 'real' ? 'white' : '#94a3b8',
-                                        transition: 'all 0.2s ease'
-                                    }}>
-                                        <DollarSign size={18} />
-                                    </span>
-                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.3, gap: '2px' }}>
-                                        <span style={{
-                                            fontSize: '0.85rem', fontWeight: getCurrentType() === 'real' ? 700 : 500,
-                                            color: getCurrentType() === 'real' ? '#1e40af' : 'var(--text-primary)'
-                                        }}>Oportunidade Real</span>
-                                        <span style={{
-                                            fontSize: '0.72rem',
-                                            color: getCurrentType() === 'real' ? '#3b82f6' : 'var(--text-tertiary)'
-                                        }}>Receita Real</span>
-                                    </span>
-                                </button>
-
-                                {/* Potencial */}
-                                <button
-                                    type="button"
-                                    onClick={() => handleTypeChange('potencial')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '14px 12px',
-                                        border: getCurrentType() === 'potencial' ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
-                                        borderRadius: '10px',
-                                        background: getCurrentType() === 'potencial' ? '#f5f3ff' : 'var(--bg-secondary)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        position: 'relative',
-                                        transition: 'all 0.2s ease',
-                                        boxShadow: getCurrentType() === 'potencial' ? '0 0 0 3px rgba(139,92,246,0.12)' : 'none'
-                                    }}
-                                >
-                                    {getCurrentType() === 'potencial' && (
-                                        <span style={{
-                                            position: 'absolute', top: '7px', right: '7px',
-                                            width: '18px', height: '18px', borderRadius: '50%',
-                                            background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                        }}>
-                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                                <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
-                                        </span>
-                                    )}
-                                    <span style={{
-                                        width: '38px', height: '38px', borderRadius: '50%',
-                                        background: getCurrentType() === 'potencial' ? '#8b5cf6' : '#e2e8f0',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: getCurrentType() === 'potencial' ? 'white' : '#94a3b8',
-                                        transition: 'all 0.2s ease'
-                                    }}>
-                                        <Lightbulb size={18} />
-                                    </span>
-                                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.3, gap: '2px' }}>
-                                        <span style={{
-                                            fontSize: '0.85rem', fontWeight: getCurrentType() === 'potencial' ? 700 : 500,
-                                            color: getCurrentType() === 'potencial' ? '#5b21b6' : 'var(--text-primary)'
-                                        }}>Oportunidade Potencial</span>
-                                        <span style={{
-                                            fontSize: '0.72rem',
-                                            color: getCurrentType() === 'potencial' ? '#8b5cf6' : 'var(--text-tertiary)'
-                                        }}>Receita em Construção</span>
-                                    </span>
-                                </button>
+                            <div className={styles.typeCards} role="radiogroup" aria-label="Tipo de oportunidade">
+                                {[
+                                    { type: 'real', title: 'Oportunidade Real', subtitle: 'Receita real', Icon: DollarSign, accent: '#2563eb', tint: '#eff6ff' },
+                                    { type: 'potencial', title: 'Oportunidade Potencial', subtitle: 'Receita em construção', Icon: Lightbulb, accent: '#7c3aed', tint: '#f5f3ff' }
+                                ].map(({ type, title, subtitle, Icon, accent, tint }) => {
+                                    const selected = getCurrentType() === type;
+                                    return (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={selected}
+                                            onClick={() => handleTypeChange(type)}
+                                            className={`${styles.typeCard} ${selected ? styles.typeCardActive : ''}`}
+                                            style={{ '--type-accent': accent, '--type-tint': tint }}
+                                        >
+                                            <span className={styles.typeCardIcon}><Icon size={18} /></span>
+                                            <span className={styles.typeCardText}>
+                                                <span className={styles.typeCardTitle}>{title}</span>
+                                                <span className={styles.typeCardSubtitle}>{subtitle}</span>
+                                            </span>
+                                            <span className={styles.typeCardRadio} aria-hidden="true" />
+                                        </button>
+                                    );
+                                })}
                             </div>
 
                             {/* Meta: opção discreta para uso anual */}
@@ -728,17 +650,19 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                             </div>
                         </div>
 
-                        <div className="input-group" style={{ marginBottom: '1rem' }}>
+                        {/* Empresa responsável (compacta) + Título na mesma linha */}
+                        <div className={styles.formRow} style={{ display: 'flex', gap: '16px', marginBottom: '1rem' }}>
+                        <div className="input-group" style={{ flex: '0 0 280px', minWidth: 0, marginBottom: 0 }}>
                             <label className="label" htmlFor="opportunity-company">Empresa responsável *</label>
-                            <input id="opportunity-company" className="input" type="text" list="opportunity-companies"
+                            <CompanyPicker
+                                id="opportunity-company"
                                 value={formData.custom_data?.company || ''}
-                                onChange={(e) => setFormData(prev => ({ ...prev, custom_data: { ...prev.custom_data, company: e.target.value } }))}
-                                placeholder="Ex: Defy ou Austera" required />
-                            <datalist id="opportunity-companies"><option value="Defy" /><option value="Austera" /></datalist>
+                                onChange={(company) => setFormData(prev => ({ ...prev, custom_data: { ...prev.custom_data, company } }))}
+                            />
                         </div>
 
                         {/* Fixed Fields */}
-                        <div className="input-group" style={{ marginBottom: '1rem' }}>
+                        <div className="input-group" style={{ flex: 1, minWidth: 0, marginBottom: 0 }}>
                             <label className="label">Título da {formData.is_goal ? 'Meta' : (formData.is_potential ? 'Potencial' : 'Oportunidade')} *</label>
                             <input
                                 name="title"
@@ -749,6 +673,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                 onChange={handleChange}
                                 required
                             />
+                        </div>
                         </div>
 
                         {!formData.is_goal && !formData.is_potential && (

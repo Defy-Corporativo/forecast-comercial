@@ -466,6 +466,66 @@ export const opportunityService = {
         return opportunity;
     },
 
+    // Arquivamento: guardado em custom_data.archived_at (sem alteração de schema)
+    async setArchived(id, archived) {
+        const { data: current, error: readError } = await supabase
+            .from('fcst_opportunities')
+            .select('custom_data')
+            .eq('id', id)
+            .single();
+
+        if (readError) throw readError;
+
+        const { archived_at: _previous, ...rest } = current?.custom_data || {};
+        const custom_data = archived ? { ...rest, archived_at: new Date().toISOString() } : rest;
+
+        const { error } = await supabase
+            .from('fcst_opportunities')
+            .update({ custom_data })
+            .eq('id', id);
+
+        if (error) throw error;
+        return custom_data;
+    },
+
+    // Empresas responsáveis já usadas (custom_data.company)
+    async getCompanies() {
+        const { data, error } = await supabase
+            .from('fcst_opportunities')
+            .select('custom_data');
+
+        if (error) throw error;
+
+        const counts = new Map();
+        (data || []).forEach(row => {
+            const name = row.custom_data?.company?.trim();
+            if (name) counts.set(name, (counts.get(name) || 0) + 1);
+        });
+        return [...counts.entries()]
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    },
+
+    // Remove uma empresa digitada errada de todas as oportunidades que a usam
+    async removeCompany(name) {
+        const { data, error } = await supabase
+            .from('fcst_opportunities')
+            .select('id, custom_data')
+            .eq('custom_data->>company', name);
+
+        if (error) throw error;
+
+        for (const row of data || []) {
+            const { company: _removed, ...rest } = row.custom_data || {};
+            const { error: updateError } = await supabase
+                .from('fcst_opportunities')
+                .update({ custom_data: rest })
+                .eq('id', row.id);
+            if (updateError) throw updateError;
+        }
+        return (data || []).length;
+    },
+
     async deleteOpportunity(id) {
         // Forecasts will be deleted automatically via CASCADE
         const { error } = await supabase
