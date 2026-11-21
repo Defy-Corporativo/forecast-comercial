@@ -3,9 +3,6 @@ import { X, Plus, Trash, Building2, ChevronDown } from 'lucide-react';
 import { opportunityService } from '../../services/opportunityService';
 import styles from './Opportunities.module.css';
 
-// Empresas padrão: sempre aparecem e não podem ser excluídas
-const DEFAULT_COMPANIES = ['Defy', 'Austera'];
-
 const normalize = (text) => text.trim().toLocaleLowerCase('pt-BR');
 
 /**
@@ -43,20 +40,17 @@ const CompanyPicker = ({ id, value, onChange }) => {
     }, []);
 
     const options = useMemo(() => {
+        // Empresas vêm só das oportunidades; nomes com caixa diferente viram uma opção
         const byName = new Map();
-        DEFAULT_COMPANIES.forEach(name => byName.set(normalize(name), { name, count: 0, isDefault: true }));
         companies.forEach(company => {
             const key = normalize(company.name);
             const existing = byName.get(key);
-            byName.set(key, existing
-                ? { ...existing, count: existing.count + company.count }
-                : { ...company, isDefault: false });
+            byName.set(key, existing ? { ...existing, count: existing.count + company.count } : { ...company });
         });
-        const all = [...byName.values()];
         const query = normalize(input);
-        return all
+        return [...byName.values()]
             .filter(option => !query || normalize(option.name).includes(query))
-            .sort((a, b) => (b.isDefault - a.isDefault) || a.name.localeCompare(b.name, 'pt-BR'));
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     }, [companies, input]);
 
     const trimmedInput = input.trim();
@@ -167,18 +161,16 @@ const CompanyPicker = ({ id, value, onChange }) => {
                             {option.count > 0 && (
                                 <span className={styles.companyOptionCount}>{option.count}</span>
                             )}
-                            {!option.isDefault && (
-                                <button
-                                    type="button"
-                                    className={styles.companyDelete}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    onClick={(e) => handleDelete(option, e)}
-                                    aria-label={`Excluir empresa ${option.name}`}
-                                    title="Excluir empresa (digitada errada)"
-                                >
-                                    <Trash size={13} />
-                                </button>
-                            )}
+                            <button
+                                type="button"
+                                className={styles.companyDelete}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => handleDelete(option, e)}
+                                aria-label={`Excluir empresa ${option.name}`}
+                                title="Excluir empresa (digitada errada)"
+                            >
+                                <Trash size={13} />
+                            </button>
                         </li>
                     ))}
                     {canCreate && (
