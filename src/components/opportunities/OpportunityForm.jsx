@@ -517,12 +517,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
             return;
         }
 
-        if (forecasts.length === 0) {
-            alert('Por favor, adicione pelo menos uma previsão de faturamento.');
-            return;
-        }
-
-        // Validate forecasts
+        // Previsão é opcional; as que forem adicionadas precisam estar completas
         for (let i = 0; i < forecasts.length; i++) {
             if (!forecasts[i].period_start || !forecasts[i].period_end || !forecasts[i].estimated_value) {
                 alert(`Por favor, preencha o período (início e fim) e o valor da previsão ${i + 1}.`);
@@ -1169,7 +1164,7 @@ const OpportunityForm = ({ opportunity = null, onClose, onSave }) => {
                                         borderRadius: '8px',
                                         border: '1px dashed var(--border-color)'
                                     }}>
-                                        Nenhuma previsão adicionada. Clique em "Adicionar" ou "Recorrência" para começar.
+                                        Nenhuma previsão ainda. É opcional: dá para salvar agora e adicionar depois em "Adicionar" ou "Recorrência".
                                     </div>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
