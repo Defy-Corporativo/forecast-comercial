@@ -196,10 +196,11 @@ const OpportunityFilters = ({
     };
 
     // Conta filtros ativos (excluindo busca global)
-    // Badge de "Mais filtros": conta só os filtros do painel (empresa e faturamento ficam visíveis fora)
+    // Badge de "Mais filtros": conta só os filtros do painel (empresa fica visível fora)
     const countActiveFilters = () => {
         let count = 0;
         if (filters.stages.length > 0) count++;
+        if (filters.billingProbabilities.length > 0) count++;
         if (filters.tags.length > 0) count++;
         if (filters.minValue) count++;
         if (filters.maxValue) count++;
@@ -210,7 +211,7 @@ const OpportunityFilters = ({
     };
 
     const activeFilterCount = countActiveFilters();
-    const hasActiveFilters = searchTerm || activeFilterCount > 0 || filters.company || filters.billingProbabilities.length > 0;
+    const hasActiveFilters = searchTerm || activeFilterCount > 0 || filters.company;
 
     const toggleInList = (key, value) => {
         const list = filters[key];
@@ -221,6 +222,11 @@ const OpportunityFilters = ({
     const activeSummary = [];
     if (searchTerm) activeSummary.push({ key: 'search', label: `Busca: “${searchTerm}”`, onRemove: () => handleSearchChange('') });
     if (filters.stages.length) activeSummary.push({ key: 'stages', label: `Estágio: ${filters.stages.join(', ')}`, onRemove: () => handleFilterChange('stages', []) });
+    if (filters.billingProbabilities.length) activeSummary.push({
+        key: 'billing',
+        label: `Faturamento: ${BILLING_PROBABILITIES.filter(p => filters.billingProbabilities.includes(p.value)).map(p => p.label).join(', ')}`,
+        onRemove: () => handleFilterChange('billingProbabilities', [])
+    });
     if (filters.tags.length) activeSummary.push({ key: 'tags', label: `Tags: ${filters.tags.join(', ')}`, onRemove: () => handleFilterChange('tags', []) });
     if (filters.responsible) activeSummary.push({ key: 'responsible', label: `Responsável: ${filters.responsible}`, onRemove: () => handleFilterChange('responsible', '') });
     if (filters.minValue || filters.maxValue) activeSummary.push({
@@ -393,34 +399,6 @@ const OpportunityFilters = ({
                     </div>
                 </div>
 
-                <div className={styles.quickFilterGroup} role="group" aria-label="Filtrar por possibilidade de faturamento">
-                    <span className={styles.quickFilterLabel}><TrendingUp size={14} /> Faturamento</span>
-                    <div className={styles.segmented}>
-                        <button
-                            type="button"
-                            aria-pressed={filters.billingProbabilities.length === 0}
-                            className={filters.billingProbabilities.length === 0 ? styles.segmentedActive : ''}
-                            onClick={() => handleFilterChange('billingProbabilities', [])}
-                        >
-                            Todas
-                        </button>
-                        {BILLING_PROBABILITIES.map(prob => {
-                            const selected = filters.billingProbabilities.includes(prob.value);
-                            return (
-                                <button
-                                    key={prob.value}
-                                    type="button"
-                                    aria-pressed={selected}
-                                    className={selected ? styles.segmentedActive : ''}
-                                    onClick={() => toggleInList('billingProbabilities', prob.value)}
-                                >
-                                    <span className={styles.probDot} style={{ background: prob.color }} aria-hidden="true" />
-                                    {prob.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
             </div>
 
             {/* Filtros aplicados: visíveis mesmo com o painel fechado */}
@@ -452,6 +430,22 @@ const OpportunityFilters = ({
                             {STAGES.map(stage => (
                                 <FilterChip key={stage} selected={filters.stages.includes(stage)} onClick={() => toggleInList('stages', stage)}>
                                     {stage}
+                                </FilterChip>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Possibilidade de faturamento */}
+                    <div className={styles.filterGroup}>
+                        <span className={styles.filterGroupLabel}><TrendingUp size={14} /> Faturamento</span>
+                        <div className={styles.filterChips}>
+                            <FilterChip selected={filters.billingProbabilities.length === 0} onClick={() => handleFilterChange('billingProbabilities', [])}>
+                                Todas
+                            </FilterChip>
+                            {BILLING_PROBABILITIES.map(prob => (
+                                <FilterChip key={prob.value} selected={filters.billingProbabilities.includes(prob.value)} onClick={() => toggleInList('billingProbabilities', prob.value)}>
+                                    <span className={styles.probDot} style={{ background: prob.color }} aria-hidden="true" />
+                                    {prob.label}
                                 </FilterChip>
                             ))}
                         </div>
