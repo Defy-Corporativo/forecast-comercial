@@ -92,9 +92,9 @@ const Opportunities = () => {
         try {
             let data;
             if (groupMode === 'flat') {
-                data = await opportunityService.getOpportunitiesFlat(user.id);
+                data = await opportunityService.getOpportunitiesFlat(user.id, { includeArchived: true });
             } else {
-                data = await opportunityService.getOpportunities(user.id);
+                data = await opportunityService.getOpportunities(user.id, { includeArchived: true });
             }
             setOpportunities(data || []);
             // Initial filter will be applied via useMemo
@@ -363,9 +363,10 @@ const Opportunities = () => {
                                         type="button"
                                         className={styles.secondaryAction}
                                         onClick={() => setShowExportMenu(open => !open)}
+                                        disabled={showArchived}
                                         aria-haspopup="menu"
                                         aria-expanded={showExportMenu}
-                                        title="Exportar a lista com os filtros aplicados"
+                                        title={showArchived ? 'Arquivadas não entram em relatórios' : 'Exportar a lista com os filtros aplicados'}
                                     >
                                         <Download size={16} />
                                         <span className={styles.btnLabel}>Exportar</span>
@@ -506,9 +507,9 @@ const Opportunities = () => {
                             try {
                                 let data;
                                 if (groupMode === 'flat') {
-                                    data = await opportunityService.getOpportunitiesFlat(user.id);
+                                    data = await opportunityService.getOpportunitiesFlat(user.id, { includeArchived: true });
                                 } else {
-                                    data = await opportunityService.getOpportunities(user.id);
+                                    data = await opportunityService.getOpportunities(user.id, { includeArchived: true });
                                 }
                                 setOpportunities(data || []);
                             } catch (error) {
@@ -525,9 +526,9 @@ const Opportunities = () => {
                             try {
                                 let data;
                                 if (groupMode === 'flat') {
-                                    data = await opportunityService.getOpportunitiesFlat(user.id);
+                                    data = await opportunityService.getOpportunitiesFlat(user.id, { includeArchived: true });
                                 } else {
-                                    data = await opportunityService.getOpportunities(user.id);
+                                    data = await opportunityService.getOpportunities(user.id, { includeArchived: true });
                                 }
                                 setOpportunities(data || []);
                             } catch (error) {

@@ -40,7 +40,8 @@ export const opportunityActionsService = {
                     client_name,
                     is_goal,
                     is_potential,
-                    display_priority
+                    display_priority,
+                    custom_data
                 )
             `)
             .order('created_at', { ascending: false });
@@ -60,9 +61,9 @@ export const opportunityActionsService = {
         const { data, error } = await query;
         if (error) throw error;
 
-        // Filter out actions from goal opportunities (meta)
+        // Fora: ações de metas e de oportunidades arquivadas
         return (data || []).filter(action =>
-            action.opportunity && !action.opportunity.is_goal
+            action.opportunity && !action.opportunity.is_goal && !action.opportunity.custom_data?.archived_at
         );
     },
 
@@ -195,7 +196,8 @@ export const opportunityActionsService = {
                     client_name,
                     is_goal,
                     is_potential,
-                    display_priority
+                    display_priority,
+                    custom_data
                 )
             `)
             .eq('responsible', responsibleName)
@@ -203,9 +205,9 @@ export const opportunityActionsService = {
 
         if (error) throw error;
 
-        // Filter out actions from goal opportunities (meta)
+        // Fora: ações de metas e de oportunidades arquivadas
         return (data || []).filter(action =>
-            action.opportunity && !action.opportunity.is_goal
+            action.opportunity && !action.opportunity.is_goal && !action.opportunity.custom_data?.archived_at
         );
     },
 

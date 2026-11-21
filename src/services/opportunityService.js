@@ -6,6 +6,12 @@ const OPPORTUNITY_NUMBER_PADDING = 7
 const OPPORTUNITY_NUMBER_MAX_ATTEMPTS = 100
 const OPPORTUNITY_NUMBER_PAGE_SIZE = 1000
 
+// Arquivada = fora de forecast, painel, relatórios e ações; desarquivar devolve tudo como estava
+export const isArchivedOpportunity = (opp) => Boolean(opp?.custom_data?.archived_at)
+
+const withoutArchived = (rows, filters) =>
+    filters.includeArchived ? (rows || []) : (rows || []).filter(opp => !isArchivedOpportunity(opp))
+
 const formatOpportunityNumber = (sequence) =>
     `${OPPORTUNITY_NUMBER_PREFIX}${String(sequence).padStart(OPPORTUNITY_NUMBER_PADDING, '0')}`
 
@@ -141,7 +147,7 @@ export const opportunityService = {
         }
 
         // Calculate totals for each opportunity and flatten tags
-        return (data || []).map(opp => ({
+        return withoutArchived(data, filters).map(opp => ({
             ...opp,
             total_value: (opp.forecasts || []).reduce((sum, f) => sum + parseFloat(f.estimated_value || 0), 0),
             forecast_count: (opp.forecasts || []).length,
@@ -233,7 +239,7 @@ export const opportunityService = {
 
         // Flatten: create one row per forecast
         const flattened = [];
-        (data || []).forEach(opp => {
+        withoutArchived(data, filters).forEach(opp => {
             const forecasts = opp.forecasts || [];
             const tagList = (opp.tags || []).map(t => t.tag).filter(Boolean);
             const notesList = opp.notes || [];
